@@ -51,14 +51,19 @@ func _load_marduk_animation_library() -> void:
 	loader.apply(self, "mob", mob_id)
 
 func _attach_nameplate() -> void:
-	# Lazily attach a nameplate so prestige badges show above mobs and bosses.
-	if has_node("Nameplate"):
+	# Lazily attach a WoW-style nameplate (HP bar mesh + name label +
+	# target highlight ring). Bosses get the boss color (orange) and a
+	# bigger plate; regular hostile mobs get red.
+	if has_node("WowNameplate"):
 		return
-	var np := preload("res://scripts/ui/nameplate.gd").new()
-	np.name = "Nameplate"
+	var np_script: GDScript = load("res://scripts/ui/hud_components/wow_nameplate.gd")
+	if np_script == null:
+		return
+	var np = np_script.new()
+	np.name = "WowNameplate"
 	np.actor = self
-	np.show_prestige_badge = true
-	np.show_posture_bar = self is BossBase
+	np.position = Vector3(0, 2.2, 0)
+	np.hostility = 3 if (self is BossBase) else 0
 	add_child(np)
 
 func _apply_prestige_scaling() -> void:

@@ -56,6 +56,20 @@ func _ready() -> void:
 	# Boss bar — built procedurally so we don't need a separate .tscn.
 	boss_bar = _build_boss_bar()
 	$Root.add_child(boss_bar)
+	# WoW-style ability bar (bottom center)
+	var ab_script: GDScript = load("res://scripts/ui/hud_components/wow_ability_bar.gd")
+	if ab_script:
+		var ability_bar := Control.new()
+		ability_bar.set_script(ab_script)
+		ability_bar.name = "WowAbilityBar"
+		$Root.add_child(ability_bar)
+	# WoW-style minimap (top right)
+	var mm_script: GDScript = load("res://scripts/ui/hud_components/wow_minimap.gd")
+	if mm_script:
+		var minimap := Control.new()
+		minimap.set_script(mm_script)
+		minimap.name = "WowMinimap"
+		$Root.add_child(minimap)
 	# Toast container for pickup notifications
 	_setup_toast_layer()
 	if player.has_signal("item_collected"):

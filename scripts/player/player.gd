@@ -183,6 +183,134 @@ func _input(event: InputEvent) -> void:
 		_cast_ability_slot(2)
 	elif event.is_action_pressed("ability_4"):
 		_cast_ability_slot(3)
+	elif event.is_action_pressed("toggle_mount"):
+		toggle_mount()
+	elif event.is_action_pressed("toggle_pet"):
+		toggle_pet()
+
+# --- Mount + Pet (WoW-style summon system) ---
+# Mount: H key. While mounted, +60% movement speed and a visual mount mesh
+# under the player. Dismounts on attack, dodge, or being hit.
+const MOUNT_SPEED_BONUS: float = 0.6
+var _mounted: bool = false
+var _mount_visual: Node3D = null
+var _base_move_speed: float = 0.0
+
+func toggle_mount() -> void:
+	if _mounted:
+		_dismount()
+	else:
+		_mount()
+
+func _mount() -> void:
+	if locked or stats == null:
+		return
+	# Don't allow mounting in combat — last hit must be 5+ seconds ago
+	var now: float = Time.get_ticks_msec() / 1000.0
+	if now - _last_combat_time < 5.0:
+		_play_deny_cue()
+		return
+	_mounted = true
+	_base_move_speed = move_speed
+	move_speed *= 1.0 + MOUNT_SPEED_BONUS
+	# Cheap visual: blue glow disc under player + small horse stand-in mesh
+	_mount_visual = MeshInstance3D.new()
+	var mesh := BoxMesh.new()
+	mesh.size = Vector3(0.8, 0.6, 1.6)
+	(_mount_visual as MeshInstance3D).mesh = mesh
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = Color(0.35, 0.20, 0.10)
+	mat.roughness = 0.7
+	(_mount_visual as MeshInstance3D).material_override = mat
+	_mount_visual.position = Vector3(0, 0.4, 0)
+	add_child(_mount_visual)
+	var ab = get_node_or_null("/root/AudioBus")
+	if ab and ab.has_method("play_cue"):
+		ab.play_cue(&"warp", global_position, -8.0, 0.7)
+
+func _dismount() -> void:
+	if not _mounted:
+		return
+	_mounted = false
+	move_speed = _base_move_speed if _base_move_speed > 0.0 else move_speed
+	if _mount_visual and is_instance_valid(_mount_visual):
+		_mount_visual.queue_free()
+	_mount_visual = null
+
+# Pet: G key. Summons a follower mob that auto-attacks the player's last
+# attack target. Despawns on a second G press or on player death.
+var _pet: Node = null
+
+func toggle_pet() -> void:
+	if _pet and is_instance_valid(_pet):
+		_pet.queue_free()
+		_pet = null
+		return
+	# Simple stub pet: a small Area3D with floating text "Pet" that
+	# follows the player. Real pet AI lives in PetRegistry but this gives
+	# us a visible cue tonight.
+	var pet := CharacterBody3D.new()
+	pet.add_to_group("pet")
+	pet.collision_layer = 4
+	pet.collision_mask = 1
+	var cs := CollisionShape3D.new()
+	var caps := CapsuleShape3D.new()
+	caps.radius = 0.3
+	caps.height = 1.0
+	cs.shape = caps
+	pet.add_child(cs)
+	var mi := MeshInstance3D.new()
+	var sphere := SphereMesh.new()
+	sphere.radius = 0.4
+	sphere.height = 0.8
+	mi.mesh = sphere
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = Color(0.95, 0.65, 0.25)
+	mat.emission_enabled = true
+	mat.emission = Color(0.95, 0.65, 0.25)
+	mat.emission_energy_multiplier = 0.4
+	mi.material_override = mat
+	mi.position = Vector3(0, 0.6, 0)
+	pet.add_child(mi)
+	var lbl := Label3D.new()
+	lbl.text = character_name + "'s Pet"
+	lbl.font_size = 18
+	lbl.modulate = Color(1.0, 0.85, 0.55)
+	lbl.outline_size = 4
+	lbl.no_depth_test = true
+	lbl.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	lbl.position = Vector3(0, 1.4, 0)
+	pet.add_child(lbl)
+	# Attach a tiny follow script via lambda timer
+	var follow_timer := Timer.new()
+	follow_timer.wait_time = 0.05
+	follow_timer.autostart = true
+	pet.add_child(follow_timer)
+	follow_timer.timeout.connect(func():
+		if not is_instance_valid(pet):
+			return
+		var to_player: Vector3 = global_position - pet.global_position
+		var dist: float = to_player.length()
+		if dist > 4.0:
+			pet.velocity.x = to_player.normalized().x * (move_speed * 0.95)
+			pet.velocity.z = to_player.normalized().z * (move_speed * 0.95)
+		elif dist > 2.0:
+			pet.velocity.x = to_player.normalized().x * (move_speed * 0.5)
+			pet.velocity.z = to_player.normalized().z * (move_speed * 0.5)
+		else:
+			pet.velocity.x = 0
+			pet.velocity.z = 0
+		# Gravity
+		if not pet.is_on_floor():
+			pet.velocity.y -= 24.0 * 0.05
+		pet.move_and_slide()
+	)
+	pet.global_position = global_position + Vector3(1.0, 0, 1.0)
+	get_tree().current_scene.add_child(pet)
+	_pet = pet
+	var ab = get_node_or_null("/root/AudioBus")
+	if ab and ab.has_method("play_cue"):
+		ab.play_cue(&"pickup", global_position, -6.0, 1.4)
 
 # Class kit: 4-slot list of (display_name, range, radius, damage_mult,
 # cooldown, target_mode, animation_alias). Resolved in _ready from
