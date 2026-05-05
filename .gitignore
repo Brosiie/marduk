@@ -45,3 +45,6 @@ launcher/target/
 *.pem
 *.key
 secrets/
+
+# Mixamo bulk-download thumbnail turntables (generated alongside .fbx, not used by Godot)
+assets/characters/mixamo/**/*.png
