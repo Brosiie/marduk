@@ -8,14 +8,15 @@ class_name ClassIntros
 # trigger sends them to Ashurim where they meet the other classes for the first time.
 
 const INTRO_BY_CLASS := {
-	&"berserker":            { "zone": &"ash_step_camp",   "mini_boss": &"raid_captain",     "title": "The Last of Ash-Step" },
-	&"assassin":             { "zone": &"whisper_shrine",  "mini_boss": &"corrupt_master",   "title": "The Master's Lie" },
-	&"ronin":                { "zone": &"sword_vow_ruins", "mini_boss": &"usurper_enforcer", "title": "Sword Without Lord" },
-	&"ranger":               { "zone": &"greenheart_glade","mini_boss": &"glade_terror",     "title": "The Spawn That Came Through" },
-	&"mage":                 { "zone": &"inkstone_tower",  "mini_boss": &"tower_warden",     "title": "Pages and Ash" },
-	&"chaos_druid":          { "zone": &"coven_glen",      "mini_boss": &"inquisitor_prime", "title": "The Coven Burned" },
-	&"paladin_guardian":     { "zone": &"sunsworn_chapel", "mini_boss": &"siege_master",     "title": "The Chapel Stood" },
-	&"paladin_lightbringer": { "zone": &"sunsworn_chapel", "mini_boss": &"siege_master",     "title": "The Chapel Wept" },
+	&"berserker":            { "zone": &"ash_step_camp",   "mini_boss": &"raid_captain",       "title": "The Last of Ash-Step" },
+	&"assassin":             { "zone": &"whisper_shrine",  "mini_boss": &"corrupt_master",     "title": "The Master's Lie" },
+	&"ronin":                { "zone": &"sword_vow_ruins", "mini_boss": &"usurper_enforcer",   "title": "Sword Without Lord" },
+	&"ranger":               { "zone": &"greenheart_glade","mini_boss": &"glade_terror",       "title": "The Spawn That Came Through" },
+	&"mage":                 { "zone": &"inkstone_tower",  "mini_boss": &"tower_warden",       "title": "Pages and Ash" },
+	&"chaos_druid":          { "zone": &"coven_glen",      "mini_boss": &"inquisitor_prime",   "title": "The Coven Burned" },
+	&"paladin_guardian":     { "zone": &"sunsworn_chapel", "mini_boss": &"siege_master",       "title": "The Chapel Stood" },
+	&"paladin_lightbringer": { "zone": &"sunsworn_chapel", "mini_boss": &"siege_master",       "title": "The Chapel Wept" },
+	&"demon":                { "zone": &"pyre_ascent",     "mini_boss": &"self_that_said_yes", "title": "The Self That Said Yes" },
 }
 
 const ASHURIM_FLAG := &"reached_ashurim"

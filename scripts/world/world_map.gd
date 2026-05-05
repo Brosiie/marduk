@@ -181,6 +181,20 @@ func _register_class_intros() -> void:
 	pz.intro_for_class = &"paladin"  # spec_group_id; both paladin specs intro here
 	pz.encounter_table = [&"siege_lieutenant", &"chapel_breaker", &"siege_master"]
 
+	# DEMON intro: The Pyre-Ascent. Player wakes after Lucifer's defeat, half-mortal,
+	# and climbs the Fire Stair back up. The Self-That-Said-Yes blocks the way.
+	# This zone only exists for characters with `demon_class_unlocked` permanent flag.
+	var demonz := _make(&"pyre_ascent", "The Pyre-Ascent",
+		Zone.Region.FIRE_STAIR, Zone.SafetyTier.HOSTILE, 1, 5, 1,
+		Color(0.95, 0.30, 0.10), Color(1.0, 0.55, 0.20),
+		"You wake on a basalt step warm enough to char a hand that wasn't yours yesterday. Above you the stair winds up. Below you a glow that no longer offers anything. The wind smells of sulphur and forgiven things. Climb. The version of you that took the offer is up there too, and they have been waiting longer than you remember being awake.",
+		[&"sun_gate"], "res://scenes/world/intros/pyre_ascent.tscn")
+	demonz.is_class_intro = true
+	demonz.intro_for_class = &"demon"
+	demonz.required_permanent_flag = &"demon_class_unlocked"
+	demonz.lock_hint = "Sealed. The Stair only opens for those who have already walked it once."
+	demonz.encounter_table = [&"fall_servant", &"silver_negotiator", &"self_that_said_yes"]
+
 func _register_ashurim() -> void:
 	# Convergence town. All classes funnel here at level 5 after their mini-boss.
 	var z := _make(&"ashurim", "Ashurim",

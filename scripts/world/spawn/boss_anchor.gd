@@ -39,61 +39,91 @@ func spawn_boss() -> void:
 
 func _build_patterns(id: StringName) -> Array[BossAttackPattern]:
 	var arr: Array[BossAttackPattern] = []
+	# Pattern weights tuned for read-and-react feel:
+	#   - common attacks: 6-8 (fire often, teach the player the moveset)
+	#   - mid specials:  3-4 (force adaptation)
+	#   - capstone/arena: 1   (rare, climactic, memorable)
 	match id:
 		&"usurper_enforcer":
 			arr.append(_p(&"kazat_iron_swing", "Iron Swing",
 				BossAttackPattern.Shape.FORWARD_CONE,
-				1.0, 0.25, 0.7, 4.0,
-				90.0, 0, 4.0, 1.4))
+				1.0, 0.25, 0.7, 4.0, 90.0, 0, 4.0, 1.4, 0, 99, 7.0))
 			arr.append(_p(&"kazat_ground_slam", "Ground Slam",
 				BossAttackPattern.Shape.AOE_AROUND_BOSS,
-				1.4, 0.30, 1.0, 8.0,
-				140.0, 0, 6.0, 4.5))
+				1.4, 0.30, 1.0, 8.0, 140.0, 0, 6.0, 4.5, 0, 99, 3.0))
 			arr.append(_p(&"kazat_charge_line", "Iron Charge",
 				BossAttackPattern.Shape.LINE,
-				0.6, 0.40, 1.2, 12.0,
-				120.0, 0, 9.0, 1.0))
+				0.6, 0.40, 1.2, 12.0, 120.0, 0, 9.0, 1.0, 0, 99, 2.0))
 		&"raid_captain":
 			arr.append(_p(&"hassu_hook_thrust", "Hook Thrust",
 				BossAttackPattern.Shape.LINE, 0.6, 0.20, 0.6, 5.0,
-				75.0, 0, 6.0, 0.8))
+				75.0, 0, 6.0, 0.8, 0, 99, 8.0))
 			arr.append(_p(&"hassu_sweep", "Hook Sweep",
 				BossAttackPattern.Shape.FORWARD_CONE, 1.0, 0.30, 0.9, 7.0,
-				90.0, 0, 4.5, 2.0))
+				90.0, 0, 4.5, 2.0, 0, 99, 4.0))
+		&"siege_master":
+			# Paladin intro mini-boss. Beleti the Siege-Master fights with hammer + shield-bash.
+			arr.append(_p(&"beleti_hammer_swing", "Hammer Swing",
+				BossAttackPattern.Shape.FORWARD_CONE, 0.9, 0.22, 0.6, 3.5,
+				85.0, 0, 3.5, 1.6, 0, 99, 8.0))
+			arr.append(_p(&"beleti_shield_bash", "Shield Bash",
+				BossAttackPattern.Shape.SINGLE_TARGET, 0.6, 0.15, 0.5, 5.0,
+				65.0, 0, 2.5, 1.0, 0, 99, 5.0))
+			arr.append(_p(&"beleti_overhead_slam", "Overhead Slam",
+				BossAttackPattern.Shape.AOE_GROUND, 1.5, 0.30, 1.0, 9.0,
+				150.0, 0, 4.0, 3.5, 0, 99, 2.0))
+		&"self_that_said_yes":
+			# Demon intro mini-boss. A reflection of the player who took Lucifer's deal.
+			# Mimics player abilities; uses every shape. Hard fight by design.
+			arr.append(_p(&"reflection_strike", "Reflection Strike",
+				BossAttackPattern.Shape.SINGLE_TARGET, 0.5, 0.18, 0.4, 3.0,
+				100.0, 6, 3.5, 1.0, 0, 99, 7.0))
+			arr.append(_p(&"reflection_void_arc", "Void Arc",
+				BossAttackPattern.Shape.FORWARD_CONE, 0.9, 0.30, 0.7, 5.0,
+				140.0, 7, 5.5, 2.5, 0, 99, 4.0))
+			arr.append(_p(&"reflection_pillar_of_fire", "Pillar of the Yes",
+				BossAttackPattern.Shape.AOE_GROUND, 1.6, 0.30, 1.0, 12.0,
+				220.0, 2, 10.0, 4.0, 0, 99, 2.0))
+			arr.append(_p(&"reflection_word_of_unmaking", "Word of Unmaking",
+				BossAttackPattern.Shape.ARENA_WIDE, 3.5, 0.5, 2.5, 60.0,
+				500.0, 6, 30.0, 4.0, 0, 99, 1.0, 0.30))
 		&"tiamat":
-			# Three-phase mother-of-monsters
+			# Three-phase mother-of-monsters. Phase 0 attacks weight high, phase 2 capstones weight 1.
 			arr.append(_p(&"tia_drown_grasp", "Drowning Grasp",
 				BossAttackPattern.Shape.SINGLE_TARGET, 0.8, 0.25, 0.8, 6.0,
-				180.0, 0, 4.0, 1.0, 0, 0))
+				180.0, 0, 4.0, 1.0, 0, 0, 8.0))
 			arr.append(_p(&"tia_arcane_pulse", "Arcane Pulse",
 				BossAttackPattern.Shape.AOE_AROUND_BOSS, 1.6, 0.40, 1.2, 12.0,
-				260.0, 1, 8.0, 8.0, 1, 2))
+				260.0, 1, 8.0, 8.0, 1, 2, 5.0))
 			arr.append(_p(&"tia_breath_cone", "Mother's Breath",
 				BossAttackPattern.Shape.FORWARD_CONE, 2.0, 0.50, 1.5, 18.0,
-				420.0, 2, 14.0, 4.0, 2, 2))
+				420.0, 2, 14.0, 4.0, 2, 2, 3.0))
 			arr.append(_p(&"tia_arena_wave", "World-Wave",
 				BossAttackPattern.Shape.ARENA_WIDE, 3.0, 0.5, 2.0, 30.0,
-				600.0, 0, 30.0, 2.0, 2, 2))
+				600.0, 0, 30.0, 2.0, 2, 2, 1.0, 0.50))
 		&"lucifer":
 			arr.append(_p(&"luc_diplomatic_strike", "Diplomatic Strike",
 				BossAttackPattern.Shape.SINGLE_TARGET, 0.7, 0.20, 0.6, 4.0,
-				200.0, 6, 3.5, 1.0, 0, 0))
+				200.0, 6, 3.5, 1.0, 0, 0, 8.0))
 			arr.append(_p(&"luc_hellfire_cone", "Hellfire Cone",
 				BossAttackPattern.Shape.FORWARD_CONE, 1.5, 0.45, 1.2, 10.0,
-				340.0, 2, 10.0, 5.0, 1, 2))
+				340.0, 2, 10.0, 5.0, 1, 2, 5.0))
 			arr.append(_p(&"luc_fall_pillar", "Pillar of the Fall",
 				BossAttackPattern.Shape.AOE_GROUND, 1.8, 0.40, 1.0, 14.0,
-				420.0, 6, 8.0, 6.0, 1, 2))
+				420.0, 6, 8.0, 6.0, 1, 2, 4.0))
 			arr.append(_p(&"luc_arena_inferno", "Arena Inferno",
 				BossAttackPattern.Shape.ARENA_WIDE, 4.0, 0.6, 2.5, 40.0,
-				700.0, 2, 35.0, 3.0, 2, 2))
+				700.0, 2, 35.0, 3.0, 2, 2, 1.0, 0.40))
 	return arr
 
 # Compact factory for an attack pattern.
+# weight: priority for weighted-random selection (default 5.0)
+# hp_below: requires_hp_below_pct (1.0 = always available, 0.30 = "desperation")
 func _p(id: StringName, name: String, shape: int,
 		windup: float, execute: float, recovery: float, cd: float,
 		dmg: float, dmg_type: int, range_m: float, radius_m: float,
-		min_phase: int = 0, max_phase: int = 99) -> BossAttackPattern:
+		min_phase: int = 0, max_phase: int = 99,
+		weight: float = 5.0, hp_below: float = 1.0) -> BossAttackPattern:
 	var p := BossAttackPattern.new()
 	p.id = id
 	p.display_name = name
@@ -108,4 +138,9 @@ func _p(id: StringName, name: String, shape: int,
 	p.radius = radius_m
 	p.min_phase = min_phase
 	p.max_phase = max_phase
+	p.priority_weight = weight
+	p.requires_hp_below_pct = hp_below
+	# Arena-wide patterns ignore reachability by default
+	if shape == BossAttackPattern.Shape.ARENA_WIDE:
+		p.ignores_reachability = true
 	return p

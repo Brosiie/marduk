@@ -103,23 +103,64 @@ func _tick_attack_pattern_ai(_delta: float) -> void:
 		_begin_pattern(pattern, now)
 
 func _select_pattern(now: float) -> BossAttackPattern:
-	if attack_patterns.is_empty():
+	# Hybrid selection (locked design):
+	#   1. Filter by phase + cooldown + HP-gate + reachability
+	#   2. Weighted random across the survivors using `priority_weight`
+	#
+	# Weighted random gives designers per-pattern frequency control without
+	# making the boss feel like an algorithm. Reachability filter prevents
+	# the boss from committing to a single-target attack on a player who
+	# just dodged out of range, which would feel like AI tunnel vision.
+	if attack_patterns.is_empty() or not target:
 		return null
-	var dist := global_position.distance_to(target.global_position) if target else 999.0
+
+	var dist := global_position.distance_to(target.global_position)
+	var hp_pct := hp / max_hp
 	var candidates: Array[BossAttackPattern] = []
+	var weights: Array[float] = []
+	var total_weight := 0.0
+
 	for p: BossAttackPattern in attack_patterns:
+		# Phase gate
 		if current_phase_index < p.min_phase or current_phase_index > p.max_phase:
 			continue
+		# Cooldown
 		if now < float(_pattern_cooldowns.get(p.id, 0.0)):
 			continue
-		if p.shape in [BossAttackPattern.Shape.SINGLE_TARGET, BossAttackPattern.Shape.FORWARD_CONE,
-				BossAttackPattern.Shape.LINE]:
-			if dist > p.range + 1.5:
-				continue
+		# HP threshold gate (eg desperation patterns)
+		if hp_pct > p.requires_hp_below_pct:
+			continue
+		# Reachability filter: skip patterns that can't land from current position.
+		# Arena-wide and ground-targeted attacks always count as reachable.
+		if not p.ignores_reachability:
+			match p.shape:
+				BossAttackPattern.Shape.SINGLE_TARGET, \
+				BossAttackPattern.Shape.FORWARD_CONE, \
+				BossAttackPattern.Shape.LINE:
+					if dist > p.range + 1.5:
+						continue
+				BossAttackPattern.Shape.AOE_AROUND_BOSS:
+					# Pointless if player is way outside the radius
+					if dist > p.radius + 8.0:
+						continue
+				BossAttackPattern.Shape.PROJECTILE:
+					if dist > p.range + 5.0:
+						continue
 		candidates.append(p)
-	if candidates.is_empty():
+		weights.append(p.priority_weight)
+		total_weight += p.priority_weight
+
+	if candidates.is_empty() or total_weight <= 0.0:
 		return null
-	return candidates[randi() % candidates.size()]
+
+	# Weighted-random pick
+	var roll := randf() * total_weight
+	var acc := 0.0
+	for i in range(candidates.size()):
+		acc += weights[i]
+		if roll <= acc:
+			return candidates[i]
+	return candidates[candidates.size() - 1]  # fallback
 
 func _begin_pattern(p: BossAttackPattern, now: float) -> void:
 	_current_pattern = p

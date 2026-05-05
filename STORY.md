@@ -116,6 +116,29 @@ If you walk to the apse first, you become a **Lightbringer**. Mail, shield, cere
 
 Either way, the siege-master Beleti dies tonight. The chapel-master either lives or doesn't. You learn very early that you cannot be in both places at once.
 
+### Demon - The Self That Said Yes
+**Intro zone:** The Pyre-Ascent (Fire Stair, lvl 1-5).
+**Mini-boss:** The Self-That-Said-Yes.
+**Unlocked by:** Defeating Lucifer at least once on this save profile.
+
+This is the only intro that is not a fresh start. You have been here before, in another shape. You climbed down the Fire Stair as a Ronin, or a Mage, or a Berserker, and you defeated Lucifer, and you refused his offer.
+
+Then you took it anyway.
+
+You wake on a basalt step warm enough to char a hand that wasn't yours yesterday. Above you the stair winds up toward the Sun Gate. Below you a red glow that no longer offers anything. Your old class's clothes do not fit. Your old class's face is gone. The wind smells of sulphur and forgiven things.
+
+You climb. The Stair narrows. At a turn near the top something is sitting on a step like a person waiting for a friend. They look up.
+
+It is you.
+
+Not the you that got back up. The other you. The one who said yes. They have been waiting here a long time, in the way of things that do not measure time the way mortals do. They wear your old armor. They have your old sword. They mimic your old abilities, but every move comes a half-second slower because they have not been moving these limbs as long as you have.
+
+The fight is not difficult. Killing the Self-That-Said-Yes is mercy. It is the version of you that you owe something to.
+
+Climb the rest of the way. The Sun Gate above is closed but not sealed. You step through. You are at the Black Citadel's throne hall. The skull is on the floor where you left it. The Storyteller is sitting on the bench by the wall. She nods.
+
+You are at level 5. You go to Ashurim. You do not look like the others, but the Storyteller introduces you anyway.
+
 ### Chaos Druid - The Coven Burned
 **Intro zone:** The Coven Glen.
 **Mini-boss:** Inquisitor Prime Sahirum, called Witch-Burner.

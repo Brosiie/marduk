@@ -226,6 +226,24 @@ Classes are data, not subclasses. Defined in `scripts/classes/class_registry.gd`
 
 Each class carries: base stats, per-level growth, primary attribute, **resource mechanic**, starting abilities, skill tree, optional shapeshift forms (Druid only), and optional unlock gating (Demon only).
 
+### Class Prologues (level 1-5, all converge at Ashurim)
+
+Every class has its own intro zone, mini-boss, and chapter title. The Storyteller in Ashurim recognizes you when you arrive. Full lore in [STORY.md](STORY.md).
+
+| Class | Intro Zone | Mini-Boss | Chapter |
+|-------|-----------|-----------|---------|
+| Berserker | The Ash-Step Camp | Hassu the Hooked | The Last of Ash-Step |
+| Assassin | The Whisper Shrine | Master Sapum, Five-Mouthed | The Master's Lie |
+| Ronin | The Sword-Vow Ruins | Enforcer Kazat, Iron-Faced | Sword Without Lord |
+| Ranger | The Greenheart Glade | The Glade Terror | The Spawn That Came Through |
+| Mage | The Inkstone Tower | The Tower Warden | Pages and Ash |
+| Chaos Druid | The Coven Glen | Sahirum the Witch-Burner | The Coven Burned |
+| **Paladin Guardian** | The Sun-Sworn Chapel | Beleti the Siege-Master | The Chapel Stood |
+| **Paladin Lightbringer** | The Sun-Sworn Chapel | Beleti the Siege-Master | The Chapel Wept |
+| **Demon** (locked) | The Pyre-Ascent (Fire Stair) | The Self-That-Said-Yes | The Self That Said Yes |
+
+The Demon intro is unique: it's only available to characters created **after** another character on the same save profile has defeated Lucifer. The Demon player wakes at the bottom of the Fire Stair, climbs back up, and confronts the version of themselves who would have accepted Lucifer's offer.
+
 ### Armor Types (4 tiers)
 
 Cloth (cloth-only mages) < Leather (rogues, rangers, druids, ronin) < Mail (rangers, paladin healer) < Plate (berserkers, demon, paladin guardian).

@@ -41,6 +41,17 @@ enum Shape {
 @export var min_phase: int = 0   # 0 = available from start; bumps to phase index
 @export var max_phase: int = 99  # last phase that can use this attack
 
+@export_group("Selection Tuning")
+# Higher weight = more likely to fire each cycle. Common attacks weight 5-10,
+# climactic capstones weight 1. Tiamat's "World-Wave" stays rare even on cooldown.
+@export var priority_weight: float = 5.0
+# Minimum phase HP the boss must be below to use this. Lets you reserve attacks
+# for desperate moments without changing phase index.
+@export var requires_hp_below_pct: float = 1.0
+# If true, this pattern is allowed even when the boss can't currently land it
+# (used for AOE arena-wide patterns that hit anywhere).
+@export var ignores_reachability: bool = false
+
 @export_group("Telegraph")
 @export var telegraph_color: Color = Color(1.0, 0.3, 0.3, 0.5)  # red ground decal
 @export var telegraph_sound_id: StringName = &""

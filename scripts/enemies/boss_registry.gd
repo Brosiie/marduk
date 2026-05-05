@@ -78,6 +78,10 @@ func _register_class_intro_minibosses() -> void:
 		"What was bound around the breach, now broken loose. It still wears its old binding-rings like teeth.")
 	_make(&"inquisitor_prime", "Sahirum the Witch-Burner", 5, &"coven_glen",
 		"Inquisition Prime. Burned the women who taught you to be more than human. Will burn you next.")
+	_make(&"siege_master", "Beleti the Siege-Master", 5, &"sunsworn_chapel",
+		"Captain of the band besieging the Sun-Sworn Chapel. Paid by silver, not faith. Hammer in one hand, shield in the other, and no quarrel with you personally - which is precisely the problem.")
+	_make(&"self_that_said_yes", "The Self-That-Said-Yes", 5, &"pyre_ascent",
+		"What you would have become if you had taken Lucifer's offer. Same face, same hands, same memories. Different choice. The reflection wears your old armor and mimics your old abilities, but every move is a half-second slower. Killing it kills the version of you it was.")
 
 # ----------------------------------------------------------------
 # 9 MAIN BOSSES (lvl 9, 19, 29, 39, 49, 59, 69, 79, 89)

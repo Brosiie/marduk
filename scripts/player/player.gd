@@ -89,6 +89,49 @@ func _ready() -> void:
 		resource_value = stats.class_def.resource_max if stats.class_def.resource_mechanic == &"mana" else 0.0
 	_camera_basis_provider = get_tree().get_first_node_in_group("camera_rig")
 
+func _input(event: InputEvent) -> void:
+	# Basic attack: LMB swings a forward cone hitbox in front of the mesh.
+	# This is the always-available fallback ability before any class-specific
+	# ability is bound to a slot. Damage scales with primary attribute.
+	if event.is_action_pressed("attack_basic"):
+		_perform_basic_attack()
+
+func _perform_basic_attack() -> void:
+	if locked or not stats or not stats.class_def:
+		return
+	# Build a tiny inline ability for the basic swing
+	var swing := Ability.new()
+	swing.id = &"basic_attack"
+	swing.display_name = "Basic Attack"
+	swing.base_damage = 18.0 + float(stats.strength) * 0.6 + float(stats.dexterity) * 0.4
+	swing.damage_type = Ability.DamageType.PHYSICAL
+	swing.target_mode = Ability.TargetMode.FORWARD_CONE
+	swing.range = 2.6
+	swing.radius = 1.4
+	swing.attribute_scaling = 0.3
+	swing.cooldown = 0.45
+	swing.cost_resource = &""  # free
+
+	# Spawn a hitbox the same way AbilityRunner does
+	var hb := preload("res://scripts/combat/hitbox.gd").new()
+	hb.ability = swing
+	hb.attacker_stats = stats
+	hb.lifetime = 0.18
+	hb.team = &"player"
+	var collider := CollisionShape3D.new()
+	hb.add_child(collider)
+	var b := BoxShape3D.new()
+	b.size = Vector3(swing.radius * 2.0, 2.0, swing.range)
+	collider.shape = b
+	var fwd := -mesh.global_transform.basis.z if mesh else -global_transform.basis.z
+	fwd.y = 0; fwd = fwd.normalized()
+	hb.position = global_position + fwd * (swing.range * 0.5)
+	hb.look_at(global_position + fwd * swing.range, Vector3.UP)
+	get_tree().current_scene.add_child(hb)
+
+	# Build rage / refresh combat timer
+	on_combat_event(2.0)
+
 func _physics_process(delta: float) -> void:
 	if locked:
 		velocity.x = 0
