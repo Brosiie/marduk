@@ -11,7 +11,8 @@
 [ext_resource type="Shader" path="res://shaders/toon.gdshader" id="4_toon"]
 [ext_resource type="Script" path="res://scripts/world/spawn/spawner.gd" id="5_spawner"]
 [ext_resource type="Script" path="res://scripts/world/spawn/boss_anchor.gd" id="6_boss_anchor"]
-[ext_resource type="PackedScene" path="res://assets/characters/kaykit/Characters/gltf/Knight.glb" id="7_knight"]
+[ext_resource type="PackedScene" path="res://assets/characters/kaykit/Characters/gltf/Rogue.glb" id="7_ronin"]
+[ext_resource type="PackedScene" path="res://assets/characters/kaykit/Assets/gltf/sword_1handed.gltf" id="8_katana"]
 
 [sub_resource type="PlaneMesh" id="floor_mesh"]
 size = Vector2(80, 80)
@@ -120,8 +121,14 @@ shape = SubResource("player_shape")
 
 [node name="MeshRoot" type="Node3D" parent="Player"]
 
-[node name="KnightMesh" parent="Player/MeshRoot" instance=ExtResource("7_knight")]
+[node name="RoninMesh" parent="Player/MeshRoot" instance=ExtResource("7_ronin")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
+
+[node name="KatanaSocket" type="Node3D" parent="Player/MeshRoot"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.45, 1.0, 0.2)
+
+[node name="KatanaMesh" parent="Player/MeshRoot/KatanaSocket" instance=ExtResource("8_katana")]
+transform = Transform3D(0.0, 0.7071, 0.7071, 0.0, -0.7071, 0.7071, 1.0, 0.0, 0.0, 0, 0, 0)
 
 [node name="CameraRig" type="Node3D" parent="."]
 script = ExtResource("2_cam")

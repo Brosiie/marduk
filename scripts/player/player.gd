@@ -11,7 +11,21 @@ class_name Player
 @export var jump_velocity: float = 8.0
 
 @onready var mesh: Node3D = $MeshRoot
-@onready var anim_player: AnimationPlayer = $MeshRoot/AnimationPlayer if has_node("MeshRoot/AnimationPlayer") else null
+var anim_player: AnimationPlayer = null
+
+# Maps our generic animation slots to whatever the imported character provides.
+# KayKit Adventurers ships with: Idle, Idle_Combat, Walking_A, Running_A,
+# 1H_Melee_Attack_Slice_Diagonal, Dodge_Forward, Death_A, etc.
+const ANIM_ALIASES := {
+	"idle":   ["idle", "Idle", "Idle_Combat", "T-Pose", "Static"],
+	"walk":   ["walk", "Walking_A", "Walking_B", "Walking_C", "Run_Casual"],
+	"run":    ["run", "Running_A", "Running_B", "Running_Strafe_Right"],
+	"attack": ["attack", "1H_Melee_Attack_Slice_Diagonal", "1H_Melee_Attack_Slice_Horizontal", "1H_Melee_Attack_Chop", "Unarmed_Melee_Attack_Punch_A"],
+	"dodge":  ["dodge", "Dodge_Forward", "Dodge_Right", "Cheer"],
+	"die":    ["die", "Death_A", "Death_A_Pose", "Death_B"],
+	"hit":    ["hit", "Hit_A", "Hit_B"],
+	"jump":   ["jump", "Jump_Full_Long", "Jump_Start"],
+}
 
 var _camera_basis_provider: Node3D
 var input_dir: Vector3 = Vector3.ZERO
@@ -85,9 +99,45 @@ func _ready() -> void:
 	if not stats:
 		stats = PlayerStats.new()
 		stats.recompute_derived()
+	# Force-fresh HP/mana so HUD doesn't show stale values from the ProgressBar defaults
+	stats.hp = stats.max_hp
+	stats.mana = stats.max_mana
 	if stats.class_def:
 		resource_value = stats.class_def.resource_max if stats.class_def.resource_mechanic == &"mana" else 0.0
 	_camera_basis_provider = get_tree().get_first_node_in_group("camera_rig")
+	# Find the imported AnimationPlayer wherever it lives in the mesh hierarchy.
+	# KayKit .glbs put AnimationPlayer inside the imported scene root, not directly under MeshRoot.
+	anim_player = _find_animation_player(self)
+	# Resolve our generic animation aliases to whatever names the imported character uses.
+	_resolve_anim_alias_map()
+	# Loop the idle animation by default
+	if anim_player:
+		var idle_name: String = _resolved_anims.get("idle", "")
+		if idle_name != "" and anim_player.has_animation(idle_name):
+			anim_player.play(idle_name)
+
+var _resolved_anims: Dictionary = {}  # generic key -> actual animation name in this character
+
+func _find_animation_player(node: Node) -> AnimationPlayer:
+	if node is AnimationPlayer:
+		return node as AnimationPlayer
+	for child in node.get_children():
+		var found := _find_animation_player(child)
+		if found:
+			return found
+	return null
+
+func _resolve_anim_alias_map() -> void:
+	_resolved_anims.clear()
+	if not anim_player:
+		return
+	var available: PackedStringArray = anim_player.get_animation_list()
+	for slot_name in ANIM_ALIASES.keys():
+		var aliases: Array = ANIM_ALIASES[slot_name]
+		for alias in aliases:
+			if alias in available:
+				_resolved_anims[slot_name] = String(alias)
+				break
 
 func _input(event: InputEvent) -> void:
 	# Basic attack: LMB swings a forward cone hitbox in front of the mesh.
@@ -97,8 +147,16 @@ func _input(event: InputEvent) -> void:
 		_perform_basic_attack()
 
 func _perform_basic_attack() -> void:
-	if locked or not stats or not stats.class_def:
+	# Always-available fallback swing. Doesn't require a class_def so a fresh
+	# Player (no class assigned yet) can still hit things in the demo arena.
+	if locked or not stats:
 		return
+	# Play attack animation if available
+	if anim_player:
+		var atk_name: String = _resolved_anims.get("attack", "")
+		if atk_name != "":
+			anim_player.stop()
+			anim_player.play(atk_name)
 	# Build a tiny inline ability for the basic swing
 	var swing := Ability.new()
 	swing.id = &"basic_attack"
@@ -111,6 +169,9 @@ func _perform_basic_attack() -> void:
 	swing.attribute_scaling = 0.3
 	swing.cooldown = 0.45
 	swing.cost_resource = &""  # free
+	# Strength/dex damage scaling falls back to baseline if class_def is null
+	if not stats.class_def:
+		swing.base_damage = 25.0  # solid baseline so demo combat works without a class
 
 	# Spawn a hitbox the same way AbilityRunner does
 	var hb := preload("res://scripts/combat/hitbox.gd").new()
@@ -293,10 +354,14 @@ func _apply_vertical(delta: float) -> void:
 func _update_animation() -> void:
 	if not anim_player:
 		return
-	var moving := Vector2(velocity.x, velocity.z).length() > 0.5 and is_on_floor()
-	var want := "walk" if moving else "idle"
-	if anim_player.has_animation(want) and anim_player.current_animation != want:
-		anim_player.play(want)
+	var moving: bool = Vector2(velocity.x, velocity.z).length() > 0.5 and is_on_floor()
+	var slot: String = "walk" if moving else "idle"
+	# Resolve the slot through our alias map to whatever the imported character provides
+	var resolved: String = _resolved_anims.get(slot, "")
+	if resolved == "":
+		return
+	if anim_player.current_animation != resolved:
+		anim_player.play(resolved)
 
 # Combat hooks
 func take_damage(amount: float, source: Node = null) -> void:
