@@ -1,0 +1,47 @@
+# Godot
+.godot/
+*.import
+*.translation
+export.cfg
+export_presets.cfg
+*.csv.import
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Build artifacts
+builds/
+exports/
+*.pck
+*.zip
+
+# User data (per-machine; never commit)
+saves/
+user_data/
+credentials.cfg
+auction_house.cfg
+settings.cfg
+keybindings.cfg
+save_flags.cfg
+
+# Backend (separate repo / submodule eventually)
+backend/node_modules/
+backend/.wrangler/
+backend/dist/
+
+# Launcher build artifacts
+launcher/dist/
+launcher/target/
+
+# Secrets (paranoid)
+*.env
+*.pem
+*.key
+secrets/

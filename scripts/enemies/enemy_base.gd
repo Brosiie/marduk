@@ -1,0 +1,156 @@
+extends CharacterBody3D
+class_name EnemyBase
+
+# Tiamat's spawn. Generic base for all enemies.
+# State machine: idle -> chase -> attack -> recover -> idle. Death is terminal.
+
+enum State { IDLE, CHASE, ATTACK, RECOVER, DEAD }
+
+@export var max_hp: float = 60.0
+@export var hp: float = 60.0
+@export var armor: float = 4.0
+@export var magic_resist: float = 4.0
+@export var move_speed: float = 3.5
+@export var detect_radius: float = 9.0
+@export var attack_range: float = 1.8
+@export var attack_cooldown: float = 1.6
+@export var contact_damage: float = 12.0
+@export var xp_reward: int = 25
+
+@export var crit_chance: float = 0.0
+@export var crit_multiplier: float = 1.5
+
+@export var loot_table: LootTable  # null = no drops
+
+var state: State = State.IDLE
+var target: Node3D
+var _attack_timer: float = 0.0
+var gravity: float = 24.0
+
+signal died
+
+func _ready() -> void:
+	add_to_group("enemy")
+	_apply_prestige_scaling()
+	_attach_nameplate()
+
+func _attach_nameplate() -> void:
+	# Lazily attach a nameplate so prestige badges show above mobs and bosses.
+	if has_node("Nameplate"):
+		return
+	var np := preload("res://scripts/ui/nameplate.gd").new()
+	np.name = "Nameplate"
+	np.actor = self
+	np.show_prestige_badge = true
+	np.show_posture_bar = self is BossBase
+	add_child(np)
+
+func _apply_prestige_scaling() -> void:
+	# Scale stats by current cycle. Cycle 0 = 1x (no change), Cycle 1 = 2x, etc.
+	if not Engine.has_singleton("Prestige") and not get_tree().root.has_node("Prestige"):
+		return
+	var p = get_tree().root.get_node_or_null("Prestige")
+	if not p:
+		return
+	var mult: float = p.difficulty_multiplier()
+	max_hp *= mult
+	hp = max_hp
+	contact_damage *= mult
+	xp_reward = int(xp_reward * mult)
+
+func _physics_process(delta: float) -> void:
+	if state == State.DEAD:
+		return
+	_attack_timer = max(0.0, _attack_timer - delta)
+	_acquire_target()
+
+	match state:
+		State.IDLE:
+			_idle()
+		State.CHASE:
+			_chase(delta)
+		State.ATTACK:
+			_attack()
+		State.RECOVER:
+			pass
+
+	if not is_on_floor():
+		velocity.y -= gravity * delta
+	move_and_slide()
+
+func _acquire_target() -> void:
+	if target and is_instance_valid(target):
+		var d := global_position.distance_to(target.global_position)
+		# Stealthed targets we already saw can be lost from sight if they re-stealth and walk out
+		var effective_radius := detect_radius
+		if target.has_method("get_detection_radius_override"):
+			effective_radius = target.get_detection_radius_override(detect_radius)
+		if d > effective_radius * 1.5:
+			target = null
+			state = State.IDLE
+		return
+	for p in get_tree().get_nodes_in_group("player"):
+		# Stealth: each player can override the detection radius they're visible at.
+		var radius := detect_radius
+		if p.has_method("get_detection_radius_override"):
+			radius = p.get_detection_radius_override(detect_radius)
+		if global_position.distance_to(p.global_position) <= radius:
+			target = p
+			state = State.CHASE
+			return
+
+func _idle() -> void:
+	velocity.x = 0
+	velocity.z = 0
+
+func _chase(_delta: float) -> void:
+	if not target:
+		state = State.IDLE
+		return
+	var to := target.global_position - global_position
+	to.y = 0
+	var dist := to.length()
+	if dist <= attack_range:
+		state = State.ATTACK
+		velocity.x = 0; velocity.z = 0
+		return
+	var dir := to.normalized()
+	velocity.x = dir.x * move_speed
+	velocity.z = dir.z * move_speed
+	look_at(global_position + dir, Vector3.UP)
+
+func _attack() -> void:
+	if _attack_timer > 0.0:
+		state = State.CHASE
+		return
+	if target and target.has_method("take_damage"):
+		target.take_damage(contact_damage, self)
+	_attack_timer = attack_cooldown
+	state = State.RECOVER
+	get_tree().create_timer(0.3).timeout.connect(func(): if state != State.DEAD: state = State.CHASE)
+
+func take_damage(amount: float, source: Node = null) -> void:
+	if state == State.DEAD:
+		return
+	hp = max(0.0, hp - amount)
+	if hp <= 0.0:
+		_die(source)
+
+func _die(killer: Node) -> void:
+	state = State.DEAD
+	died.emit()
+	if killer and killer.get("stats") and killer.stats.has_method("gain_xp"):
+		killer.stats.gain_xp(xp_reward)
+	# Award stance charge to Ronin killers, drop loot via prestige-aware table
+	if killer and killer.has_method("on_kill_credit"):
+		killer.on_kill_credit()
+	if loot_table and killer:
+		var drops: Array[Item] = loot_table.roll(get_node("/root/Prestige").current_prestige_level() if get_node_or_null("/root/Prestige") else 0)
+		for it in drops:
+			# Future: spawn pickup at global_position. For now, add directly to player inventory if killer has one.
+			if killer.has_method("receive_loot"):
+				killer.receive_loot(it)
+	queue_free()
+
+func get_attr(_a: StringName) -> float:
+	return 0.0
