@@ -1,0 +1,41 @@
+[gd_scene load_steps=6 format=3]
+
+[ext_resource type="Script" path="res://scripts/enemies/boss_base.gd" id="1_boss"]
+
+[sub_resource type="CapsuleShape3D" id="boss_shape"]
+radius = 0.7
+height = 2.4
+
+[sub_resource type="CapsuleMesh" id="boss_mesh"]
+radius = 0.7
+height = 2.4
+
+[sub_resource type="StandardMaterial3D" id="boss_mat"]
+albedo_color = Color(0.45, 0.10, 0.15, 1)
+roughness = 0.5
+metallic = 0.4
+
+[sub_resource type="SphereShape3D" id="boss_hurtbox_shape"]
+radius = 1.0
+
+[node name="BossBase" type="CharacterBody3D" groups=["enemy", "boss"]]
+script = ExtResource("1_boss")
+collision_layer = 4
+collision_mask = 1
+
+[node name="Collider" type="CollisionShape3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.2, 0)
+shape = SubResource("boss_shape")
+
+[node name="Mesh" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.2, 0)
+mesh = SubResource("boss_mesh")
+surface_material_override/0 = SubResource("boss_mat")
+
+[node name="Hurtbox" type="Area3D" parent="."]
+collision_layer = 4
+collision_mask = 0
+
+[node name="HurtboxShape" type="CollisionShape3D" parent="Hurtbox"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.2, 0)
+shape = SubResource("boss_hurtbox_shape")

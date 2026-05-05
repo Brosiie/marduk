@@ -69,6 +69,137 @@ func take_damage(amount: float, source: Node = null) -> void:
 	super.take_damage(amount, source)
 	_check_phase_transition()
 
+func _physics_process(delta: float) -> void:
+	if state == State.DEAD or _in_transition:
+		return
+	super._physics_process(delta)
+	_tick_attack_pattern_ai(delta)
+
+func _tick_attack_pattern_ai(_delta: float) -> void:
+	# Drive the boss attack pattern state machine: windup -> execute -> recovery -> idle.
+	if not target or not is_instance_valid(target):
+		return
+	var now := Time.get_ticks_msec() / 1000.0
+
+	if _current_pattern:
+		if now >= _pattern_state_until:
+			match _pattern_state:
+				&"windup":
+					_execute_pattern(_current_pattern)
+					_pattern_state = &"execute"
+					_pattern_state_until = now + _current_pattern.execute_seconds
+				&"execute":
+					_pattern_state = &"recovery"
+					_pattern_state_until = now + _current_pattern.recovery_seconds
+				&"recovery":
+					_pattern_cooldowns[_current_pattern.id] = now + _current_pattern.cooldown
+					_current_pattern = null
+					_pattern_state = &""
+		return
+
+	# No active pattern - try to pick one
+	var pattern := _select_pattern(now)
+	if pattern:
+		_begin_pattern(pattern, now)
+
+func _select_pattern(now: float) -> BossAttackPattern:
+	if attack_patterns.is_empty():
+		return null
+	var dist := global_position.distance_to(target.global_position) if target else 999.0
+	var candidates: Array[BossAttackPattern] = []
+	for p: BossAttackPattern in attack_patterns:
+		if current_phase_index < p.min_phase or current_phase_index > p.max_phase:
+			continue
+		if now < float(_pattern_cooldowns.get(p.id, 0.0)):
+			continue
+		if p.shape in [BossAttackPattern.Shape.SINGLE_TARGET, BossAttackPattern.Shape.FORWARD_CONE,
+				BossAttackPattern.Shape.LINE]:
+			if dist > p.range + 1.5:
+				continue
+		candidates.append(p)
+	if candidates.is_empty():
+		return null
+	return candidates[randi() % candidates.size()]
+
+func _begin_pattern(p: BossAttackPattern, now: float) -> void:
+	_current_pattern = p
+	_pattern_state = &"windup"
+	_pattern_state_until = now + p.windup_seconds
+
+func _execute_pattern(p: BossAttackPattern) -> void:
+	# Spawn a Hitbox shaped by the pattern. Hitbox handles damage resolution.
+	var hb := preload("res://scripts/combat/hitbox.gd").new()
+	var ab := Ability.new()
+	ab.id = p.id
+	ab.base_damage = p.base_damage
+	ab.damage_type = p.damage_type
+	ab.armor_pen = p.armor_pen
+	ab.target_mode = _shape_to_target_mode(p.shape)
+	ab.range = p.range
+	ab.radius = p.radius
+	hb.ability = ab
+	hb.attacker_stats = self
+	hb.lifetime = max(0.05, p.execute_seconds)
+	hb.team = &"enemy"
+
+	var collider := CollisionShape3D.new()
+	hb.add_child(collider)
+
+	var fwd := -global_transform.basis.z
+	fwd.y = 0
+	fwd = fwd.normalized()
+
+	match p.shape:
+		BossAttackPattern.Shape.SINGLE_TARGET:
+			var s := SphereShape3D.new()
+			s.radius = 1.0
+			collider.shape = s
+			hb.position = (target.global_position if target else global_position + fwd * 2.0)
+		BossAttackPattern.Shape.FORWARD_CONE:
+			var b := BoxShape3D.new()
+			b.size = Vector3(p.radius * 2.0, 2.5, p.range)
+			collider.shape = b
+			hb.position = global_position + fwd * (p.range * 0.5)
+			hb.look_at(global_position + fwd * p.range, Vector3.UP)
+		BossAttackPattern.Shape.AOE_AROUND_BOSS:
+			var s := SphereShape3D.new()
+			s.radius = p.radius
+			collider.shape = s
+			hb.position = global_position
+		BossAttackPattern.Shape.AOE_GROUND:
+			var s := SphereShape3D.new()
+			s.radius = p.radius
+			collider.shape = s
+			hb.position = (target.global_position if target else global_position + fwd * p.range)
+		BossAttackPattern.Shape.LINE:
+			var b := BoxShape3D.new()
+			b.size = Vector3(0.8, 2.0, p.range)
+			collider.shape = b
+			hb.position = global_position + fwd * (p.range * 0.5)
+			hb.look_at(global_position + fwd * p.range, Vector3.UP)
+		BossAttackPattern.Shape.PROJECTILE:
+			var b := BoxShape3D.new()
+			b.size = Vector3(0.5, 0.5, 1.0)
+			collider.shape = b
+			hb.position = global_position + fwd * 1.5
+		BossAttackPattern.Shape.ARENA_WIDE:
+			var s := SphereShape3D.new()
+			s.radius = max(20.0, p.radius)
+			collider.shape = s
+			hb.position = global_position
+
+	get_tree().current_scene.add_child(hb)
+
+func _shape_to_target_mode(shape: int) -> int:
+	match shape:
+		BossAttackPattern.Shape.SINGLE_TARGET: return Ability.TargetMode.SELF
+		BossAttackPattern.Shape.FORWARD_CONE: return Ability.TargetMode.FORWARD_CONE
+		BossAttackPattern.Shape.AOE_AROUND_BOSS: return Ability.TargetMode.AOE_AROUND_SELF
+		BossAttackPattern.Shape.AOE_GROUND: return Ability.TargetMode.GROUND_TARGETED
+		BossAttackPattern.Shape.LINE: return Ability.TargetMode.FORWARD_CONE
+		BossAttackPattern.Shape.PROJECTILE: return Ability.TargetMode.PROJECTILE
+		_: return Ability.TargetMode.AOE_AROUND_SELF
+
 func _check_phase_transition() -> void:
 	var hp_pct: float = hp / max_hp
 	var next_phase_index := current_phase_index

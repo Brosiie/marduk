@@ -1,0 +1,159 @@
+[gd_scene load_steps=16 format=3]
+
+; Sword-Vow Ruins - Ronin intro arena.
+; Stone fortress courtyard. Burned ramparts. A throne hall in the distance.
+; Enforcer Kazat the Iron-Faced waits at the throne. Mob waves of Tashmu's
+; Footmen + Archers between you and him.
+
+[ext_resource type="Script" path="res://scripts/player/player.gd" id="1_player"]
+[ext_resource type="Script" path="res://scripts/player/camera_rig.gd" id="2_cam"]
+[ext_resource type="PackedScene" path="res://scenes/ui/hud.tscn" id="3_hud"]
+[ext_resource type="Shader" path="res://shaders/toon.gdshader" id="4_toon"]
+[ext_resource type="Script" path="res://scripts/world/spawn/spawner.gd" id="5_spawner"]
+[ext_resource type="Script" path="res://scripts/world/spawn/boss_anchor.gd" id="6_boss_anchor"]
+
+[sub_resource type="PlaneMesh" id="floor_mesh"]
+size = Vector2(80, 80)
+
+[sub_resource type="ShaderMaterial" id="floor_mat"]
+shader = ExtResource("4_toon")
+shader_parameter/albedo = Color(0.32, 0.28, 0.24, 1)
+shader_parameter/bands = 3.0
+shader_parameter/ambient = 0.32
+shader_parameter/rim_strength = 0.30
+shader_parameter/rim_power = 4.0
+shader_parameter/rim_color = Color(0.85, 0.55, 0.30, 1)
+shader_parameter/shadow_tint = Color(0.18, 0.13, 0.10, 1)
+
+[sub_resource type="BoxShape3D" id="floor_shape"]
+size = Vector3(80, 0.4, 80)
+
+[sub_resource type="BoxShape3D" id="wall_shape"]
+size = Vector3(80, 8, 1)
+
+[sub_resource type="StandardMaterial3D" id="wall_mat"]
+albedo_color = Color(0.25, 0.20, 0.18, 1)
+roughness = 0.95
+
+[sub_resource type="CapsuleShape3D" id="player_shape"]
+radius = 0.4
+height = 1.7
+
+[sub_resource type="CapsuleMesh" id="player_mesh"]
+radius = 0.4
+height = 1.7
+
+[sub_resource type="ShaderMaterial" id="player_mat"]
+shader = ExtResource("4_toon")
+shader_parameter/albedo = Color(0.92, 0.72, 0.30, 1)
+shader_parameter/bands = 3.0
+shader_parameter/ambient = 0.40
+shader_parameter/rim_strength = 0.9
+shader_parameter/rim_power = 3.0
+shader_parameter/rim_color = Color(1.0, 0.95, 0.7, 1)
+shader_parameter/shadow_tint = Color(0.55, 0.40, 0.25, 1)
+
+[sub_resource type="ProceduralSkyMaterial" id="sky_mat"]
+sky_top_color = Color(0.10, 0.06, 0.15, 1)
+sky_horizon_color = Color(0.50, 0.20, 0.10, 1)
+ground_horizon_color = Color(0.20, 0.10, 0.08, 1)
+ground_bottom_color = Color(0.06, 0.04, 0.04, 1)
+
+[sub_resource type="Sky" id="sky"]
+sky_material = SubResource("sky_mat")
+
+[sub_resource type="Environment" id="env"]
+background_mode = 2
+sky = SubResource("sky")
+ambient_light_source = 3
+fog_enabled = true
+fog_density = 0.018
+fog_light_color = Color(0.6, 0.30, 0.25, 1)
+
+[node name="SwordVowRuins" type="Node3D"]
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("env")
+
+[node name="Sun" type="DirectionalLight3D" parent="."]
+transform = Transform3D(0.7071, -0.5, 0.5, 0, 0.7071, 0.7071, -0.7071, -0.5, 0.5, 8, 12, 6)
+light_color = Color(1, 0.65, 0.45, 1)
+light_energy = 0.9
+shadow_enabled = true
+
+[node name="Floor" type="StaticBody3D" parent="."]
+collision_layer = 1
+
+[node name="Mesh" type="MeshInstance3D" parent="Floor"]
+mesh = SubResource("floor_mesh")
+surface_material_override/0 = SubResource("floor_mat")
+
+[node name="Collider" type="CollisionShape3D" parent="Floor"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.2, 0)
+shape = SubResource("floor_shape")
+
+[node name="WallNorth" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 4, -40)
+
+[node name="Collider" type="CollisionShape3D" parent="WallNorth"]
+shape = SubResource("wall_shape")
+
+[node name="WallSouth" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 4, 40)
+
+[node name="Collider" type="CollisionShape3D" parent="WallSouth"]
+shape = SubResource("wall_shape")
+
+[node name="PlayerSpawn" type="Marker3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 30)
+
+[node name="Player" type="CharacterBody3D" parent="." groups=["player"]]
+script = ExtResource("1_player")
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 30)
+collision_layer = 2
+collision_mask = 1
+
+[node name="Collider" type="CollisionShape3D" parent="Player"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.85, 0)
+shape = SubResource("player_shape")
+
+[node name="MeshRoot" type="Node3D" parent="Player"]
+
+[node name="Mesh" type="MeshInstance3D" parent="Player/MeshRoot"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.85, 0)
+mesh = SubResource("player_mesh")
+surface_material_override/0 = SubResource("player_mat")
+
+[node name="CameraRig" type="Node3D" parent="."]
+script = ExtResource("2_cam")
+follow_target_path = NodePath("../Player")
+
+[node name="SpringArm3D" type="SpringArm3D" parent="CameraRig"]
+spring_length = 11.0
+
+[node name="Camera3D" type="Camera3D" parent="CameraRig/SpringArm3D"]
+current = true
+fov = 55.0
+
+[node name="HUD" parent="." instance=ExtResource("3_hud")]
+
+[node name="MobSpawnerLeft" type="Node3D" parent="."]
+script = ExtResource("5_spawner")
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -10, 1, 10)
+mob_pool = ["usurper_footman", "usurper_archer"]
+initial_count = 2
+max_concurrent = 3
+respawn_seconds = 30.0
+
+[node name="MobSpawnerRight" type="Node3D" parent="."]
+script = ExtResource("5_spawner")
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10, 1, 10)
+mob_pool = ["usurper_footman", "usurper_archer"]
+initial_count = 2
+max_concurrent = 3
+respawn_seconds = 30.0
+
+[node name="BossSpawn" type="Marker3D" parent="."]
+script = ExtResource("6_boss_anchor")
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, -25)
+boss_id = &"usurper_enforcer"

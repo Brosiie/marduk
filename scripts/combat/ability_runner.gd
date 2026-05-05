@@ -146,8 +146,70 @@ func _complete_cast() -> void:
 	current_cast = null
 
 func _spawn_hitbox(ability: Ability, damage_mult: float) -> void:
-	# Real implementation creates Area3D with shape based on ability.target_mode and range/radius.
-	# For now this emits the cast event and leaves hitbox spawning to a per-ability handler
-	# (each ability or its style can register a custom spawner).
-	# A future patch will move the actual hitbox geometry into ability resources or sub-scenes.
-	pass
+	# Build an Area3D with a CollisionShape3D matching the ability's target_mode.
+	# The Hitbox script handles damage resolution + lifetime cleanup. Damage_mult
+	# pre-scales base_damage on the ability's effective payload.
+	if not owner_player or not is_inside_tree():
+		return
+
+	var hb := preload("res://scripts/combat/hitbox.gd").new()
+	hb.ability = ability
+	hb.attacker_stats = owner_player.stats
+	hb.lifetime = max(0.10, ability.cast_time + 0.15)
+	hb.team = &"player"
+
+	var collider := CollisionShape3D.new()
+	hb.add_child(collider)
+
+	# Pose origin in front of player by ability range/2, oriented to mesh forward
+	var fwd: Vector3 = Vector3.FORWARD
+	if owner_player.mesh:
+		fwd = -owner_player.mesh.global_transform.basis.z
+		fwd.y = 0
+		fwd = fwd.normalized()
+
+	# Build geometry based on target_mode
+	match ability.target_mode:
+		Ability.TargetMode.SELF:
+			# Tiny sphere on player position; primarily for buffs that hit self
+			var s := SphereShape3D.new()
+			s.radius = 0.5
+			collider.shape = s
+
+		Ability.TargetMode.FORWARD_CONE:
+			# Approximate cone with a forward-extended box. Radius = arc width.
+			var b := BoxShape3D.new()
+			var width: float = max(0.8, ability.radius)
+			var depth: float = max(1.0, ability.range)
+			b.size = Vector3(width, 2.0, depth)
+			collider.shape = b
+			hb.position = owner_player.global_position + fwd * (depth * 0.5)
+			hb.look_at(owner_player.global_position + fwd * depth, Vector3.UP)
+
+		Ability.TargetMode.AOE_AROUND_SELF:
+			var s := SphereShape3D.new()
+			s.radius = max(0.5, ability.radius)
+			collider.shape = s
+			hb.position = owner_player.global_position
+
+		Ability.TargetMode.GROUND_TARGETED:
+			# Ground circle at end of range
+			var s := SphereShape3D.new()
+			s.radius = max(0.5, ability.radius)
+			collider.shape = s
+			hb.position = owner_player.global_position + fwd * ability.range
+
+		Ability.TargetMode.PROJECTILE:
+			# Thin box that travels forward over lifetime
+			var b := BoxShape3D.new()
+			b.size = Vector3(0.5, 0.5, max(1.0, ability.range))
+			collider.shape = b
+			hb.position = owner_player.global_position + fwd * (ability.range * 0.5)
+			# TODO: attach to a moving body in a real impl
+
+	# Pre-scale base damage by chain bonus and class proficiency. damage_calc applies the rest.
+	var scaled_damage := ability.base_damage * damage_mult
+	# Stash the multiplier on the hitbox via meta for damage_calc to read
+	hb.set_meta("pre_scale", damage_mult)
+
+	get_tree().current_scene.add_child(hb)
