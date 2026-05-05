@@ -47,15 +47,27 @@ func _build_patterns(id: StringName) -> Array[BossAttackPattern]:
 	#   - capstone/arena: 1   (rare, climactic, memorable)
 	match id:
 		&"usurper_enforcer":
+			# Phase 0 (Iron Stance, 100%-66%): teach the moveset with one
+			# telegraphed cone strike. Long enough windup to read.
 			arr.append(_p(&"kazat_iron_swing", "Iron Swing",
 				BossAttackPattern.Shape.FORWARD_CONE,
-				1.0, 0.25, 0.7, 4.0, 90.0, 0, 4.0, 1.4, 0, 99, 7.0))
-			arr.append(_p(&"kazat_ground_slam", "Ground Slam",
-				BossAttackPattern.Shape.AOE_AROUND_BOSS,
-				1.4, 0.30, 1.0, 8.0, 140.0, 0, 6.0, 4.5, 0, 99, 3.0))
+				1.0, 0.25, 0.7, 4.0, 90.0, 0, 4.0, 1.4, 0, 99, 8.0))
+			# Phase 1 (Iron Resolve, 66%-33%): Iron Charge unlocks. Forces
+			# the player to manage spacing.
 			arr.append(_p(&"kazat_charge_line", "Iron Charge",
 				BossAttackPattern.Shape.LINE,
-				0.6, 0.40, 1.2, 12.0, 120.0, 0, 9.0, 1.0, 0, 99, 2.0))
+				0.6, 0.40, 1.2, 11.0, 120.0, 0, 9.0, 1.0, 1, 99, 4.0))
+			# Phase 2 (Iron Vow, 33%-0%): Ground Slam unlocks as Kazat
+			# stops fencing and starts smashing.
+			arr.append(_p(&"kazat_ground_slam", "Iron Quake",
+				BossAttackPattern.Shape.AOE_AROUND_BOSS,
+				1.4, 0.30, 1.0, 7.5, 160.0, 0, 6.0, 5.0, 2, 99, 5.0))
+			# Phase 2 desperation: Final Vow only fires below 20% HP. A
+			# slow telegraphed AOE_GROUND that hurts catastrophically if
+			# you don't roll out of the targeted spot.
+			arr.append(_p(&"kazat_final_vow", "Final Vow",
+				BossAttackPattern.Shape.AOE_GROUND,
+				1.8, 0.40, 1.2, 16.0, 280.0, 0, 6.0, 4.0, 2, 99, 2.0, 0.20))
 		&"raid_captain":
 			arr.append(_p(&"hassu_hook_thrust", "Hook Thrust",
 				BossAttackPattern.Shape.LINE, 0.6, 0.20, 0.6, 5.0,

@@ -13,6 +13,7 @@ func _ready() -> void:
 	_register_story()
 	_register_collection()
 	_register_meta()
+	_register_starter_achievements()
 
 func get_achievement(id: StringName) -> Achievement:
 	return achievements.get(id)
@@ -437,3 +438,79 @@ func _register_meta() -> void:
 		&"title_council_nine", 25000, 15000,
 		"All nine seats taken. The Storyteller has tea ready for each of you. She knew.",
 		false)
+
+# ----------------------------------------------------------------
+# Unlock state + public API used by panels
+# ----------------------------------------------------------------
+var _unlocked: Dictionary = {}  # achievement_id -> true
+
+signal achievement_unlocked(achievement: Achievement)
+
+func unlock(id: StringName) -> bool:
+	if not achievements.has(id):
+		return false
+	if _unlocked.has(id):
+		return false
+	_unlocked[id] = true
+	achievement_unlocked.emit(achievements[id])
+	# Persist to SaveFlags
+	var sf = get_node_or_null("/root/SaveFlags")
+	if sf and sf.has_method("set_permanent"):
+		sf.set_permanent(StringName("ach_" + String(id)), true)
+	return true
+
+func is_unlocked(id: StringName) -> bool:
+	return _unlocked.has(id)
+
+func get_unlocked_ids() -> Array:
+	return _unlocked.keys()
+
+func get_all() -> Array:
+	# Return as plain array of objects so the achievement panel can iterate
+	return achievements.values()
+
+# ----------------------------------------------------------------
+# 12 starter achievements wired to events that already exist in the
+# combat / pickup / lodestone / death pipelines. Use the HIDDEN trigger
+# so they fire from manual unlock() calls in the gameplay code.
+# ----------------------------------------------------------------
+func _register_starter_achievements_v2() -> void:
+	_make(&"a_first_blood", "First Blood",
+		"Land your first killing blow.",
+		Achievement.Category.COMBAT, Achievement.TriggerKind.HIDDEN, {})
+	_make(&"a_first_lodestone", "First Light",
+		"Attune your first lodestone. The world is bigger than the room you woke in.",
+		Achievement.Category.EXPLORATION, Achievement.TriggerKind.HIDDEN, {})
+	_make(&"a_three_lodestones", "Survey of the Realm",
+		"Attune three lodestones. The map is your friend.",
+		Achievement.Category.EXPLORATION, Achievement.TriggerKind.HIDDEN, {})
+	_make(&"a_all_lodestones", "Cartographer of Marduk",
+		"Attune every lodestone in the realm. There is no corner of the world unseen.",
+		Achievement.Category.EXPLORATION, Achievement.TriggerKind.HIDDEN, {})
+	_make(&"a_first_pickup", "Magpie",
+		"Pick up your first dropped item.",
+		Achievement.Category.COLLECTION, Achievement.TriggerKind.HIDDEN, {})
+	_make(&"a_level_5", "First Wind",
+		"Reach character level 5.",
+		Achievement.Category.FEATS, Achievement.TriggerKind.HIDDEN, {})
+	_make(&"a_level_10", "Veteran",
+		"Reach character level 10.",
+		Achievement.Category.FEATS, Achievement.TriggerKind.HIDDEN, {})
+	_make(&"a_first_boss", "Iron-Faced Reckoning",
+		"Defeat your first boss. The first of many.",
+		Achievement.Category.COMBAT, Achievement.TriggerKind.HIDDEN, {})
+	_make(&"a_first_death", "First Lesson",
+		"Die for the first time. The world is unkind.",
+		Achievement.Category.FEATS, Achievement.TriggerKind.HIDDEN, {})
+	_make(&"a_recover_souls", "Reclaimed",
+		"Walk back to your soul-marker and recover lost XP.",
+		Achievement.Category.FEATS, Achievement.TriggerKind.HIDDEN, {})
+	_make(&"a_first_dodge", "Read the Telegraph",
+		"Successfully dodge an attack with i-frames active.",
+		Achievement.Category.COMBAT, Achievement.TriggerKind.HIDDEN, {})
+	_make(&"a_first_quest", "Word from the Plaza",
+		"Complete your first quest in Ashurim.",
+		Achievement.Category.STORY, Achievement.TriggerKind.HIDDEN, {})
+
+func _register_starter_achievements() -> void:
+	_register_starter_achievements_v2()

@@ -1,4 +1,5 @@
-[gd_scene load_steps=9 format=3 uid="uid://b00bdd61df33f"]
+[gd_scene load_steps=10 format=3 uid="uid://b00bdd61df33f"]
+[ext_resource type="Script" path="res://scripts/npcs/npc.gd" id="npc_script"]
 [ext_resource type="Script" path="res://scripts/world/boss_arena.gd" id="boss_arena_ashurim"]
 [ext_resource type="Script" path="res://scripts/world/lodestone.gd" id="boss_lodestone_ashurim_inn"]
 [ext_resource type="Script" path="res://scripts/world/lodestone.gd" id="lodestone_ashurim_plaza"]
@@ -89,4 +90,30 @@ script = ExtResource("boss_arena_ashurim")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, -25)
 arena_radius = 18.0
 trigger_radius = 12.0
+[node name="Storyteller" type="CharacterBody3D" parent="." groups=["npc"]]
+script = ExtResource("npc_script")
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4, 0.0, -4)
+npc_id = &"peasant_male"
+display_name = "The Storyteller"
+has_quest = true
+quest_id = &"q_storyteller_intro"
+greeting = "Ah, another champion. Sit. Drink. Listen. The world is breaking and you walked into the middle of it. Want to know how it started?"
+
+[node name="Iddinu" type="CharacterBody3D" parent="." groups=["npc"]]
+script = ExtResource("npc_script")
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4, 0.0, -4)
+npc_id = &"peasant_male"
+display_name = "Iddinu, Quartermaster"
+has_quest = true
+quest_id = &"q_iddinu_supplies"
+greeting = "We need supplies. Iron. Bread. Anyone with a sword and the time. You qualify on the second count, at least. Three crates. Iron Crown loyalists hold them. Bring them back."
+
+[node name="Belitu" type="CharacterBody3D" parent="." groups=["npc"]]
+script = ExtResource("npc_script")
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.0, 4)
+npc_id = &"peasant_female"
+display_name = "Belitu, Market Girl"
+has_quest = true
+quest_id = &"q_belitu_brother"
+greeting = "Have you seen my brother? He went into the Cradle two days ago and hasn't come back. He's only twelve. I can pay you. Not much, but everything I have."
 

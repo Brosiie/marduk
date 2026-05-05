@@ -104,6 +104,10 @@ func try_pickup(player: Node) -> bool:
 func _pickup(player: Node) -> void:
 	if not is_instance_valid(player):
 		return
+	# First-pickup achievement
+	var ar = player.get_node_or_null("/root/AchievementRegistry")
+	if ar and ar.has_method("unlock"):
+		ar.unlock(&"a_first_pickup")
 	if player.has_method("collect_item"):
 		player.collect_item(item, quantity)
 	elif player.has("inventory") and player.inventory and player.inventory.has_method("add_item"):

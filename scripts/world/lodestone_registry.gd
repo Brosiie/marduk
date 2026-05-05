@@ -93,6 +93,14 @@ func discover(id: StringName) -> bool:
 	_save_to_save_flags()
 	var nm: String = LODESTONES[id].get("name", String(id))
 	discovered.emit(id, nm)
+	# Achievement triggers
+	var ar = get_node_or_null("/root/AchievementRegistry")
+	if ar and ar.has_method("unlock"):
+		ar.unlock(&"a_first_lodestone")
+		if _discovered.size() >= 3:
+			ar.unlock(&"a_three_lodestones")
+		if _discovered.size() >= LODESTONES.size():
+			ar.unlock(&"a_all_lodestones")
 	return true
 
 # Returns dict[id] -> metadata for every discovered lodestone.

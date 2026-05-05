@@ -143,12 +143,19 @@ func _on_mana(cur: float, mx: float) -> void:
 	mana_bar.max_value = mx
 	mana_bar.value = cur
 
-func _on_level_up(_lvl: int) -> void:
+func _on_level_up(lvl: int) -> void:
 	_refresh_all()
 	# Level-up arpeggio
 	var ab = get_node_or_null("/root/AudioBus")
 	if ab and ab.has_method("play_cue") and player:
 		ab.play_cue(&"level_up", player.global_position, -3.0, 1.0)
+	# Level milestone achievements
+	var ar = get_node_or_null("/root/AchievementRegistry")
+	if ar and ar.has_method("unlock"):
+		if lvl >= 5:
+			ar.unlock(&"a_level_5")
+		if lvl >= 10:
+			ar.unlock(&"a_level_10")
 
 func _on_resource(cur: float, mx: float, _mech: StringName) -> void:
 	mana_bar.max_value = max(1.0, mx)

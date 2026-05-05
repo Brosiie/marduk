@@ -1,0 +1,78 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/ui/menus/character_creation.gd" id="1_script"]
+
+[node name="CharacterCreation" type="Control"]
+script = ExtResource("1_script")
+anchor_right = 1.0
+anchor_bottom = 1.0
+
+[node name="BG" type="ColorRect" parent="."]
+color = Color(0.05, 0.05, 0.07, 1)
+anchor_right = 1.0
+anchor_bottom = 1.0
+
+[node name="Margin" type="MarginContainer" parent="."]
+anchor_right = 1.0
+anchor_bottom = 1.0
+theme_override_constants/margin_left = 32
+theme_override_constants/margin_top = 32
+theme_override_constants/margin_right = 32
+theme_override_constants/margin_bottom = 32
+
+[node name="Panel" type="PanelContainer" parent="Margin"]
+
+[node name="Layout" type="HBoxContainer" parent="Margin/Panel"]
+theme_override_constants/separation = 24
+
+[node name="Left" type="VBoxContainer" parent="Margin/Panel/Layout"]
+custom_minimum_size = Vector2(280, 0)
+
+[node name="LeftHeader" type="Label" parent="Margin/Panel/Layout/Left"]
+text = "Choose Class"
+theme_override_font_sizes/font_size = 22
+
+[node name="ClassList" type="ItemList" parent="Margin/Panel/Layout/Left"]
+custom_minimum_size = Vector2(260, 480)
+
+[node name="Right" type="VBoxContainer" parent="Margin/Panel/Layout"]
+size_flags_horizontal = 3
+
+[node name="Header" type="VBoxContainer" parent="Margin/Panel/Layout/Right"]
+
+[node name="ClassName" type="Label" parent="Margin/Panel/Layout/Right/Header"]
+text = "—"
+theme_override_font_sizes/font_size = 28
+
+[node name="Body" type="VBoxContainer" parent="Margin/Panel/Layout/Right"]
+size_flags_vertical = 3
+
+[node name="Lore" type="RichTextLabel" parent="Margin/Panel/Layout/Right/Body"]
+custom_minimum_size = Vector2(0, 220)
+bbcode_enabled = true
+fit_content = true
+
+[node name="Stats" type="Label" parent="Margin/Panel/Layout/Right/Body"]
+text = ""
+theme_override_font_sizes/font_size = 14
+
+[node name="Resource" type="Label" parent="Margin/Panel/Layout/Right/Body"]
+text = ""
+theme_override_font_sizes/font_size = 14
+modulate = Color(0.95, 0.85, 0.55, 1)
+
+[node name="LockHint" type="Label" parent="Margin/Panel/Layout/Right/Body"]
+text = ""
+theme_override_font_sizes/font_size = 12
+modulate = Color(0.95, 0.45, 0.45, 1)
+
+[node name="Footer" type="HBoxContainer" parent="Margin/Panel/Layout/Right"]
+custom_minimum_size = Vector2(0, 56)
+
+[node name="NameInput" type="LineEdit" parent="Margin/Panel/Layout/Right/Footer"]
+placeholder_text = "Champion's name..."
+custom_minimum_size = Vector2(260, 36)
+
+[node name="BeginButton" type="Button" parent="Margin/Panel/Layout/Right/Footer"]
+text = "Begin"
+custom_minimum_size = Vector2(160, 36)

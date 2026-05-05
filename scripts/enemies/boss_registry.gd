@@ -71,7 +71,13 @@ func _register_class_intro_minibosses() -> void:
 	_make(&"corrupt_master", "Master Sapum, Five-Mouthed", 5, &"whisper_shrine",
 		"The face you called father, now wearing five mouths.")
 	_make(&"usurper_enforcer", "Enforcer Kazat, Iron-Faced", 5, &"sword_vow_ruins",
-		"He held your lord's neck while Tashmu raised the sword.")
+		"He held your lord's neck while Tashmu raised the sword.",
+		false, false, false,
+		[
+			{"hp_pct": 1.0, "name": "Iron Stance",        "dmg_mult": 1.0, "speed_mult": 1.0},
+			{"hp_pct": 0.66, "name": "Iron Resolve",      "dmg_mult": 1.20, "speed_mult": 1.10},
+			{"hp_pct": 0.33, "name": "Iron Vow",          "dmg_mult": 1.45, "speed_mult": 1.25},
+		])
 	_make(&"glade_terror", "The Glade Terror", 5, &"greenheart_glade",
 		"It came up through the loam. It ate forty-one of your kin in a night.")
 	_make(&"tower_warden", "The Tower Warden", 5, &"inkstone_tower",

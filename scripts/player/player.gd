@@ -850,6 +850,10 @@ func spend_mana(amount: float) -> bool:
 func _die() -> void:
 	locked = true
 	died.emit()
+	# Achievement: first death
+	var ar = get_node_or_null("/root/AchievementRegistry")
+	if ar and ar.has_method("unlock"):
+		ar.unlock(&"a_first_death")
 	# Multiplayer-friendly arena rule: when a player dies, that player's
 	# engagement is dropped but the BOSS keeps its HP. In a party run, the
 	# boss only resets when every player has wiped (handled by checking
@@ -927,6 +931,10 @@ func _drop_death_marker() -> void:
 			if stats and stats.has_method("gain_xp"):
 				stats.gain_xp(int(recovered))
 			_lost_xp = 0
+			# Achievement: souls reclaimed
+			var ar2 = get_node_or_null("/root/AchievementRegistry")
+			if ar2 and ar2.has_method("unlock"):
+				ar2.unlock(&"a_recover_souls")
 			marker.queue_free()
 	)
 

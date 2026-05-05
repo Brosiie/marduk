@@ -10,6 +10,7 @@ func _ready() -> void:
 	_register_main_story()
 	_register_faction_quests()
 	_register_side_quests()
+	_register_starter_quests()
 
 func get_quest(id: StringName) -> Quest:
 	return quests.get(id)
@@ -252,3 +253,73 @@ func _register_side_quests() -> void:
 		&"oracle_attendant", 60,
 		[{"description": "Read the Oracle's full prophecy", "kind": "examine", "target_id": "crown_oracle_pillar", "required_count": 1}],
 		8000, 0)
+
+# ----------------------------------------------------------------
+# Active / completed bookkeeping (used by quest panel + NPC accept)
+# ----------------------------------------------------------------
+var _active: Dictionary = {}     # quest_id -> Quest (started, not yet finished)
+var _completed: Dictionary = {}  # quest_id -> Quest (already turned in)
+
+signal quest_accepted(quest: Quest)
+signal quest_completed(quest: Quest)
+signal quest_progress(quest: Quest, objective_index: int, count: int)
+
+func accept_quest(id: StringName) -> bool:
+	var q: Quest = quests.get(id)
+	if q == null:
+		return false
+	if _active.has(id) or _completed.has(id):
+		return false
+	_active[id] = q
+	quest_accepted.emit(q)
+	return true
+
+func complete_quest(id: StringName) -> bool:
+	if not _active.has(id):
+		return false
+	var q: Quest = _active[id]
+	_active.erase(id)
+	_completed[id] = q
+	# Award XP + gold to the player
+	var player = get_tree().get_first_node_in_group("player") if get_tree() else null
+	if player and player.has("stats") and player.stats and player.stats.has_method("gain_xp"):
+		player.stats.gain_xp(int(q.xp_reward))
+	quest_completed.emit(q)
+	return true
+
+func get_active_quests() -> Array:
+	return _active.values()
+
+func get_completed_quests() -> Array:
+	return _completed.values()
+
+func is_active(id: StringName) -> bool:
+	return _active.has(id)
+
+func is_completed(id: StringName) -> bool:
+	return _completed.has(id)
+
+# ----------------------------------------------------------------
+# STARTER QUESTS (Ashurim NPCs) — bind directly to the 3 plaza NPCs
+# (Storyteller, Iddinu, Belitu) so a fresh character gets immediate
+# objectives the moment they reach Ashurim.
+# ----------------------------------------------------------------
+func _register_starter_quests_v2() -> void:
+	_make(&"q_storyteller_intro", "The World Is Breaking",
+		"The Storyteller wants you to attune lodestones across the realm. Three discoveries will satisfy her opening verse.",
+		&"storyteller", 1,
+		[{"description": "Discover 3 lodestones", "kind": "lodestone_count", "target_id": "lodestone", "required_count": 3}],
+		400, 50)
+	_make(&"q_iddinu_supplies", "Crates from the Sword-Vow",
+		"Iddinu the Quartermaster needs three iron-bound crates recovered from Iron Crown loyalists in the Sword-Vow Ruins.",
+		&"iddinu", 1,
+		[{"description": "Slay 6 Tashmu's Footmen", "kind": "kill", "target_id": "usurper_footman", "required_count": 6}],
+		300, 80)
+	_make(&"q_belitu_brother", "Belitu's Brother",
+		"Belitu the Market Girl says her twelve-year-old brother walked into The Cradle two days ago. Find him. Or what's left.",
+		&"belitu", 1,
+		[{"description": "Search The Cradle for the missing boy", "kind": "examine", "target_id": "cradle_brother_marker", "required_count": 1}],
+		500, 60)
+
+func _register_starter_quests() -> void:
+	_register_starter_quests_v2()

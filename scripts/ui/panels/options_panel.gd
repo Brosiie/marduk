@@ -97,8 +97,17 @@ func _on_setting_changed(value: Variant, key: String) -> void:
 
 func _on_save() -> void:
 	var save_sys: Node = get_node_or_null("/root/SaveSystem")
-	if save_sys and save_sys.has_method("save_game"):
-		save_sys.save_game()
+	if save_sys == null:
+		return
+	var player: Node = get_tree().get_first_node_in_group("player")
+	if player == null:
+		return
+	# Quick-save to slot 0; later UI passes can offer slot picker.
+	if save_sys.has_method("save_slot"):
+		var ok: bool = save_sys.save_slot(0, player)
+		var ab = get_node_or_null("/root/AudioBus")
+		if ab and ab.has_method("play_cue"):
+			ab.play_cue(&"button" if ok else &"deny", player.global_position, -8.0, 1.0)
 
 func _on_resume() -> void:
 	var menu := get_parent().get_parent().get_parent()  # MenuPanel

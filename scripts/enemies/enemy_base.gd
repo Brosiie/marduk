@@ -176,6 +176,12 @@ func _die(killer: Node) -> void:
 	var ab = get_node_or_null("/root/AudioBus")
 	if ab and ab.has_method("play_cue"):
 		ab.play_cue(&"death", global_position, -6.0, randf_range(0.85, 1.0))
+	# Achievement: first kill
+	var ar = get_node_or_null("/root/AchievementRegistry")
+	if ar and ar.has_method("unlock"):
+		ar.unlock(&"a_first_blood")
+		if self is BossBase:
+			ar.unlock(&"a_first_boss")
 	if killer and killer.get("stats") and killer.stats.has_method("gain_xp"):
 		killer.stats.gain_xp(xp_reward)
 	# Award stance charge to Ronin killers, drop loot via prestige-aware table
