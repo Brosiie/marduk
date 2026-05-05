@@ -59,15 +59,36 @@ func _spawn_one() -> void:
 	# right Mixamo mesh + animation library on first frame instead of
 	# defaulting to usurper_footman.
 	inst.mob_id = mob_id
+	# Role-specific behavior swap: ARCHER role gets the kite + arrow AI.
+	# Done by replacing the script before _ready runs.
+	if int(mob.role) == 1:  # Mob.Role.ARCHER
+		var archer_script: GDScript = load("res://scripts/enemies/archer_mob.gd")
+		if archer_script:
+			inst.set_script(archer_script)
 	_swap_mesh_for_mob(inst, mob_id)
 	get_tree().current_scene.add_child(inst)
 	inst.global_position = global_position
-	inst.max_hp = mob.base_hp
-	inst.hp = mob.base_hp
-	inst.contact_damage = mob.base_damage
+	# Level-scale: every mob gets +10% HP / +6% damage / +5% XP per player
+	# level past 1. Keeps the world from going trivial as the player grows.
+	var p = get_tree().get_first_node_in_group("player")
+	var player_level: int = 1
+	if p and p.has("stats") and p.stats and "level" in p.stats:
+		player_level = max(1, int(p.stats.level))
+	var lvl_step: int = max(0, player_level - 1)
+	var hp_mult: float = 1.0 + 0.10 * float(lvl_step)
+	var dmg_mult: float = 1.0 + 0.06 * float(lvl_step)
+	var xp_mult: float = 1.0 + 0.05 * float(lvl_step)
+	inst.max_hp = mob.base_hp * hp_mult
+	inst.hp = inst.max_hp
+	inst.contact_damage = mob.base_damage * dmg_mult
 	inst.move_speed = mob.move_speed
 	inst.detect_radius = mob.detect_radius
-	inst.xp_reward = mob.xp_reward
+	inst.xp_reward = int(mob.xp_reward * xp_mult)
+	# Generate a LootTable from the mob's role+level. Without this every
+	# enemy.died fires with a null loot_table and nothing drops.
+	var lg = get_node_or_null("/root/LootGenerator")
+	if lg and lg.has_method("for_mob"):
+		inst.loot_table = lg.for_mob(mob)
 	inst.set_meta("mob_id", mob_id)
 	inst.died.connect(_on_mob_died)
 	_alive.append(inst)

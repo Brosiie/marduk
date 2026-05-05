@@ -28,6 +28,7 @@ const RESOURCE_THEME := {
 var player: Player
 
 var menu_panel: Control = null
+var boss_bar: Control = null
 
 func _ready() -> void:
 	add_to_group("hud")
@@ -52,6 +53,9 @@ func _ready() -> void:
 		menu_panel.set_script(menu_script)
 		menu_panel.name = "MenuPanel"
 		add_child(menu_panel)
+	# Boss bar — built procedurally so we don't need a separate .tscn.
+	boss_bar = _build_boss_bar()
+	$Root.add_child(boss_bar)
 	# Toast container for pickup notifications
 	_setup_toast_layer()
 	if player.has_signal("item_collected"):
@@ -127,6 +131,10 @@ func _on_mana(cur: float, mx: float) -> void:
 
 func _on_level_up(_lvl: int) -> void:
 	_refresh_all()
+	# Level-up arpeggio
+	var ab = get_node_or_null("/root/AudioBus")
+	if ab and ab.has_method("play_cue") and player:
+		ab.play_cue(&"level_up", player.global_position, -3.0, 1.0)
 
 func _on_resource(cur: float, mx: float, _mech: StringName) -> void:
 	mana_bar.max_value = max(1.0, mx)
@@ -194,3 +202,65 @@ func _rarity_color(rarity: int) -> Color:
 		5: return Color(1.00, 0.65, 0.10)
 		6: return Color(1.00, 0.95, 0.55)
 	return Color.WHITE
+
+# --- Boss bar ---
+# Built procedurally because we want a boss bar without a separate .tscn.
+# BossArena binds the boss to this bar via HUD.bind_boss(boss).
+func _build_boss_bar() -> Control:
+	var root := Control.new()
+	root.name = "BossBar"
+	root.anchor_left = 0.5
+	root.anchor_top = 0.0
+	root.anchor_right = 0.5
+	root.anchor_bottom = 0.0
+	root.offset_left = -360.0
+	root.offset_top = 12.0
+	root.offset_right = 360.0
+	root.offset_bottom = 80.0
+	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	root.visible = false
+
+	var frame := PanelContainer.new()
+	frame.name = "Frame"
+	frame.anchor_right = 1.0
+	frame.anchor_bottom = 1.0
+	root.add_child(frame)
+
+	var v := VBoxContainer.new()
+	v.name = "V"
+	frame.add_child(v)
+
+	var name := Label.new()
+	name.name = "Name"
+	name.add_theme_font_size_override("font_size", 18)
+	name.modulate = Color(0.95, 0.85, 0.55)
+	name.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	v.add_child(name)
+
+	var phase := Label.new()
+	phase.name = "Phase"
+	phase.add_theme_font_size_override("font_size", 11)
+	phase.modulate = Color(0.85, 0.65, 0.45)
+	phase.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	v.add_child(phase)
+
+	var hp := ProgressBar.new()
+	hp.name = "HP"
+	hp.custom_minimum_size = Vector2(700, 22)
+	hp.modulate = Color(0.95, 0.20, 0.20)
+	hp.show_percentage = false
+	v.add_child(hp)
+
+	var bar_script: GDScript = load("res://scripts/ui/hud_components/boss_bar.gd")
+	if bar_script:
+		root.set_script(bar_script)
+	return root
+
+# Public hooks for BossArena
+func bind_boss(boss: Node) -> void:
+	if boss_bar and boss_bar.has_method("bind_to_boss"):
+		boss_bar.bind_to_boss(boss)
+
+func unbind_boss() -> void:
+	if boss_bar and boss_bar.has_method("hide_bar"):
+		boss_bar.hide_bar()

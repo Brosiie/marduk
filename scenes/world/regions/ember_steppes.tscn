@@ -1,4 +1,5 @@
-[gd_scene load_steps=8 format=3 uid="uid://b4db3bff10324"]
+[gd_scene load_steps=9 format=3 uid="uid://b4db3bff10324"]
+[ext_resource type="Script" path="res://scripts/world/boss_arena.gd" id="boss_arena_ember_steppes"]
 [ext_resource type="Script" path="res://scripts/world/lodestone.gd" id="boss_lodestone_ember_warband_pyre"]
 [ext_resource type="Script" path="res://scripts/world/lodestone.gd" id="lodestone_ember_circle"]
 [ext_resource type="Script" path="res://scripts/world/warp_portal.gd" id="warp_"]
@@ -99,4 +100,9 @@ script = ExtResource("boss_lodestone_ember_warband_pyre")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4, 0.5, -25)
 lodestone_id = &"ember_warband_pyre"
 display_name = "Warband Pyre"
+[node name="BossArena" type="Area3D" parent="."]
+script = ExtResource("boss_arena_ember_steppes")
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, -25)
+arena_radius = 18.0
+trigger_radius = 12.0
 

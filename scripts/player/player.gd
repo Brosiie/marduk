@@ -477,8 +477,20 @@ func _update_animation() -> void:
 func take_damage(amount: float, source: Node = null) -> void:
 	if stats.hp <= 0:
 		return
+	# Dodge i-frames absorb the hit completely
+	if is_invulnerable():
+		return
 	stats.hp = max(0.0, stats.hp - amount)
 	hp_changed.emit(stats.hp, stats.max_hp)
+	# Damage floater above the player so the player sees what's hitting them
+	var floater_script: GDScript = load("res://scripts/combat/damage_floater.gd")
+	if floater_script and floater_script.has_method("spawn"):
+		floater_script.spawn(self, amount, false, &"physical")
+	# Hit react animation if available
+	if anim_player:
+		var hit_name: String = _resolved_anims.get("hit", "")
+		if hit_name != "":
+			anim_player.play(hit_name)
 	if stats.hp <= 0:
 		_die()
 
@@ -496,8 +508,104 @@ func spend_mana(amount: float) -> bool:
 func _die() -> void:
 	locked = true
 	died.emit()
-	if anim_player and anim_player.has_animation("die"):
-		anim_player.play("die")
+	# Multiplayer-friendly arena rule: when a player dies, that player's
+	# engagement is dropped but the BOSS keeps its HP. In a party run, the
+	# boss only resets when every player has wiped (handled by checking
+	# party_alive elsewhere). For now in single-player this is just one
+	# arena.on_player_died() per active arena.
+	for arena in get_tree().get_nodes_in_group("boss_arena"):
+		if arena.has_method("on_player_died"):
+			arena.on_player_died()
+	# Death animation
+	if anim_player:
+		var death_name: String = _resolved_anims.get("die", "")
+		if death_name != "":
+			anim_player.stop()
+			anim_player.play(death_name)
+		elif anim_player.has_animation("die"):
+			anim_player.play("die")
+	# Death SFX
+	var ab = get_node_or_null("/root/AudioBus")
+	if ab and ab.has_method("play_cue"):
+		ab.play_cue(&"death", global_position, -2.0, 0.85)
+	# Drop a soul-marker at the death position so the player can return for
+	# their lost XP. Soulslike convention.
+	_drop_death_marker()
+	# Wait 2.5s then respawn at the most recently attuned lodestone (Hub
+	# fallback if none attuned).
+	get_tree().create_timer(2.5).timeout.connect(_respawn)
+
+# Persistent state across deaths — carries over via SaveFlags.
+var _lost_xp: float = 0.0  # XP that drops on the ground at last death
+
+func _drop_death_marker() -> void:
+	# Surrender 50% of current XP-into-level. The player can return to this
+	# spot to pick up the marker and recover it.
+	if not stats:
+		return
+	var xp_lost: float = float(stats.xp) * 0.5
+	if xp_lost < 1.0:
+		return
+	stats.xp = max(0, stats.xp - int(xp_lost))
+	_lost_xp += xp_lost
+	# Spawn a glowing marker at our position (cheap Area3D + light)
+	var marker := Area3D.new()
+	marker.name = "SoulMarker"
+	var mi := MeshInstance3D.new()
+	var sphere := SphereMesh.new()
+	sphere.radius = 0.4
+	sphere.height = 0.8
+	mi.mesh = sphere
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = Color(0.80, 0.85, 1.0, 0.7)
+	mat.emission_enabled = true
+	mat.emission = Color(0.6, 0.7, 1.0)
+	mat.emission_energy_multiplier = 2.5
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mi.material_override = mat
+	marker.add_child(mi)
+	var lit := OmniLight3D.new()
+	lit.light_color = Color(0.6, 0.7, 1.0)
+	lit.light_energy = 2.0
+	lit.omni_range = 5.0
+	marker.add_child(lit)
+	var cs := CollisionShape3D.new()
+	var s2 := SphereShape3D.new()
+	s2.radius = 1.0
+	cs.shape = s2
+	marker.add_child(cs)
+	marker.collision_layer = 16
+	marker.collision_mask = 2
+	marker.global_position = global_position
+	marker.set_meta("lost_xp", _lost_xp)
+	get_tree().current_scene.add_child(marker)
+	marker.body_entered.connect(func(body: Node3D):
+		if body == self:
+			var recovered: float = marker.get_meta("lost_xp", 0.0)
+			if stats and stats.has_method("gain_xp"):
+				stats.gain_xp(int(recovered))
+			_lost_xp = 0
+			marker.queue_free()
+	)
+
+func _respawn() -> void:
+	# Pick the most recent attuned lodestone (or the hub if none).
+	var registry: Node = get_node_or_null("/root/LodestoneRegistry")
+	var target_id: StringName = &"sword_vow_dais"
+	if registry and registry.has_method("get_discovered"):
+		var disc: Dictionary = registry.get_discovered()
+		# Prefer a non-hub stone if discovered
+		for id in disc.keys():
+			target_id = id
+			break
+	# Restore HP
+	if stats:
+		stats.hp = stats.max_hp
+		hp_changed.emit(stats.hp, stats.max_hp)
+	locked = false
+	# Trigger fast-travel
+	if registry and registry.has_method("travel"):
+		registry.travel(target_id)
 
 # === Shapeshift / Transformation API ===
 # Druids call enter_form(form). Capstone dragon also goes here.

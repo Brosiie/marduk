@@ -82,6 +82,83 @@ func play_sfx_3d(path: String, position: Vector3, volume_db: float = 0.0, pitch:
 	p.pitch_scale = pitch
 	p.play()
 
+# --- Procedural SFX (no .ogg files yet) ---
+# AudioStreamGenerator builds short tones at runtime so combat has SOMETHING
+# audible until a sound designer ships real assets. Each named SFX is a
+# different tone curve. Cached per-name.
+
+const SFX_SAMPLE_RATE: float = 22050.0
+
+var _sfx_cache: Dictionary = {}  # name -> AudioStreamGenerator (template)
+
+# Public API: AudioBus.play_cue("hit", actor.global_position)
+func play_cue(name: StringName, pos: Vector3, volume_db: float = -6.0, pitch: float = 1.0) -> void:
+	var p := _take_sfx_player()
+	if not p:
+		return
+	var stream := AudioStreamGenerator.new()
+	stream.mix_rate = SFX_SAMPLE_RATE
+	stream.buffer_length = 0.4  # max length we'll ever need
+	p.stream = stream
+	p.global_position = pos
+	p.volume_db = volume_db
+	p.pitch_scale = pitch
+	p.play()
+	var pb: AudioStreamGeneratorPlayback = p.get_stream_playback()
+	if pb == null:
+		return
+	_fill_buffer(pb, name)
+
+# Push samples into the playback buffer based on cue name. Each cue picks
+# a different waveform shape and decay envelope. Soft and short so they
+# don't overlap into mush.
+func _fill_buffer(pb: AudioStreamGeneratorPlayback, name: StringName) -> void:
+	match name:
+		&"hit":           _gen_burst(pb, 220.0, 60.0, 0.10, 0.35)
+		&"crit":          _gen_burst(pb, 440.0, 80.0, 0.15, 0.5)
+		&"death":         _gen_burst(pb, 110.0, 40.0, 0.30, 0.6)
+		&"pickup":        _gen_chirp(pb, 660.0, 1320.0, 0.10)
+		&"level_up":      _gen_arp(pb, [330.0, 440.0, 660.0, 880.0], 0.08)
+		&"lodestone":     _gen_chirp(pb, 220.0, 880.0, 0.30)
+		&"warp":          _gen_chirp(pb, 880.0, 110.0, 0.30)
+		&"swing":         _gen_burst(pb, 320.0, 90.0, 0.06, 0.25)
+		&"button":        _gen_burst(pb, 880.0, 600.0, 0.04, 0.15)
+		&"deny":          _gen_burst(pb, 110.0, 80.0, 0.10, 0.35)
+		_:                _gen_burst(pb, 440.0, 100.0, 0.08, 0.3)
+
+# Square-ish burst with exponential decay
+func _gen_burst(pb: AudioStreamGeneratorPlayback, freq_start: float, freq_end: float, duration: float, gain: float) -> void:
+	var n: int = int(duration * SFX_SAMPLE_RATE)
+	var phase: float = 0.0
+	for i in range(n):
+		var t: float = float(i) / float(max(1, n))
+		var freq: float = lerp(freq_start, freq_end, t)
+		phase += freq / SFX_SAMPLE_RATE
+		# square wave for more crunch than sine
+		var wave: float = 1.0 if fmod(phase, 1.0) < 0.5 else -1.0
+		var env: float = exp(-3.0 * t)
+		var sample: float = wave * env * gain
+		pb.push_frame(Vector2(sample, sample))
+
+# Pitch-bend chirp (rising or falling)
+func _gen_chirp(pb: AudioStreamGeneratorPlayback, freq_start: float, freq_end: float, duration: float) -> void:
+	var n: int = int(duration * SFX_SAMPLE_RATE)
+	var phase: float = 0.0
+	for i in range(n):
+		var t: float = float(i) / float(max(1, n))
+		var freq: float = lerp(freq_start, freq_end, t)
+		phase += freq / SFX_SAMPLE_RATE
+		var wave: float = sin(phase * TAU)
+		var env: float = sin(t * PI)  # raised-cosine envelope
+		var sample: float = wave * env * 0.4
+		pb.push_frame(Vector2(sample, sample))
+
+# Arpeggio across a pitch ladder (used for level_up)
+func _gen_arp(pb: AudioStreamGeneratorPlayback, freqs: Array, step_dur: float) -> void:
+	for f in freqs:
+		_gen_burst(pb, float(f), float(f), step_dur, 0.4)
+
+
 func _take_sfx_player() -> AudioStreamPlayer3D:
 	for p in _sfx_pool:
 		if not p.playing:

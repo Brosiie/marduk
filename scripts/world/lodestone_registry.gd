@@ -117,6 +117,13 @@ func travel(id: StringName) -> bool:
 	var scene_path: String = meta.get("scene", "")
 	if scene_path == "" or not ResourceLoader.exists(scene_path):
 		return false
+	# Warp SFX before scene change
+	var ab = get_node_or_null("/root/AudioBus")
+	if ab and ab.has_method("play_cue"):
+		# Ambient cue at the player's position
+		var player = get_tree().get_first_node_in_group("player")
+		if player:
+			ab.play_cue(&"warp", player.global_position, -3.0, 1.0)
 	travelled.emit(id)
 	get_tree().change_scene_to_file(scene_path)
 	return true

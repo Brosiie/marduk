@@ -149,12 +149,28 @@ func take_damage(amount: float, source: Node = null) -> void:
 	if state == State.DEAD:
 		return
 	hp = max(0.0, hp - amount)
+	# Spawn a damage floater so combat has visual feedback.
+	var floater_script: GDScript = load("res://scripts/combat/damage_floater.gd")
+	var is_crit: bool = false
+	if floater_script and floater_script.has_method("spawn"):
+		if source and source.has("stats") and source.stats:
+			var cc: float = float(source.stats.get("crit_chance") if "crit_chance" in source.stats else 0.0)
+			is_crit = randf() < cc and amount > 30.0
+		floater_script.spawn(self, amount, is_crit, &"physical")
+	# Audio cue (procedural since no .ogg yet)
+	var ab = get_node_or_null("/root/AudioBus")
+	if ab and ab.has_method("play_cue"):
+		ab.play_cue(&"crit" if is_crit else &"hit", global_position, -8.0, randf_range(0.92, 1.08))
 	if hp <= 0.0:
 		_die(source)
 
 func _die(killer: Node) -> void:
 	state = State.DEAD
 	died.emit()
+	# Death SFX
+	var ab = get_node_or_null("/root/AudioBus")
+	if ab and ab.has_method("play_cue"):
+		ab.play_cue(&"death", global_position, -6.0, randf_range(0.85, 1.0))
 	if killer and killer.get("stats") and killer.stats.has_method("gain_xp"):
 		killer.stats.gain_xp(xp_reward)
 	# Award stance charge to Ronin killers, drop loot via prestige-aware table

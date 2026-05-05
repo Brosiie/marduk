@@ -50,9 +50,12 @@ func _ready() -> void:
 	# Encounter-level scaling: bring HP/damage up to expected curve for this fight.
 	var lvl_mult := 1.0 + float(encounter_level) * 0.10
 	max_hp *= lvl_mult
-	hp = max_hp
 	contact_damage *= lvl_mult
 	xp_reward = int(xp_reward * lvl_mult * 2.5)  # bosses give meaty XP
+	# Boss HP rule: bosses are 10x average mob HP at the same encounter level.
+	# Average mob HP at L1 is ~50; we scale up to give bosses real heft.
+	max_hp = max(max_hp, 600.0 * lvl_mult)
+	hp = max_hp
 
 	# Inflate phase data
 	for d in phases_data:

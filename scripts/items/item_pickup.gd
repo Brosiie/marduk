@@ -108,6 +108,11 @@ func _pickup(player: Node) -> void:
 		player.collect_item(item, quantity)
 	elif player.has("inventory") and player.inventory and player.inventory.has_method("add_item"):
 		player.inventory.add_item(item, quantity)
+	# Pickup SFX, pitch-shift by rarity so rares sound shinier
+	var ab = player.get_node_or_null("/root/AudioBus")
+	if ab and ab.has_method("play_cue") and item:
+		var pitch: float = 1.0 + 0.12 * float(int(item.rarity))
+		ab.play_cue(&"pickup", global_position, -4.0, pitch)
 	looted.emit(item, quantity)
 	queue_free()
 

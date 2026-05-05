@@ -142,6 +142,10 @@ func _attune() -> void:
 		var tw := create_tween()
 		tw.tween_property(_light, "light_energy", 4.0, 0.25)
 		tw.tween_property(_light, "light_energy", 2.0, 0.4)
+		# Discovery SFX
+		var ab = get_node_or_null("/root/AudioBus")
+		if ab and ab.has_method("play_cue"):
+			ab.play_cue(&"lodestone", global_position, -3.0, 1.0)
 
 # Walks the scene tree to find the HUD's MenuPanel and opens its `map` tab.
 func _open_map_panel() -> void:

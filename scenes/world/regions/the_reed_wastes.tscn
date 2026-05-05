@@ -1,4 +1,5 @@
-[gd_scene load_steps=8 format=3 uid="uid://b117c52cffaa5"]
+[gd_scene load_steps=9 format=3 uid="uid://b117c52cffaa5"]
+[ext_resource type="Script" path="res://scripts/world/boss_arena.gd" id="boss_arena_the_reed_wastes"]
 [ext_resource type="Script" path="res://scripts/world/lodestone.gd" id="boss_lodestone_reed_drowned_keep"]
 [ext_resource type="Script" path="res://scripts/world/lodestone.gd" id="lodestone_reed_marker"]
 [ext_resource type="Script" path="res://scripts/world/warp_portal.gd" id="warp_"]
@@ -103,4 +104,9 @@ script = ExtResource("boss_lodestone_reed_drowned_keep")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4, 0.5, -25)
 lodestone_id = &"reed_drowned_keep"
 display_name = "Drowned Keep"
+[node name="BossArena" type="Area3D" parent="."]
+script = ExtResource("boss_arena_the_reed_wastes")
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, -25)
+arena_radius = 18.0
+trigger_radius = 12.0
 

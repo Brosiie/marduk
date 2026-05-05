@@ -1,4 +1,5 @@
-[gd_scene load_steps=8 format=3 uid="uid://b6d8417303853"]
+[gd_scene load_steps=9 format=3 uid="uid://b6d8417303853"]
+[ext_resource type="Script" path="res://scripts/world/boss_arena.gd" id="boss_arena_babilim"]
 [ext_resource type="Script" path="res://scripts/world/lodestone.gd" id="boss_lodestone_babilim_holy_sanctum"]
 [ext_resource type="Script" path="res://scripts/world/lodestone.gd" id="lodestone_babilim_altar"]
 [ext_resource type="Script" path="res://scripts/world/warp_portal.gd" id="warp_"]
@@ -83,4 +84,9 @@ script = ExtResource("boss_lodestone_babilim_holy_sanctum")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4, 0.5, -25)
 lodestone_id = &"babilim_holy_sanctum"
 display_name = "Holy Sanctum"
+[node name="BossArena" type="Area3D" parent="."]
+script = ExtResource("boss_arena_babilim")
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, -25)
+arena_radius = 18.0
+trigger_radius = 12.0
 
