@@ -494,6 +494,62 @@ func receive_loot(item: Item) -> void:
 func get_inventory() -> Inventory:
 	return inventory
 
+# === Mount API ===
+var current_mount: Mount = null
+var _saved_move_speed: float = 0.0
+
+func summon_mount(mount: Mount) -> bool:
+	if not mount or not MountRegistry.is_owned(mount.id):
+		return false
+	if current_mount:
+		dismiss_mount()
+	current_mount = mount
+	_saved_move_speed = move_speed
+	move_speed = move_speed * mount.move_speed_multiplier
+	# Real impl: spawn mount mesh, hide player legs, parent player to mount node
+	return true
+
+func dismiss_mount() -> void:
+	if not current_mount:
+		return
+	move_speed = _saved_move_speed if _saved_move_speed > 0 else 6.0
+	current_mount = null
+
+func is_mounted() -> bool:
+	return current_mount != null
+
+# Combat hook: dismiss on combat if mount.dismiss_on_combat
+func _on_combat_started() -> void:
+	if current_mount and current_mount.dismiss_on_combat:
+		dismiss_mount()
+
+# === Pet API ===
+var current_pet: Pet = null
+
+func summon_pet(pet: Pet) -> bool:
+	if not pet or not PetRegistry.is_owned(pet.id):
+		return false
+	current_pet = pet
+	# Real impl: spawn pet mesh as child, follow logic
+	return true
+
+func dismiss_pet() -> void:
+	current_pet = null
+
+# Yak inventory bonus is granted to the player AND every party member within range.
+# Inventory.MAX_BAG_SLOTS isn't dynamic; the bonus increases an "extra slots" counter
+# that the inventory UI surfaces.
+func extra_inventory_slots_from_pet() -> int:
+	if current_pet and current_pet.inventory_bonus > 0:
+		return current_pet.inventory_bonus
+	# Also check party members (anyone in the party with a Yak summoned shares with us)
+	var party = PartyManager.current_party if PartyManager else null
+	if party:
+		for member: Party.Member in party.members:
+			# Phase 4 server tells us each member's pet state. Stub: 0.
+			pass
+	return 0
+
 # === Potion consumption ===
 # Items reach here via inventory UI / hotkey. The Item resource carries:
 #   heal_amount (instant HP)

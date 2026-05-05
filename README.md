@@ -302,6 +302,39 @@ Every class has both. Skill trees are designed so you can build a pure ST damage
 
 Player rotation, abilities, and camera all respect the locked target when active.
 
+## Mounts and Pets
+
+**Mounts (ground-only, +100% movement, paid):** 10 SKUs from $4.99 to $29.99 founder edition. Free starter `Chestnut Horse` at level 5. All mounts mechanically identical (+100% speed); difference is aesthetic. Owned mounts persist forever, cross-prestige.
+
+**Pets (cosmetic + 1 utility):** 11 SKUs. The **Bone-Mountains Pack-Yak** ($9.99) is the only utility pet: while summoned, every party member within 30m gains **+30 inventory slots**. Other pets are pure cosmetic flavor. Free starter `Alley Cat` at level 3.
+
+Both in [`MountRegistry`](scripts/mounts/mount_registry.gd) and [`PetRegistry`](scripts/pets/pet_registry.gd). Ownership stored as permanent SaveFlag. Purchase via Stripe through Cloudflare Workers.
+
+## Party + Social
+
+**Party (max 4):** +10% XP boost at full 4 members. Loot modes: round-robin / free-for-all / leader-decides. LFG finder via /v1/party/lfg endpoints. Server-authoritative; clients mirror via WebSocket.
+
+**Friends + Block lists:** persisted per-account on backend. Auto-unfriend on block.
+
+## Worlds
+
+**4 worlds at launch, max 12 concurrent players each.** Tight Mortal-Online / classic-Tibia density.
+
+| Server | Region | PvP |
+|--------|--------|-----|
+| Iron Pillar (1) | NA | No |
+| Lapis Bay (2) | EU | No |
+| Bone Mountains (3) | Global | No |
+| Mist Vale PvP (4) | Global | Yes |
+
+Cross-world transfer 24h cooldown.
+
+## Open World Respawn
+
+`Spawner` nodes seed mobs with `respawn_seconds` timer (60s + 6s jitter default). Won't respawn if player within 8m. `DungeonInstance` resets on entry: spawners restart, boss respawns, completion flags clear. Multiple parties run separate instances simultaneously.
+
+**Max 4 in a dungeon** (matches party cap).
+
 ## Achievement + Title System
 
 **60+ achievements, 50+ titles.** Combat / Feats / Exploration / Professions / Story / Collection / Meta categories. Plus a humor track: "Has a Glade Problem" (die to the same beast 3x), "Apothecary's Best Friend" (50 potions in one dungeon), "Briefly Royal" (sit on Tiamat's skull-throne), "Single-Buyer Economy" (empty a vendor's stock).

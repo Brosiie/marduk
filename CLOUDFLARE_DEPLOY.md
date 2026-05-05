@@ -90,6 +90,59 @@ POST /v1/leaderboards/speed/submit
   -> 200 { rank, percentile }
 ```
 
+### Worlds / Servers
+```
+GET /v1/worlds/list
+  -> 200 { worlds: [{server_id, display_name, region, current_players, max_players, status, is_pvp}] }
+
+POST /v1/worlds/join
+  body: { server_id, character_id }
+  -> 200 { ok: true, websocket_url }
+  -> 409 { error: "world_full" }
+
+POST /v1/worlds/transfer
+  body: { from_server, to_server, character_id }
+  Cooldown: 24h per character.
+  -> 200 { ok: true, transfer_completes_at_unix }
+  -> 429 { error: "transfer_cooldown" }
+```
+
+### Party
+```
+POST /v1/party/create     {} -> { party_id, leader_id }
+POST /v1/party/invite     { target_account_id }
+POST /v1/party/accept     { party_id }
+POST /v1/party/decline    { party_id }
+POST /v1/party/leave      {} -> 204
+POST /v1/party/kick       { account_id } -- leader only
+GET  /v1/party/me         -> { party }
+POST /v1/party/lfg/list   { class_filter, level_min, level_max } -> { open_parties: [...] }
+POST /v1/party/lfg/post   { name, requirements } -> { ok }
+```
+
+### Friends / Block
+```
+POST /v1/friends/add        { target_account_id, note? } -> 200
+POST /v1/friends/remove     { target_account_id } -> 204
+GET  /v1/friends/list       -> { friends: [{account_id, username, online, current_zone, level}] }
+POST /v1/blocks/add         { target_account_id, reason? } -> 200
+POST /v1/blocks/remove      { target_account_id } -> 204
+GET  /v1/blocks/list        -> { blocks: [...] }
+```
+
+### Store (real-money purchases via Stripe)
+```
+GET /v1/store/catalog                        -> { mounts: [...], pets: [...], cosmetics: [...] }
+POST /v1/store/purchase/initiate
+  body: { sku_id }
+  -> { stripe_session_url }   (redirect player; on success backend webhook fires)
+
+POST /v1/store/webhook/stripe
+  Stripe webhook endpoint. Verifies signature, grants ownership flag on success.
+
+GET  /v1/store/inventory                     -> { owned_mounts: [...], owned_pets: [...], owned_cosmetics: [...] }
+```
+
 ## D1 schema
 
 ```sql
