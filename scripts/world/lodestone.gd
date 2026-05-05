@@ -115,8 +115,20 @@ func _on_body_exited(body: Node3D) -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if not _player_inside:
 		return
-	if event.is_action_pressed("interact"):
+	if not event.is_action_pressed("interact"):
+		return
+	var registry := get_node_or_null("/root/LodestoneRegistry")
+	if registry == null:
+		return
+	if registry.is_discovered(lodestone_id):
+		# Already attuned: pop the World Map (Lodestone tab) so the player can
+		# teleport to any other discovered stone.
+		_open_map_panel()
+	else:
 		_attune()
+		# After first attune, also flash the map open so the player sees the
+		# new dot light up.
+		_open_map_panel()
 
 func _attune() -> void:
 	var registry := get_node_or_null("/root/LodestoneRegistry")
@@ -130,3 +142,24 @@ func _attune() -> void:
 		var tw := create_tween()
 		tw.tween_property(_light, "light_energy", 4.0, 0.25)
 		tw.tween_property(_light, "light_energy", 2.0, 0.4)
+
+# Walks the scene tree to find the HUD's MenuPanel and opens its `map` tab.
+func _open_map_panel() -> void:
+	var hud: Node = null
+	for n in get_tree().get_nodes_in_group("hud"):
+		hud = n
+		break
+	if hud == null:
+		# fallback: search by name under the current scene
+		for n in get_tree().current_scene.get_children():
+			if n is HUD or n.name == "HUD":
+				hud = n
+				break
+	if hud == null:
+		return
+	var menu = hud.get("menu_panel") if hud.has_method("get") else null
+	if menu and menu.has_method("toggle_tab"):
+		# Force-open the map tab even if menu is already showing a different tab
+		if menu.visible and menu.has_method("close"):
+			menu.close()
+		menu.open(&"map")

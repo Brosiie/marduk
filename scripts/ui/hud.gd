@@ -30,6 +30,7 @@ var player: Player
 var menu_panel: Control = null
 
 func _ready() -> void:
+	add_to_group("hud")
 	player = get_node_or_null(player_path) if player_path else get_tree().get_first_node_in_group("player")
 	if not player:
 		push_warning("HUD: no player found")
