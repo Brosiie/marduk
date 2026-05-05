@@ -22,6 +22,11 @@ enum State { IDLE, CHASE, ATTACK, RECOVER, DEAD }
 
 @export var loot_table: LootTable  # null = no drops
 
+# Identity slot for mesh + animation library lookups. Region scenes set
+# this on their MobSpawn_* markers (`metadata/mob_id`); the spawner reads
+# it back into here before the enemy enters the tree.
+@export var mob_id: StringName = &"usurper_footman"
+
 var state: State = State.IDLE
 var target: Node3D
 var _attack_timer: float = 0.0
@@ -33,6 +38,17 @@ func _ready() -> void:
 	add_to_group("enemy")
 	_apply_prestige_scaling()
 	_attach_nameplate()
+	_load_marduk_animation_library()
+
+# Merges the slot animations declared in AnimationRegistry for this mob_id
+# into the spawned mesh's AnimationPlayer. Silent no-op if anim files
+# aren't on disk yet.
+func _load_marduk_animation_library() -> void:
+	var loader_script: GDScript = load("res://scripts/anim/animation_library_loader.gd")
+	if loader_script == null:
+		return
+	var loader = loader_script.new()
+	loader.apply(self, "mob", mob_id)
 
 func _attach_nameplate() -> void:
 	# Lazily attach a nameplate so prestige badges show above mobs and bosses.

@@ -17,14 +17,18 @@ var anim_player: AnimationPlayer = null
 # KayKit Adventurers ships with: Idle, Idle_Combat, Walking_A, Running_A,
 # 1H_Melee_Attack_Slice_Diagonal, Dodge_Forward, Death_A, etc.
 const ANIM_ALIASES := {
-	"idle":   ["idle", "Idle", "Idle_Combat", "T-Pose", "Static"],
-	"walk":   ["walk", "Walking_A", "Walking_B", "Walking_C", "Run_Casual"],
-	"run":    ["run", "Running_A", "Running_B", "Running_Strafe_Right"],
-	"attack": ["attack", "1H_Melee_Attack_Slice_Diagonal", "1H_Melee_Attack_Slice_Horizontal", "1H_Melee_Attack_Chop", "Unarmed_Melee_Attack_Punch_A"],
-	"dodge":  ["dodge", "Dodge_Forward", "Dodge_Right", "Cheer"],
-	"die":    ["die", "Death_A", "Death_A_Pose", "Death_B"],
-	"hit":    ["hit", "Hit_A", "Hit_B"],
-	"jump":   ["jump", "Jump_Full_Long", "Jump_Start"],
+	# Order matters: Mixamo "marduk/<slot>" first (set by AnimationLibraryLoader),
+	# then the legacy KayKit names so a class without Mixamo anims yet still moves.
+	"idle":   ["marduk/idle", "Mixamo_Idle", "idle", "Idle", "Idle_Combat", "T-Pose", "Static"],
+	"walk":   ["marduk/walk", "Mixamo_Walking", "walk", "Walking_A", "Walking_B", "Walking_C", "Run_Casual"],
+	"run":    ["marduk/run", "Mixamo_Running", "run", "Running_A", "Running_B", "Running_Strafe_Right"],
+	"attack": ["marduk/attack_basic", "marduk/attack_combo_1", "Mixamo_Sword_Slash", "attack", "1H_Melee_Attack_Slice_Diagonal", "1H_Melee_Attack_Slice_Horizontal", "1H_Melee_Attack_Chop", "Unarmed_Melee_Attack_Punch_A"],
+	"dodge":  ["marduk/dodge_forward", "marduk/dodge_back", "Mixamo_Dodge", "dodge", "Dodge_Forward", "Dodge_Right", "Cheer"],
+	"die":    ["marduk/death", "Mixamo_Dying", "die", "Death_A", "Death_A_Pose", "Death_B"],
+	"hit":    ["marduk/hit_react", "Mixamo_Hit", "hit", "Hit_A", "Hit_B"],
+	"jump":   ["marduk/jump_up", "marduk/jump_down", "Mixamo_Jump", "jump", "Jump_Full_Long", "Jump_Start"],
+	"taunt":  ["marduk/taunt", "Mixamo_Taunt"],
+	"stand_up": ["marduk/stand_up", "Mixamo_Stand"],
 }
 
 var _camera_basis_provider: Node3D
@@ -108,6 +112,9 @@ func _ready() -> void:
 	# Find the imported AnimationPlayer wherever it lives in the mesh hierarchy.
 	# KayKit .glbs put AnimationPlayer inside the imported scene root, not directly under MeshRoot.
 	anim_player = _find_animation_player(self)
+	# Merge shared + class-specific Mixamo anims onto the AnimationPlayer (silent if .fbx
+	# files are missing on disk; gameplay falls through to whatever the mesh ships with).
+	_load_marduk_animation_library()
 	# Resolve our generic animation aliases to whatever names the imported character uses.
 	_resolve_anim_alias_map()
 	# Loop the idle animation by default
@@ -117,6 +124,21 @@ func _ready() -> void:
 			anim_player.play(idle_name)
 
 var _resolved_anims: Dictionary = {}  # generic key -> actual animation name in this character
+
+# Pulls the Mixamo .fbx animations declared in AnimationRegistry onto this
+# Player's AnimationPlayer under the canonical "marduk/<slot>" namespace.
+# Keeps gameplay decoupled from filenames; ANIM_ALIASES picks up the merged
+# names automatically. No-op if the autoloads or AnimationPlayer aren't ready.
+func _load_marduk_animation_library() -> void:
+	if anim_player == null:
+		return
+	if not stats or not stats.class_def:
+		return
+	var loader_script: GDScript = load("res://scripts/anim/animation_library_loader.gd")
+	if loader_script == null:
+		return
+	var loader = loader_script.new()
+	loader.apply(self, "class", StringName(stats.class_def.class_id))
 
 func _find_animation_player(node: Node) -> AnimationPlayer:
 	if node is AnimationPlayer:

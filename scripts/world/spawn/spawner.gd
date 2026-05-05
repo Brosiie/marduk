@@ -55,6 +55,11 @@ func _spawn_one() -> void:
 	if not enemy_scene:
 		return
 	var inst := enemy_scene.instantiate()
+	# Stamp mob_id BEFORE adding to tree so EnemyBase._ready() resolves the
+	# right Mixamo mesh + animation library on first frame instead of
+	# defaulting to usurper_footman.
+	inst.mob_id = mob_id
+	_swap_mesh_for_mob(inst, mob_id)
 	get_tree().current_scene.add_child(inst)
 	inst.global_position = global_position
 	inst.max_hp = mob.base_hp
@@ -63,10 +68,30 @@ func _spawn_one() -> void:
 	inst.move_speed = mob.move_speed
 	inst.detect_radius = mob.detect_radius
 	inst.xp_reward = mob.xp_reward
-	if inst.has_method("set_meta"):
-		inst.set_meta("mob_id", mob_id)
+	inst.set_meta("mob_id", mob_id)
 	inst.died.connect(_on_mob_died)
 	_alive.append(inst)
+
+# enemy_base.tscn ships with the default usurper_footman mesh baked into
+# `MobMesh`. For mobs with a different Mixamo character, hot-swap the
+# instanced PackedScene before _ready() runs.
+func _swap_mesh_for_mob(enemy_inst: Node, requested_mob_id: StringName) -> void:
+	var mesh_path: String = ""
+	var reg = get_tree().root.get_node_or_null("ClassMeshRegistry")
+	if reg and reg.has_method("get_mob_mesh_path"):
+		mesh_path = reg.get_mob_mesh_path(requested_mob_id)
+	if mesh_path == "" or not ResourceLoader.exists(mesh_path):
+		return
+	var packed: PackedScene = load(mesh_path)
+	if packed == null:
+		return
+	var old_mesh: Node = enemy_inst.get_node_or_null("MobMesh")
+	if old_mesh:
+		old_mesh.queue_free()
+	var new_mesh := packed.instantiate()
+	new_mesh.name = "MobMesh"
+	new_mesh.transform = Transform3D(Basis().scaled(Vector3(0.01, 0.01, 0.01)), Vector3.ZERO)
+	enemy_inst.add_child(new_mesh)
 
 func _on_mob_died() -> void:
 	var jitter := randf_range(-respawn_jitter, respawn_jitter)

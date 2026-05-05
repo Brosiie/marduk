@@ -63,6 +63,16 @@ func _ready() -> void:
 		p.move_speed_mult = float(d.get("speed_mult", 1.0))
 		phases.append(p)
 
+# Override the EnemyBase animation hook so bosses pull from the boss
+# slot table (phase_1_combo, phase_2_charge, etc.) rather than the
+# generic mob attack pool.
+func _load_marduk_animation_library() -> void:
+	var loader_script: GDScript = load("res://scripts/anim/animation_library_loader.gd")
+	if loader_script == null:
+		return
+	var loader = loader_script.new()
+	loader.apply(self, "boss", boss_id)
+
 func take_damage(amount: float, source: Node = null) -> void:
 	if state == State.DEAD or _in_transition:
 		return
