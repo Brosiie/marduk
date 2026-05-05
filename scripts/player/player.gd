@@ -17,18 +17,21 @@ var anim_player: AnimationPlayer = null
 # KayKit Adventurers ships with: Idle, Idle_Combat, Walking_A, Running_A,
 # 1H_Melee_Attack_Slice_Diagonal, Dodge_Forward, Death_A, etc.
 const ANIM_ALIASES := {
-	# Order matters: Mixamo "marduk/<slot>" first (set by AnimationLibraryLoader),
-	# then the legacy KayKit names so a class without Mixamo anims yet still moves.
-	"idle":   ["marduk/idle", "Mixamo_Idle", "idle", "Idle", "Idle_Combat", "T-Pose", "Static"],
-	"walk":   ["marduk/walk", "Mixamo_Walking", "walk", "Walking_A", "Walking_B", "Walking_C", "Run_Casual"],
-	"run":    ["marduk/run", "Mixamo_Running", "run", "Running_A", "Running_B", "Running_Strafe_Right"],
-	"attack": ["marduk/attack_basic", "marduk/attack_combo_1", "Mixamo_Sword_Slash", "attack", "1H_Melee_Attack_Slice_Diagonal", "1H_Melee_Attack_Slice_Horizontal", "1H_Melee_Attack_Chop", "Unarmed_Melee_Attack_Punch_A"],
-	"dodge":  ["marduk/dodge_forward", "marduk/dodge_back", "Mixamo_Dodge", "dodge", "Dodge_Forward", "Dodge_Right", "Cheer"],
-	"die":    ["marduk/death", "Mixamo_Dying", "die", "Death_A", "Death_A_Pose", "Death_B"],
-	"hit":    ["marduk/hit_react", "Mixamo_Hit", "hit", "Hit_A", "Hit_B"],
+	# Resolution order: "marduk/<slot>" (merged by AnimationLibraryLoader from
+	# AnimationRegistry) first, then legacy KayKit names so a class with no
+	# Mixamo anims yet still moves.
+	"idle":   ["marduk/katana_idle", "marduk/idle", "marduk/unarmed_idle", "Mixamo_Idle", "idle", "Idle", "Idle_Combat", "T-Pose", "Static"],
+	"walk":   ["marduk/walk", "marduk/walk_back", "marduk/walk_left", "Mixamo_Walking", "walk", "Walking_A", "Walking_B", "Walking_C", "Run_Casual"],
+	"run":    ["marduk/run", "marduk/run_left", "Mixamo_Running", "run", "Running_A", "Running_B", "Running_Strafe_Right"],
+	"attack": ["marduk/attack_basic", "marduk/attack_combo_1", "marduk/cleave_1", "marduk/dagger_1", "marduk/iai_strike", "marduk/cast_release", "Mixamo_Sword_Slash", "attack", "1H_Melee_Attack_Slice_Diagonal", "1H_Melee_Attack_Slice_Horizontal", "1H_Melee_Attack_Chop", "Unarmed_Melee_Attack_Punch_A"],
+	"dodge":  ["marduk/dodge_forward", "marduk/dodge_back", "marduk/dodge_corkscrew", "Mixamo_Dodge", "dodge", "Dodge_Forward", "Dodge_Right", "Cheer"],
+	"die":    ["marduk/death", "marduk/death_forward", "marduk/death_react_forward", "marduk/death_react_right", "marduk/death_back", "Mixamo_Dying", "die", "Death_A", "Death_A_Pose", "Death_B"],
+	"hit":    ["marduk/hit_react", "marduk/hit_react_left", "marduk/hit_react_right", "Mixamo_Hit", "hit", "Hit_A", "Hit_B"],
 	"jump":   ["marduk/jump_up", "marduk/jump_down", "Mixamo_Jump", "jump", "Jump_Full_Long", "Jump_Start"],
 	"taunt":  ["marduk/taunt", "Mixamo_Taunt"],
 	"stand_up": ["marduk/stand_up", "Mixamo_Stand"],
+	"block":  ["marduk/block_idle", "marduk/katana_blocking", "marduk/shield_block"],
+	"turn":   ["marduk/turn_right", "marduk/change_direction", "marduk/run_to_turn", "marduk/katana_180"],
 }
 
 var _camera_basis_provider: Node3D
@@ -97,6 +100,7 @@ signal mana_changed(current: float, max_mana: float)
 signal resource_changed(current: float, max_value: float, mechanic: StringName)
 signal form_changed(form: Transformation)
 signal died
+signal item_collected(item: Item, quantity: int)
 
 func _ready() -> void:
 	add_to_group("player")
@@ -167,6 +171,90 @@ func _input(event: InputEvent) -> void:
 	# ability is bound to a slot. Damage scales with primary attribute.
 	if event.is_action_pressed("attack_basic"):
 		_perform_basic_attack()
+	elif event.is_action_pressed("interact"):
+		_try_pickup_nearest_item()
+	elif event.is_action_pressed("dodge"):
+		_perform_dodge()
+
+# Short forward dash with i-frames + dodge animation. Bound to Shift via
+# the InputMap action `dodge`. Costs 15 stamina; if no stamina mechanic
+# is set yet (early-game / unassigned class) the dodge still works at
+# half strength.
+const DODGE_DISTANCE: float = 4.0
+const DODGE_DURATION: float = 0.32
+const DODGE_STAMINA_COST: float = 15.0
+var _dodging: bool = false
+var _dodge_iframes_until: float = 0.0
+const DODGE_IFRAME_DURATION: float = 0.25
+
+func _perform_dodge() -> void:
+	if _dodging or locked or not stats:
+		return
+	# Stamina gate (or rage-class equivalent). Don't crash if no class.
+	var has_stamina: bool = stats.class_def != null and stats.class_def.resource_mechanic == &"stamina"
+	if has_stamina and resource_value < DODGE_STAMINA_COST:
+		return
+	if has_stamina:
+		resource_value = max(0.0, resource_value - DODGE_STAMINA_COST)
+	# Animation
+	if anim_player:
+		var dodge_name: String = _resolved_anims.get("dodge", "")
+		if dodge_name != "":
+			anim_player.stop()
+			anim_player.play(dodge_name)
+	# Direction: current input dir if moving, else mesh forward
+	var dir: Vector3 = input_dir
+	if dir.length_squared() < 0.001 and mesh:
+		dir = -mesh.global_transform.basis.z
+	dir.y = 0
+	if dir.length_squared() < 0.001:
+		return
+	dir = dir.normalized()
+	_dodging = true
+	_dodge_iframes_until = (Time.get_ticks_msec() / 1000.0) + DODGE_IFRAME_DURATION
+	# Tween position over DODGE_DURATION
+	var target_pos := global_position + dir * DODGE_DISTANCE
+	var tw := create_tween()
+	tw.tween_property(self, "global_position", target_pos, DODGE_DURATION).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	tw.tween_callback(func(): _dodging = false)
+
+# Combat damage filter — dodging i-frames make the player invulnerable
+# during the early window. Combat code can call this gate before applying
+# damage.
+func is_invulnerable() -> bool:
+	return Time.get_ticks_msec() / 1000.0 < _dodge_iframes_until
+
+# Walks every ItemPickup in the scene and tries to loot the nearest one
+# inside its own pickup radius. Bound to the F key via the InputMap action
+# `interact`. Auto-loot (when enabled in settings) bypasses this entirely.
+func _try_pickup_nearest_item() -> void:
+	var nearest: Node = null
+	var best_d: float = 9999.0
+	for pu in get_tree().get_nodes_in_group("item_pickup"):
+		if not is_instance_valid(pu):
+			continue
+		var d: float = global_position.distance_to(pu.global_position)
+		if d < best_d:
+			best_d = d
+			nearest = pu
+	if nearest and nearest.has_method("try_pickup"):
+		nearest.try_pickup(self)
+
+# Public hook called by ItemPickup when the player walks onto / loots a drop.
+# Routes the item into Inventory, broadcasts a HUD toast event.
+func collect_item(item: Item, quantity: int = 1) -> void:
+	if item == null:
+		return
+	if inventory == null:
+		inventory = Inventory.new()
+	if inventory.has_method("add_item"):
+		inventory.add_item(item, quantity)
+	if has_signal("item_collected"):
+		emit_signal("item_collected", item, quantity)
+	# Existing receive_loot shim stays compatible with code paths that already
+	# call it (tests, scripted drops, etc.).
+	if has_method("receive_loot"):
+		receive_loot(item)
 
 func _perform_basic_attack() -> void:
 	# Always-available fallback swing. Doesn't require a class_def so a fresh

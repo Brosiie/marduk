@@ -48,6 +48,28 @@ const SLOT_BLOCK_IDLE   := &"block_idle"
 const SLOT_BLOCK_HIT    := &"block_hit"
 const SLOT_TAUNT        := &"taunt"
 const SLOT_STAND_UP     := &"stand_up"
+# Directional locomotion variants (added for Mixamo's strafe / arc / turn anims)
+const SLOT_WALK_BACK       := &"walk_back"
+const SLOT_WALK_LEFT       := &"walk_left"
+const SLOT_RUN_LEFT        := &"run_left"
+const SLOT_TURN_RIGHT      := &"turn_right"
+const SLOT_CHANGE_DIRECTION := &"change_direction"
+const SLOT_RUN_TO_TURN     := &"run_to_turn"
+const SLOT_DODGE_CORKSCREW := &"dodge_corkscrew"
+# Directional death/hit variants (Mixamo distinguishes left/right/forward)
+const SLOT_DEATH_FORWARD       := &"death_forward"
+const SLOT_DEATH_REACT_FORWARD := &"death_react_forward"
+const SLOT_DEATH_REACT_RIGHT   := &"death_react_right"
+const SLOT_HIT_REACT_LEFT      := &"hit_react_left"
+const SLOT_HIT_REACT_RIGHT     := &"hit_react_right"
+# Unarmed variants for casters / NPCs
+const SLOT_UNARMED_IDLE        := &"unarmed_idle"
+const SLOT_UNARMED_IDLE_LOOK   := &"unarmed_idle_looking"
+# Ronin greatsword/katana stance set
+const SLOT_KATANA_IDLE     := &"katana_idle"
+const SLOT_KATANA_BLOCKING := &"katana_blocking"
+const SLOT_KATANA_180      := &"katana_180"
+const SLOT_KATANA_IMPACT   := &"katana_impact"
 
 const SLOT_ATTACK_BASIC := &"attack_basic"
 const SLOT_ATTACK_HEAVY := &"attack_heavy"
@@ -76,30 +98,45 @@ const ANIM_ROOT := "res://assets/animations"
 # Mixamo downloads still play; gameplay falls back to the closest cousin
 # slot or to whatever the .fbx already shipped with).
 const SHARED_SLOTS := {
-	SLOT_DODGE_BACK:  "shared/locomotion/dodge_back.fbx",
-	SLOT_DEATH:       "shared/reactions/death.fbx",
-	SLOT_TAUNT:       "shared/utility/taunt_battlecry.fbx",
-	SLOT_STAND_UP:    "shared/utility/crouch_to_stand.fbx",
-	# These are documented expected slots Bond should download next.
-	# Filenames Mixamo ships them as in their library:
-	SLOT_IDLE:        "shared/locomotion/idle.fbx",
-	SLOT_WALK:        "shared/locomotion/walk.fbx",
-	SLOT_RUN:         "shared/locomotion/run.fbx",
-	SLOT_SPRINT:      "shared/locomotion/sprint.fbx",
-	SLOT_JUMP_UP:     "shared/locomotion/jump_up.fbx",
-	SLOT_JUMP_DOWN:   "shared/locomotion/jump_land.fbx",
-	SLOT_DODGE_FWD:   "shared/locomotion/dodge_forward.fbx",
-	SLOT_DODGE_LEFT:  "shared/locomotion/dodge_left.fbx",
-	SLOT_DODGE_RIGHT: "shared/locomotion/dodge_right.fbx",
-	SLOT_HIT_REACT:   "shared/reactions/hit_react.fbx",
-	SLOT_STAGGER:     "shared/reactions/stagger.fbx",
-	SLOT_KNOCKDOWN:   "shared/reactions/knockdown.fbx",
-	SLOT_GET_UP:      "shared/reactions/get_up.fbx",
-	SLOT_DEATH_BACK:  "shared/reactions/death_back.fbx",
-	SLOT_BLOCK_IDLE:  "shared/combat/block_idle.fbx",
-	SLOT_BLOCK_HIT:   "shared/combat/block_hit.fbx",
-	SLOT_PARRY:       "shared/combat/parry.fbx",
-	SLOT_ATTACK_BASIC: "shared/combat/attack_basic.fbx",
+	# --- Already on disk (Bond's drops) ---
+	SLOT_IDLE:               "shared/locomotion/idle.fbx",                # Standing Idle
+	SLOT_RUN:                "shared/locomotion/run.fbx",                 # Standing Run Forward
+	SLOT_RUN_LEFT:           "shared/locomotion/run_left.fbx",            # Standing Run Left
+	SLOT_WALK_BACK:          "shared/locomotion/walk_back.fbx",           # Standing Walk Back
+	SLOT_WALK_LEFT:          "shared/locomotion/walk_left.fbx",           # Standing Walk Left
+	SLOT_TURN_RIGHT:         "shared/locomotion/turn_right.fbx",          # Standing Turn Right 90
+	SLOT_CHANGE_DIRECTION:   "shared/locomotion/change_direction.fbx",    # Change Direction
+	SLOT_RUN_TO_TURN:        "shared/locomotion/run_to_turn.fbx",         # Running To Turn
+	SLOT_DODGE_BACK:         "shared/locomotion/dodge_back.fbx",          # Standing Dodge Backward
+	SLOT_DODGE_CORKSCREW:    "shared/locomotion/dodge_corkscrew.fbx",     # Corkscrew Evade
+	SLOT_ATTACK_BASIC:       "shared/combat/attack_basic.fbx",            # Sword And Shield Attack
+	SLOT_BLOCK_IDLE:         "shared/combat/block_idle.fbx",              # Standing Block Idle
+	SLOT_HIT_REACT_LEFT:     "shared/reactions/hit_react_left.fbx",       # Standing React Small From Left
+	SLOT_HIT_REACT_RIGHT:    "shared/reactions/hit_react_right.fbx",      # Standing React Small From Right
+	SLOT_DEATH:              "shared/reactions/death.fbx",                # Dying
+	SLOT_DEATH_FORWARD:      "shared/reactions/death_forward.fbx",        # Standing Death Forward 01
+	SLOT_DEATH_REACT_FORWARD: "shared/reactions/death_react_forward.fbx", # Standing React Death Forward
+	SLOT_DEATH_REACT_RIGHT:  "shared/reactions/death_react_right.fbx",    # Standing React Death Right
+	SLOT_TAUNT:              "shared/utility/taunt_battlecry.fbx",        # Standing Taunt Battlecry
+	SLOT_STAND_UP:           "shared/utility/crouch_to_stand.fbx",        # Crouch To Stand
+	SLOT_UNARMED_IDLE:       "shared/utility/unarmed_idle.fbx",           # Unarmed Idle
+	SLOT_UNARMED_IDLE_LOOK:  "shared/utility/unarmed_idle_looking.fbx",   # Unarmed Idle Looking Ver. 2
+
+	# --- Not yet on disk; declared so Mixamo download targets are obvious ---
+	SLOT_WALK:        "shared/locomotion/walk.fbx",            # Walking
+	SLOT_SPRINT:      "shared/locomotion/sprint.fbx",          # Sprint
+	SLOT_JUMP_UP:     "shared/locomotion/jump_up.fbx",         # Jump
+	SLOT_JUMP_DOWN:   "shared/locomotion/jump_land.fbx",       # Falling To Landing
+	SLOT_DODGE_FWD:   "shared/locomotion/dodge_forward.fbx",   # Standing Dodge Forward
+	SLOT_DODGE_LEFT:  "shared/locomotion/dodge_left.fbx",      # Standing Dodge Left
+	SLOT_DODGE_RIGHT: "shared/locomotion/dodge_right.fbx",     # Standing Dodge Right
+	SLOT_HIT_REACT:   "shared/reactions/hit_react.fbx",        # Hit Reaction (generic)
+	SLOT_STAGGER:     "shared/reactions/stagger.fbx",          # Heavy Hit Reaction
+	SLOT_KNOCKDOWN:   "shared/reactions/knockdown.fbx",        # Falling Back Death (mid-loop)
+	SLOT_GET_UP:      "shared/reactions/get_up.fbx",           # Standing Up
+	SLOT_DEATH_BACK:  "shared/reactions/death_back.fbx",       # Falling Back Death
+	SLOT_BLOCK_HIT:   "shared/combat/block_hit.fbx",           # Sword And Shield Block Hit
+	SLOT_PARRY:       "shared/combat/parry.fbx",               # Standing Block (deflect)
 }
 
 # --- Per-class slot tables ---
@@ -129,6 +166,13 @@ const CLASS_SLOTS := {
 		&"blink_dash":        "assassin/blink_dash.fbx",
 	},
 	&"ronin": {
+		# Greatsword stance — landed: katana_idle, katana_blocking, katana_180, katana_impact
+		SLOT_KATANA_IDLE:      "ronin/katana_idle.fbx",       # Great Sword Idle
+		SLOT_KATANA_BLOCKING:  "ronin/katana_blocking.fbx",   # Great Sword Blocking
+		SLOT_KATANA_180:       "ronin/katana_180.fbx",        # Great Sword 180 Turn
+		SLOT_KATANA_IMPACT:    "ronin/katana_impact.fbx",     # Great Sword Impact
+		# Override the shared idle so Ronin holds katana stance, not unarmed
+		SLOT_IDLE:             "ronin/katana_idle.fbx",
 		# 7 representative breathing forms (full 49 unlock progressively)
 		&"breath_form_1":     "ronin/breath_water.fbx",
 		&"breath_form_2":     "ronin/breath_thunder.fbx",
@@ -137,11 +181,9 @@ const CLASS_SLOTS := {
 		&"breath_form_5":     "ronin/breath_stone.fbx",
 		&"breath_form_6":     "ronin/breath_moon.fbx",
 		&"breath_form_7":     "ronin/breath_sun.fbx",
-		&"katana_idle":       "ronin/katana_idle.fbx",
 		&"sheathe":           "ronin/sheathe.fbx",
 		&"unsheathe":         "ronin/unsheathe.fbx",
 		&"iai_strike":        "ronin/iai_strike.fbx",
-		SLOT_PARRY:           "ronin/parry.fbx",
 		SLOT_RIPOSTE:         "ronin/riposte.fbx",
 	},
 	&"ranger": {
@@ -250,9 +292,14 @@ const NPC_SLOTS := {
 	&"peasant_male": {
 		&"talk":              "peasant_male/talk.fbx",
 		&"sit":               "peasant_male/sit_chair.fbx",
-		&"sweep":              "peasant_male/sweep.fbx",
+		&"sweep":             "peasant_male/sweep.fbx",
 	},
 	&"peasant_female": {
+		# Catwalk anim set — Bond's drops, lands as runway-style female NPC loops.
+		# Override shared SLOT_IDLE/SLOT_WALK so feminine NPCs use these instead.
+		SLOT_IDLE:            "peasant_female/idle.fbx",          # Catwalk Idle Twist R
+		SLOT_WALK:            "peasant_female/walk.fbx",          # Catwalk Walk Forward 02
+		&"walk_turn":         "peasant_female/walk_turn.fbx",     # Catwalk Walk Forward Arc 90R
 		&"talk":              "peasant_female/talk.fbx",
 		&"carry_basket":      "peasant_female/carry_basket.fbx",
 	},

@@ -1,4 +1,7 @@
-[gd_scene load_steps=4 format=3 uid="uid://b00bdd61df33f"]
+[gd_scene load_steps=6 format=3 uid="uid://b00bdd61df33f"]
+[ext_resource type="Script" path="res://scripts/world/warp_portal.gd" id="warp_"]
+
+[ext_resource type="Script" path="res://scripts/world/spawn/zone_composer.gd" id="ZoneComposer_ashurim"]
 
 ; Auto-generated placeholder for Ashurim.
 ; Drop real environment art under MeshRoot; lighting/atmosphere already tuned.
@@ -59,4 +62,13 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)
 
 [node name="MobSpawnPoints" type="Node3D" parent="."]
 
+[node name="Geometry" type="Node3D" parent="MeshRoot"]
+script = ExtResource("ZoneComposer_ashurim")
+style_id = &"ashurim"
+size = 40.0
+[node name="WarpHome" type="Area3D" parent="."]
+script = ExtResource("warp_")
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.5, 30)
+target_scene_path = "res://scenes/world/intros/sword_vow_ruins.tscn"
+label = "Return to Sword-Vow Ruins (V)"
 

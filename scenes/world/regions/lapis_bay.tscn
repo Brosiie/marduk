@@ -1,4 +1,7 @@
-[gd_scene load_steps=4 format=3 uid="uid://ba1bdee66dbd2"]
+[gd_scene load_steps=6 format=3 uid="uid://ba1bdee66dbd2"]
+[ext_resource type="Script" path="res://scripts/world/warp_portal.gd" id="warp_"]
+
+[ext_resource type="Script" path="res://scripts/world/spawn/zone_composer.gd" id="ZoneComposer_lapis_bay"]
 
 ; Auto-generated placeholder for Lapis Bay.
 ; Drop real environment art under MeshRoot; lighting/atmosphere already tuned.
@@ -78,3 +81,14 @@ metadata/mob_id = "binding_construct"
 [node name="BossSpawn_raid_captain" type="Marker3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, -25)
 metadata/boss_id = "raid_captain"
+
+[node name="Geometry" type="Node3D" parent="MeshRoot"]
+script = ExtResource("ZoneComposer_lapis_bay")
+style_id = &"lapis_bay"
+size = 40.0
+[node name="WarpHome" type="Area3D" parent="."]
+script = ExtResource("warp_")
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.5, 30)
+target_scene_path = "res://scenes/world/intros/sword_vow_ruins.tscn"
+label = "Return to Sword-Vow Ruins (V)"
+

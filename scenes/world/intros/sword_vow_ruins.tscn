@@ -1,4 +1,4 @@
-[gd_scene load_steps=17 format=3]
+[gd_scene load_steps=18 format=3]
 
 ; Sword-Vow Ruins - Ronin intro arena.
 ; Stone fortress courtyard. Burned ramparts. A throne hall in the distance.
@@ -13,6 +13,7 @@
 [ext_resource type="Script" path="res://scripts/world/spawn/boss_anchor.gd" id="6_boss_anchor"]
 [ext_resource type="PackedScene" path="res://assets/characters/mixamo/classes/ronin.fbx" id="7_ronin"]
 [ext_resource type="PackedScene" path="res://assets/characters/kaykit/Assets/gltf/sword_1handed.gltf" id="8_katana"]
+[ext_resource type="Script" path="res://scripts/world/warp_portal.gd" id="9_warp"]
 
 [sub_resource type="PlaneMesh" id="floor_mesh"]
 size = Vector2(80, 80)
@@ -163,3 +164,15 @@ respawn_seconds = 30.0
 script = ExtResource("6_boss_anchor")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, -25)
 boss_id = &"usurper_enforcer"
+
+[node name="WarpToAshurim" type="Area3D" parent="."]
+script = ExtResource("9_warp")
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -16, 0.5, 28)
+target_scene_path = "res://scenes/world/regions/ashurim.tscn"
+label = "To Ashurim (V)"
+
+[node name="WarpToCradle" type="Area3D" parent="."]
+script = ExtResource("9_warp")
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 16, 0.5, 28)
+target_scene_path = "res://scenes/world/regions/the_cradle.tscn"
+label = "To The Cradle (V)"

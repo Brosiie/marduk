@@ -1,4 +1,7 @@
-[gd_scene load_steps=4 format=3 uid="uid://bd74b8b17259e"]
+[gd_scene load_steps=6 format=3 uid="uid://bd74b8b17259e"]
+[ext_resource type="Script" path="res://scripts/world/warp_portal.gd" id="warp_"]
+
+[ext_resource type="Script" path="res://scripts/world/spawn/zone_composer.gd" id="ZoneComposer_bone_mountains"]
 
 ; Auto-generated placeholder for Bone Mountains.
 ; Drop real environment art under MeshRoot; lighting/atmosphere already tuned.
@@ -74,3 +77,14 @@ metadata/mob_id = "raider_grunt"
 [node name="BossSpawn_tower_warden" type="Marker3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, -25)
 metadata/boss_id = "tower_warden"
+
+[node name="Geometry" type="Node3D" parent="MeshRoot"]
+script = ExtResource("ZoneComposer_bone_mountains")
+style_id = &"bone_mountains"
+size = 40.0
+[node name="WarpHome" type="Area3D" parent="."]
+script = ExtResource("warp_")
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.5, 30)
+target_scene_path = "res://scenes/world/intros/sword_vow_ruins.tscn"
+label = "Return to Sword-Vow Ruins (V)"
+

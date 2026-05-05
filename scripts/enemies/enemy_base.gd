@@ -162,11 +162,29 @@ func _die(killer: Node) -> void:
 		killer.on_kill_credit()
 	if loot_table and killer:
 		var drops: Array[Item] = loot_table.roll(get_node("/root/Prestige").current_prestige_level() if get_node_or_null("/root/Prestige") else 0)
-		for it in drops:
-			# Future: spawn pickup at global_position. For now, add directly to player inventory if killer has one.
-			if killer.has_method("receive_loot"):
-				killer.receive_loot(it)
+		_spawn_pickups(drops)
 	queue_free()
+
+# Drop ItemPickup nodes in a small ring around the enemy's death position.
+# Each pickup pops out, glows in its rarity color, and waits to be looted.
+func _spawn_pickups(items: Array[Item]) -> void:
+	if items.is_empty():
+		return
+	var pickup_script: GDScript = load("res://scripts/items/item_pickup.gd")
+	if pickup_script == null:
+		return
+	var i: int = 0
+	for it in items:
+		if it == null:
+			continue
+		var pu = pickup_script.new()
+		pu.item = it
+		pu.quantity = 1
+		var angle: float = (TAU / max(items.size(), 1)) * float(i)
+		var radius: float = 0.6
+		pu.position = global_position + Vector3(cos(angle) * radius, 0.4, sin(angle) * radius)
+		get_tree().current_scene.add_child(pu)
+		i += 1
 
 func get_attr(_a: StringName) -> float:
 	return 0.0
