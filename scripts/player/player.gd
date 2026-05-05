@@ -175,6 +175,220 @@ func _input(event: InputEvent) -> void:
 		_try_pickup_nearest_item()
 	elif event.is_action_pressed("dodge"):
 		_perform_dodge()
+	elif event.is_action_pressed("ability_1"):
+		_cast_ability_slot(0)
+	elif event.is_action_pressed("ability_2"):
+		_cast_ability_slot(1)
+	elif event.is_action_pressed("ability_3"):
+		_cast_ability_slot(2)
+	elif event.is_action_pressed("ability_4"):
+		_cast_ability_slot(3)
+
+# Class kit: 4-slot list of (display_name, range, radius, damage_mult,
+# cooldown, target_mode, animation_alias). Resolved in _ready from
+# stats.class_def.class_id. Indexes map to Q / E / R / F.
+var _ability_kit: Array = []
+var _ability_cooldowns: Array = [0.0, 0.0, 0.0, 0.0]
+
+func _build_ability_kit() -> void:
+	_ability_kit.clear()
+	if not stats or not stats.class_def:
+		_ability_kit = _kit_default()
+		return
+	match stats.class_def.class_id:
+		&"ronin":                _ability_kit = _kit_ronin()
+		&"berserker":            _ability_kit = _kit_berserker()
+		&"assassin":             _ability_kit = _kit_assassin()
+		&"ranger":               _ability_kit = _kit_ranger()
+		&"mage":                 _ability_kit = _kit_mage()
+		&"chaos_druid":          _ability_kit = _kit_druid()
+		&"demon":                _ability_kit = _kit_demon()
+		&"paladin_guardian":     _ability_kit = _kit_paladin_guardian()
+		&"paladin_lightbringer": _ability_kit = _kit_paladin_light()
+		_:                       _ability_kit = _kit_default()
+
+func _cast_ability_slot(slot: int) -> void:
+	if locked or stats == null:
+		return
+	if slot < 0 or slot >= _ability_kit.size():
+		return
+	if _ability_kit[slot].is_empty():
+		return
+	var now: float = Time.get_ticks_msec() / 1000.0
+	if _ability_cooldowns[slot] > now:
+		_play_deny_cue()
+		return
+	var k: Dictionary = _ability_kit[slot]
+	# Cost gate: spend resource if any
+	var cost: float = float(k.get("cost", 0.0))
+	if cost > 0.0 and stats.class_def:
+		if stats.class_def.resource_mechanic == &"mana":
+			if stats.mana < cost:
+				_play_deny_cue()
+				return
+			stats.mana -= cost
+			mana_changed.emit(stats.mana, stats.max_mana)
+		elif stats.class_def.resource_mechanic == &"stamina":
+			if resource_value < cost:
+				_play_deny_cue()
+				return
+			resource_value = max(0.0, resource_value - cost)
+			resource_changed.emit(resource_value, stats.class_def.resource_max, &"stamina")
+	# Cooldown
+	_ability_cooldowns[slot] = now + float(k.get("cooldown", 1.0))
+	# Animation cue (best-effort)
+	if anim_player:
+		var anim_key: String = String(k.get("anim", "attack"))
+		var resolved: String = _resolved_anims.get(anim_key, "")
+		if resolved == "":
+			resolved = _resolved_anims.get("attack", "")
+		if resolved != "":
+			anim_player.stop()
+			anim_player.play(resolved)
+	# Spawn a hitbox in front of the player using the existing combat layer.
+	var hb := preload("res://scripts/combat/hitbox.gd").new()
+	var swing := Ability.new()
+	swing.id = StringName(k.get("id", "ability"))
+	swing.display_name = String(k.get("name", "Ability"))
+	swing.base_damage = float(k.get("damage", 30.0))
+	swing.damage_type = int(k.get("element", Ability.DamageType.PHYSICAL))
+	swing.target_mode = Ability.TargetMode.FORWARD_CONE
+	swing.range = float(k.get("range", 3.0))
+	swing.radius = float(k.get("radius", 1.5))
+	swing.attribute_scaling = 0.4
+	hb.ability = swing
+	hb.attacker_stats = stats
+	hb.lifetime = 0.20
+	hb.team = &"player"
+	var collider := CollisionShape3D.new()
+	hb.add_child(collider)
+	var b := BoxShape3D.new()
+	b.size = Vector3(swing.radius * 2.0, 2.0, swing.range)
+	collider.shape = b
+	var fwd := -mesh.global_transform.basis.z if mesh else -global_transform.basis.z
+	fwd.y = 0; fwd = fwd.normalized()
+	hb.position = global_position + fwd * (swing.range * 0.5)
+	hb.look_at(global_position + fwd * swing.range, Vector3.UP)
+	get_tree().current_scene.add_child(hb)
+	# Audio cue
+	var ab = get_node_or_null("/root/AudioBus")
+	if ab and ab.has_method("play_cue"):
+		ab.play_cue(&"swing", global_position, -7.0, float(k.get("pitch", 1.0)))
+	# Breath-trail VFX. Picks Demon Slayer style by ability id when available
+	# so Ronin's swings actually look like breathing forms.
+	var trail_style: StringName = _trail_style_for(StringName(k.get("id", "")))
+	if trail_style != &"":
+		var trail_script: GDScript = load("res://scripts/vfx/breath_trail.gd")
+		if trail_script and trail_script.has_method("spawn"):
+			trail_script.spawn(self, trail_style)
+	on_combat_event(2.0)
+
+# Maps ability ids -> Demon-Slayer-style breathing colors. Non-Ronin classes
+# get a neutral physical / element style based on the ability's element.
+func _trail_style_for(ability_id: StringName) -> StringName:
+	var s: String = String(ability_id)
+	# Ronin breathing forms
+	if s.begins_with("water_breath") or s == "iai_strike": return &"water"
+	if s.begins_with("thunder_breath"): return &"thunder"
+	if s.begins_with("flame_breath"): return &"flame"
+	if s.begins_with("wind_breath"): return &"wind"
+	if s.begins_with("stone_breath"): return &"stone"
+	if s.begins_with("mist_breath"): return &"mist"
+	if s.begins_with("sun_breath"): return &"sun"
+	if s.begins_with("moon_breath"): return &"moon"
+	# Non-ronin elemental fallbacks
+	if "fireball" in s or "hellfire" in s: return &"flame"
+	if "frost" in s: return &"mist"
+	if "spark" in s or "lightning" in s: return &"thunder"
+	if "holy" in s or "sun_beam" in s or "judgment" in s or "smite" in s: return &"sun"
+	if "shadow" in s or "soul_drain" in s: return &"moon"
+	if "vine" in s or "wolf" in s: return &"wind"
+	# Generic physical: thin water-blue trail so combat reads
+	return &"water"
+
+func _play_deny_cue() -> void:
+	var ab = get_node_or_null("/root/AudioBus")
+	if ab and ab.has_method("play_cue"):
+		ab.play_cue(&"deny", global_position, -10.0, 1.0)
+
+# --- Class kits ---
+func _kit_default() -> Array:
+	return [
+		{"id": &"basic_swing", "name": "Swing", "damage": 25.0, "range": 2.5, "radius": 1.4, "cooldown": 0.6, "anim": "attack"},
+		{}, {}, {}
+	]
+
+func _kit_ronin() -> Array:
+	return [
+		{"id": &"iai_strike", "name": "Iai Strike", "damage": 38.0, "range": 3.2, "radius": 1.0, "cooldown": 0.6, "cost": 8.0, "anim": "attack", "pitch": 1.4},
+		{"id": &"water_breath_1", "name": "Water Breath: First Form", "damage": 32.0, "range": 4.5, "radius": 2.0, "cooldown": 1.2, "cost": 12.0, "anim": "attack", "pitch": 0.95},
+		{"id": &"thunder_breath_1", "name": "Thunder Breath: First Form", "damage": 56.0, "range": 6.5, "radius": 1.6, "cooldown": 4.0, "cost": 24.0, "anim": "attack", "pitch": 1.6},
+		{"id": &"parry", "name": "Parry", "damage": 0.0, "range": 2.0, "radius": 1.0, "cooldown": 6.0, "anim": "block"},
+	]
+
+func _kit_berserker() -> Array:
+	return [
+		{"id": &"cleave_1", "name": "Cleave", "damage": 40.0, "range": 3.0, "radius": 2.0, "cooldown": 0.8, "anim": "attack", "pitch": 0.85},
+		{"id": &"war_cry", "name": "War Cry", "damage": 0.0, "range": 6.0, "radius": 6.0, "cooldown": 12.0, "anim": "taunt"},
+		{"id": &"leap_smash", "name": "Leap Smash", "damage": 60.0, "range": 4.0, "radius": 2.4, "cooldown": 6.0, "anim": "attack", "pitch": 0.8},
+		{"id": &"fury_swing", "name": "Fury Swing", "damage": 80.0, "range": 3.5, "radius": 2.0, "cooldown": 4.0, "anim": "attack", "pitch": 0.75},
+	]
+
+func _kit_assassin() -> Array:
+	return [
+		{"id": &"dagger_1", "name": "Dagger Combo 1", "damage": 24.0, "range": 2.2, "radius": 1.0, "cooldown": 0.4, "cost": 5.0, "anim": "attack", "pitch": 1.5},
+		{"id": &"backstab", "name": "Backstab", "damage": 70.0, "range": 2.0, "radius": 0.8, "cooldown": 5.0, "cost": 18.0, "anim": "attack", "pitch": 1.3},
+		{"id": &"blink_dash", "name": "Blink Dash", "damage": 18.0, "range": 7.0, "radius": 1.0, "cooldown": 3.0, "cost": 12.0, "anim": "dodge", "pitch": 1.7},
+		{"id": &"throw_kunai", "name": "Throw Kunai", "damage": 22.0, "range": 12.0, "radius": 0.6, "cooldown": 1.0, "cost": 8.0, "anim": "attack", "pitch": 1.6},
+	]
+
+func _kit_ranger() -> Array:
+	return [
+		{"id": &"arrow_shot", "name": "Arrow Shot", "damage": 30.0, "range": 14.0, "radius": 0.6, "cooldown": 0.5, "cost": 5.0, "anim": "attack", "pitch": 1.3},
+		{"id": &"snipe", "name": "Snipe", "damage": 90.0, "range": 24.0, "radius": 0.5, "cooldown": 6.0, "cost": 22.0, "anim": "attack", "pitch": 1.0},
+		{"id": &"hawk_command", "name": "Hawk Strike", "damage": 50.0, "range": 16.0, "radius": 1.5, "cooldown": 8.0, "cost": 20.0, "anim": "taunt"},
+		{"id": &"trap_set", "name": "Bear Trap", "damage": 35.0, "range": 4.0, "radius": 1.5, "cooldown": 10.0, "anim": "stand_up"},
+	]
+
+func _kit_mage() -> Array:
+	return [
+		{"id": &"spark", "name": "Spark", "damage": 22.0, "range": 12.0, "radius": 1.0, "cooldown": 0.6, "cost": 5.0, "element": Ability.DamageType.LIGHTNING, "anim": "attack", "pitch": 1.5},
+		{"id": &"fireball", "name": "Fireball", "damage": 65.0, "range": 14.0, "radius": 2.5, "cooldown": 3.0, "cost": 22.0, "element": Ability.DamageType.FIRE, "anim": "attack", "pitch": 0.85},
+		{"id": &"frost_nova", "name": "Frost Nova", "damage": 45.0, "range": 5.0, "radius": 5.0, "cooldown": 8.0, "cost": 28.0, "element": Ability.DamageType.FROST, "anim": "attack", "pitch": 0.7},
+		{"id": &"teleport", "name": "Teleport", "damage": 0.0, "range": 12.0, "radius": 0.5, "cooldown": 12.0, "cost": 30.0, "anim": "dodge", "pitch": 1.8},
+	]
+
+func _kit_druid() -> Array:
+	return [
+		{"id": &"vine_lash", "name": "Vine Lash", "damage": 30.0, "range": 5.0, "radius": 1.5, "cooldown": 0.7, "cost": 6.0, "anim": "attack", "pitch": 0.9},
+		{"id": &"totem_plant", "name": "Plant Totem", "damage": 0.0, "range": 3.0, "radius": 4.0, "cooldown": 18.0, "cost": 25.0, "anim": "stand_up"},
+		{"id": &"bear_form", "name": "Bear Swipe", "damage": 55.0, "range": 3.0, "radius": 2.4, "cooldown": 4.0, "cost": 18.0, "anim": "attack", "pitch": 0.7},
+		{"id": &"wolf_form", "name": "Wolf Pounce", "damage": 40.0, "range": 6.0, "radius": 1.6, "cooldown": 5.0, "cost": 18.0, "anim": "dodge", "pitch": 1.3},
+	]
+
+func _kit_demon() -> Array:
+	return [
+		{"id": &"claw_rake", "name": "Claw Rake", "damage": 38.0, "range": 2.6, "radius": 1.4, "cooldown": 0.5, "anim": "attack", "pitch": 0.95},
+		{"id": &"hellfire_burst", "name": "Hellfire Burst", "damage": 70.0, "range": 5.0, "radius": 5.0, "cooldown": 6.0, "element": Ability.DamageType.FIRE, "anim": "attack", "pitch": 0.7},
+		{"id": &"soul_drain", "name": "Soul Drain", "damage": 55.0, "range": 8.0, "radius": 1.5, "cooldown": 4.0, "element": Ability.DamageType.SHADOW, "anim": "attack", "pitch": 0.85},
+		{"id": &"wing_glide", "name": "Wing Glide", "damage": 0.0, "range": 9.0, "radius": 1.0, "cooldown": 8.0, "anim": "dodge", "pitch": 1.5},
+	]
+
+func _kit_paladin_guardian() -> Array:
+	return [
+		{"id": &"sword_smite", "name": "Sword Smite", "damage": 42.0, "range": 3.0, "radius": 1.6, "cooldown": 0.7, "cost": 6.0, "element": Ability.DamageType.HOLY, "anim": "attack", "pitch": 1.1},
+		{"id": &"shield_bash", "name": "Shield Bash", "damage": 28.0, "range": 2.4, "radius": 1.6, "cooldown": 4.0, "cost": 12.0, "anim": "block", "pitch": 0.9},
+		{"id": &"holy_pillar", "name": "Holy Pillar", "damage": 80.0, "range": 5.0, "radius": 2.5, "cooldown": 12.0, "cost": 35.0, "element": Ability.DamageType.HOLY, "anim": "attack", "pitch": 1.0},
+		{"id": &"judgment", "name": "Judgment Strike", "damage": 110.0, "range": 3.5, "radius": 2.0, "cooldown": 18.0, "cost": 50.0, "element": Ability.DamageType.HOLY, "anim": "attack", "pitch": 0.9},
+	]
+
+func _kit_paladin_light() -> Array:
+	return [
+		{"id": &"mace_swing", "name": "Mace Swing", "damage": 30.0, "range": 2.6, "radius": 1.4, "cooldown": 0.6, "cost": 4.0, "element": Ability.DamageType.HOLY, "anim": "attack"},
+		{"id": &"sun_beam", "name": "Sun Beam", "damage": 60.0, "range": 12.0, "radius": 1.0, "cooldown": 5.0, "cost": 24.0, "element": Ability.DamageType.HOLY, "anim": "attack", "pitch": 1.4},
+		{"id": &"healing_aura", "name": "Healing Aura", "damage": 0.0, "range": 4.0, "radius": 8.0, "cooldown": 18.0, "cost": 35.0, "element": Ability.DamageType.HOLY, "anim": "stand_up"},
+		{"id": &"divine_shield", "name": "Divine Shield", "damage": 0.0, "range": 1.0, "radius": 1.0, "cooldown": 30.0, "cost": 50.0, "anim": "block"},
+	]
 
 # Short forward dash with i-frames + dodge animation. Bound to Shift via
 # the InputMap action `dodge`. Costs 15 stamina; if no stamina mechanic
