@@ -61,7 +61,7 @@ func _register_starter() -> void:
 func _register_yak() -> void:
 	var yak := _make(&"pet_yak", "Bone-Mountains Pack-Yak",
 		"A patient, woolly Bone-Mountains pack-yak. Carries inventory like a moving warehouse. While summoned, every party member within 30m gains +30 bag slots. The yak does not complain. The yak prefers cold weather.",
-		9.99)
+		50.00)
 	yak.inventory_bonus = 30
 	yak.party_share_radius = 30.0
 
@@ -71,40 +71,40 @@ func _register_yak() -> void:
 func _register_cosmetics() -> void:
 	_make(&"pet_raven", "Cradle Raven",
 		"A black-feathered Greenheart raven. Says nothing in particular but says it loudly.",
-		2.99)
+		20.00)
 
 	_make(&"pet_lapis_otter", "Lapis Bay Otter",
 		"A bay-stock river otter. Carries a smooth pebble. Refuses to part with it.",
-		2.99)
+		20.00)
 
 	_make(&"pet_steppe_dog", "Ash-Step Sheepdog",
 		"Herds you when you wander. Has opinions about cliffs.",
-		2.99)
+		20.00)
 
 	_make(&"pet_temple_butterfly", "Temple Butterfly",
 		"A six-Breaths-temple butterfly, dyed gold by years of incense smoke. Lands on opposite-class players without prejudice.",
-		3.99)
+		20.00)
 
 	_make(&"pet_sun_chick", "Sun-Sworn Chick",
 		"A chapel hatchling that the chapel-master raised by hand before the siege. Big eyes. Will not stop following.",
-		3.99)
+		20.00)
 
 	_make(&"pet_bone_lamb", "Bone-Mountains Lamb",
 		"A small lamb from the Bone Mountains foothills. Bleats gently. Does not understand the bones it walks on.",
-		3.99)
+		20.00)
 
 	_make(&"pet_apsu_eel", "Apsu Eel (jar)",
 		"A small Apsu eel kept in a glass jar that you carry. The jar has been blessed by a senior mage. The eel is approximately three centuries old.",
-		4.99)
+		20.00)
 
 	_make(&"pet_crown_kitten", "Crown Stables Kitten",
 		"From the Iron Crown's stable mews. Has the run of Babilim's rooftops. Now has the run of your pack.",
-		3.99)
+		20.00)
 
 	_make(&"pet_storyteller_cat", "The Storyteller's Cat",
 		"She let you take it on credit. The cat watches you carefully. Reports back, presumably.",
-		7.99)
+		20.00)
 
 	_make(&"pet_lifetime_world_serpent", "World-Serpent (Founder)",
 		"Founders' edition. A small constrictor descended directly from one of Tiamat's pre-binding spawn. Cosmetic only - it does not eat anyone.",
-		19.99)
+		20.00)

@@ -61,40 +61,40 @@ func _register_starter() -> void:
 func _register_purchasable() -> void:
 	_make(&"mount_war_destrier", "War Destrier",
 		"Bred for battle by the Iron Crown's stable-master. Heavy, fast, scarred. Refuses to canter.",
-		4.99)
+		30.00)
 
 	_make(&"mount_lapis_pony", "Lapis-Spotted Pony",
 		"Lapis Bay coastal stock. Smaller than a horse, faster than a mule, distinctive blue spotted coat.",
-		4.99)
+		30.00)
 
 	_make(&"mount_steppe_runner", "Steppe Runner",
 		"Ash-Step nomad horse. Tough on the ash-plain, tough on you. Eats sparingly, hates bridles.",
-		4.99)
+		30.00)
 
 	_make(&"mount_bone_charger", "Bone Charger",
 		"Bone Mountains ossuary mount. Looks dead. Is not. Doesn't blink. Refuses no road.",
-		7.99)
+		30.00)
 
 	_make(&"mount_ember_steed", "Ember Steed",
 		"Ember Steppes salamander-stock crossbreed. Steam rises from its flanks in cold weather. Loved by Flame Breathing senior monks.",
-		7.99)
+		30.00)
 
 	_make(&"mount_shadow_courser", "Shadow Courser",
 		"A Whisper Shrine courser. Black, silent on cobblestones. Refuses to enter sunlit streets without permission.",
-		9.99)
+		30.00)
 
 	_make(&"mount_sun_pegasus", "Sun-Marked Stallion",
 		"Bred at the Sun-Sworn Chapel before the chapel fell. Carries a sun-glyph birthmark on its flank.",
-		12.99)
+		30.00)
 
 	_make(&"mount_dragon_pup", "Wyrmling (ground form)",
 		"A juvenile Tiamat-spawn that has been domesticated. Walks on four legs. Will fly when older but cannot yet. Cannot enter dungeons.",
-		14.99)
+		30.00)
 
 	_make(&"mount_marduks_chariot", "Marduk's Replica Chariot",
 		"A scale-model chariot of fire. Cosmetic flames. Real wheels. Built by a Babilim wagonwright who got religious.",
-		19.99)
+		30.00)
 
 	_make(&"mount_lifetime_white_stag", "The White Stag (Founder)",
 		"Founders' edition mount. Sold only during the first cycle of the game's existence. After that, this slot becomes locked forever to current owners.",
-		29.99)
+		30.00)
