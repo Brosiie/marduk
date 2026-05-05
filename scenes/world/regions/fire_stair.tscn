@@ -1,0 +1,72 @@
+[gd_scene load_steps=4 format=3 uid="uid://b342f11f26cb9"]
+
+; Auto-generated placeholder for Fire Stair.
+; Drop real environment art under MeshRoot; lighting/atmosphere already tuned.
+; Atmosphere: The basalt staircase down to Lucifer's throne. Each step is warm enough to char unbalanced footing. Ember Drakes wheel overhead like loyal dogs. Silver Negotiators offer the same deal in worse polish.
+; Palette: Lucifer-red · brass · damnation-black
+; Level range: 85-100
+
+[sub_resource type="Environment" id="Env_fire_stair"]
+background_mode = 1
+background_color = Color(0.5000, 0.1000, 0.0500, 1)
+ambient_light_source = 2
+ambient_light_color = Color(0.5500, 0.2000, 0.1200, 1)
+ambient_light_energy = 0.55
+fog_enabled = true
+fog_light_color = Color(0.5500, 0.1800, 0.0800, 1)
+fog_density = 0.0350
+fog_aerial_perspective = 0.5
+tonemap_mode = 2
+glow_enabled = true
+glow_intensity = 0.5
+
+[sub_resource type="PlaneMesh" id="Ground_fire_stair"]
+size = Vector2(80, 80)
+
+[sub_resource type="StandardMaterial3D" id="GroundMat_fire_stair"]
+albedo_color = Color(0.4000, 0.1500, 0.0800, 1)
+roughness = 0.95
+metallic = 0.0
+
+[node name="Fire_Stair" type="Node3D"]
+metadata/region_id = "fire_stair"
+metadata/level_min = 85
+metadata/level_max = 100
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("Env_fire_stair")
+
+[node name="Sun" type="DirectionalLight3D" parent="."]
+transform = Transform3D(1.0000, 0.0000, 0.0000, 0.0000, 0.5000, -0.8660, -0.0000, 0.8660, 0.5000, 0, 50, 0)
+light_color = Color(1.0000, 0.4000, 0.2000, 1)
+light_energy = 0.6
+shadow_enabled = true
+
+[node name="Ground" type="MeshInstance3D" parent="."]
+mesh = SubResource("Ground_fire_stair")
+material_override = SubResource("GroundMat_fire_stair")
+
+[node name="GroundBody" type="StaticBody3D" parent="Ground"]
+
+[node name="GroundShape" type="CollisionShape3D" parent="Ground/GroundBody"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.05, 0)
+
+[node name="MeshRoot" type="Node3D" parent="."]
+; Drop imported environment assets here (Quaternius, KayKit, custom Blender).
+
+[node name="PlayerSpawn" type="Marker3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)
+
+[node name="MobSpawnPoints" type="Node3D" parent="."]
+
+[node name="MobSpawn_1_blood_hunter" type="Marker3D" parent="MobSpawnPoints"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 18.0, 1, 0.0)
+metadata/mob_id = "blood_hunter"
+
+[node name="MobSpawn_2_shrine_acolyte" type="Marker3D" parent="MobSpawnPoints"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -18.0, 1, 0.0)
+metadata/mob_id = "shrine_acolyte"
+
+[node name="BossSpawn_self_that_said_yes" type="Marker3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, -25)
+metadata/boss_id = "self_that_said_yes"

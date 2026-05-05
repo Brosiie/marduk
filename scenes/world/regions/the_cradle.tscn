@@ -1,0 +1,88 @@
+[gd_scene load_steps=4 format=3 uid="uid://bf975fad6589a"]
+
+; Auto-generated placeholder for The Cradle.
+; Drop real environment art under MeshRoot; lighting/atmosphere already tuned.
+; Atmosphere: Mournful ruin under a pale rose sky. Mist clings to broken curtain walls; the courtyard is cracked stone scattered with dropped weapons and ledgers. Sword-Vow Ruins, where Lord Ennum died. Light is soft west-angled dawn.
+; Palette: Stone-grey · ash-pink dawn · soot-black
+; Level range: 1-5
+
+[sub_resource type="Environment" id="Env_the_cradle"]
+background_mode = 1
+background_color = Color(0.3200, 0.2800, 0.3600, 1)
+ambient_light_source = 2
+ambient_light_color = Color(0.4500, 0.4000, 0.4500, 1)
+ambient_light_energy = 0.55
+fog_enabled = true
+fog_light_color = Color(0.5500, 0.5000, 0.5500, 1)
+fog_density = 0.0180
+fog_aerial_perspective = 0.5
+tonemap_mode = 2
+glow_enabled = true
+glow_intensity = 0.5
+
+[sub_resource type="PlaneMesh" id="Ground_the_cradle"]
+size = Vector2(80, 80)
+
+[sub_resource type="StandardMaterial3D" id="GroundMat_the_cradle"]
+albedo_color = Color(0.3000, 0.2700, 0.2600, 1)
+roughness = 0.95
+metallic = 0.0
+
+[node name="The_Cradle" type="Node3D"]
+metadata/region_id = "the_cradle"
+metadata/level_min = 1
+metadata/level_max = 5
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("Env_the_cradle")
+
+[node name="Sun" type="DirectionalLight3D" parent="."]
+transform = Transform3D(0.7071, -0.5000, 0.5000, 0.0000, 0.7071, 0.7071, -0.7071, -0.5000, 0.5000, 0, 50, 0)
+light_color = Color(1.0000, 0.8600, 0.7400, 1)
+light_energy = 0.85
+shadow_enabled = true
+
+[node name="Ground" type="MeshInstance3D" parent="."]
+mesh = SubResource("Ground_the_cradle")
+material_override = SubResource("GroundMat_the_cradle")
+
+[node name="GroundBody" type="StaticBody3D" parent="Ground"]
+
+[node name="GroundShape" type="CollisionShape3D" parent="Ground/GroundBody"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.05, 0)
+
+[node name="MeshRoot" type="Node3D" parent="."]
+; Drop imported environment assets here (Quaternius, KayKit, custom Blender).
+
+[node name="PlayerSpawn" type="Marker3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)
+
+[node name="MobSpawnPoints" type="Node3D" parent="."]
+
+[node name="MobSpawn_1_usurper_footman" type="Marker3D" parent="MobSpawnPoints"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 18.0, 1, 0.0)
+metadata/mob_id = "usurper_footman"
+
+[node name="MobSpawn_2_usurper_archer" type="Marker3D" parent="MobSpawnPoints"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 9.0, 1, 15.59)
+metadata/mob_id = "usurper_archer"
+
+[node name="MobSpawn_3_shrine_acolyte" type="Marker3D" parent="MobSpawnPoints"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -9.0, 1, 15.59)
+metadata/mob_id = "shrine_acolyte"
+
+[node name="MobSpawn_4_corrupted_wolf" type="Marker3D" parent="MobSpawnPoints"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -18.0, 1, 0.0)
+metadata/mob_id = "corrupted_wolf"
+
+[node name="MobSpawn_5_binding_construct" type="Marker3D" parent="MobSpawnPoints"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -9.0, 1, -15.59)
+metadata/mob_id = "binding_construct"
+
+[node name="MobSpawn_6_blood_hunter" type="Marker3D" parent="MobSpawnPoints"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 9.0, 1, -15.59)
+metadata/mob_id = "blood_hunter"
+
+[node name="BossSpawn_usurper_enforcer" type="Marker3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, -25)
+metadata/boss_id = "usurper_enforcer"

@@ -1,0 +1,76 @@
+[gd_scene load_steps=4 format=3 uid="uid://b4db3bff10324"]
+
+; Auto-generated placeholder for Ember Steppes.
+; Drop real environment art under MeshRoot; lighting/atmosphere already tuned.
+; Atmosphere: Flame-Breathing apostates' last ground. Steppe Salamanders the size of horses live in the fissures. Pillar of Nergal smokes on the horizon. Dry wind, hot light.
+; Palette: Ember-orange · basalt-black · sulfur-yellow
+; Level range: 28-42
+
+[sub_resource type="Environment" id="Env_ember_steppes"]
+background_mode = 1
+background_color = Color(0.5500, 0.2000, 0.1000, 1)
+ambient_light_source = 2
+ambient_light_color = Color(0.6000, 0.3000, 0.1800, 1)
+ambient_light_energy = 0.55
+fog_enabled = true
+fog_light_color = Color(0.5500, 0.2500, 0.1200, 1)
+fog_density = 0.0280
+fog_aerial_perspective = 0.5
+tonemap_mode = 2
+glow_enabled = true
+glow_intensity = 0.5
+
+[sub_resource type="PlaneMesh" id="Ground_ember_steppes"]
+size = Vector2(80, 80)
+
+[sub_resource type="StandardMaterial3D" id="GroundMat_ember_steppes"]
+albedo_color = Color(0.3200, 0.1800, 0.1400, 1)
+roughness = 0.95
+metallic = 0.0
+
+[node name="Ember_Steppes" type="Node3D"]
+metadata/region_id = "ember_steppes"
+metadata/level_min = 28
+metadata/level_max = 42
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("Env_ember_steppes")
+
+[node name="Sun" type="DirectionalLight3D" parent="."]
+transform = Transform3D(0.7071, 0.4545, -0.5417, 0.0000, 0.7660, 0.6428, 0.7071, -0.4545, 0.5417, 0, 50, 0)
+light_color = Color(1.0000, 0.5500, 0.3000, 1)
+light_energy = 1.15
+shadow_enabled = true
+
+[node name="Ground" type="MeshInstance3D" parent="."]
+mesh = SubResource("Ground_ember_steppes")
+material_override = SubResource("GroundMat_ember_steppes")
+
+[node name="GroundBody" type="StaticBody3D" parent="Ground"]
+
+[node name="GroundShape" type="CollisionShape3D" parent="Ground/GroundBody"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.05, 0)
+
+[node name="MeshRoot" type="Node3D" parent="."]
+; Drop imported environment assets here (Quaternius, KayKit, custom Blender).
+
+[node name="PlayerSpawn" type="Marker3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)
+
+[node name="MobSpawnPoints" type="Node3D" parent="."]
+
+[node name="MobSpawn_1_raider_grunt" type="Marker3D" parent="MobSpawnPoints"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 18.0, 1, 0.0)
+metadata/mob_id = "raider_grunt"
+
+[node name="MobSpawn_2_shrine_acolyte" type="Marker3D" parent="MobSpawnPoints"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -9.0, 1, 15.59)
+metadata/mob_id = "shrine_acolyte"
+
+[node name="MobSpawn_3_blood_hunter" type="Marker3D" parent="MobSpawnPoints"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -9.0, 1, -15.59)
+metadata/mob_id = "blood_hunter"
+
+[node name="BossSpawn_corrupt_master" type="Marker3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, -25)
+metadata/boss_id = "corrupt_master"
