@@ -1,4 +1,6 @@
-[gd_scene load_steps=6 format=3 uid="uid://b2ca02155a876"]
+[gd_scene load_steps=8 format=3 uid="uid://b2ca02155a876"]
+[ext_resource type="Script" path="res://scripts/world/lodestone.gd" id="boss_lodestone_mistvale_cairn"]
+[ext_resource type="Script" path="res://scripts/world/lodestone.gd" id="lodestone_mistvale_stone"]
 [ext_resource type="Script" path="res://scripts/world/warp_portal.gd" id="warp_"]
 
 [ext_resource type="Script" path="res://scripts/world/spawn/zone_composer.gd" id="ZoneComposer_mist_vale"]
@@ -87,4 +89,14 @@ script = ExtResource("warp_")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.5, 30)
 target_scene_path = "res://scenes/world/intros/sword_vow_ruins.tscn"
 label = "Return to Sword-Vow Ruins (V)"
+[node name="Lodestone" type="Area3D" parent="."]
+script = ExtResource("lodestone_mistvale_stone")
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -6, 0.5, 26)
+lodestone_id = &"mistvale_stone"
+display_name = "Mist-Vale Stone"
+[node name="LodestoneBoss" type="Area3D" parent="."]
+script = ExtResource("boss_lodestone_mistvale_cairn")
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4, 0.5, -25)
+lodestone_id = &"mistvale_cairn"
+display_name = "Mist Cairn"
 

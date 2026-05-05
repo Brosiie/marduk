@@ -1,11 +1,15 @@
 extends Control
 
-# World Map: renders all 13 region tiles in a layout chosen to feel like the
-# Marduk continent. Click a region to fast-travel (when WorldManager exposes
-# `travel_to(region_id)`); otherwise just shows current region highlighted.
+# World Map: renders all 14 lodestone tiles in a layout chosen to feel like
+# the Marduk continent. Discovered lodestones glow gold and click to teleport;
+# undiscovered lodestones show as grey "?" with a hint where they live.
+#
+# This is the player's progression-gated fast-travel UI. It reads from the
+# LodestoneRegistry autoload.
 
-# Approximate continental layout (x, y) — north is up, west is left.
-const REGION_LAYOUT := {
+# Approximate continental layout (x, y in 0..1 normalized). North up, west left.
+const LODESTONE_LAYOUT := {
+	&"sword_vow_dais":      Vector2(0.50, 0.10),
 	&"the_cradle":          Vector2(0.50, 0.20),
 	&"the_reed_wastes":     Vector2(0.40, 0.30),
 	&"lapis_bay":           Vector2(0.18, 0.40),
@@ -21,19 +25,31 @@ const REGION_LAYOUT := {
 	&"babilim":             Vector2(0.50, 0.85),
 }
 
+# Maps the LODESTONE_LAYOUT keys (region_id) to the lodestone id used by
+# the registry. The registry's LODESTONES catalog stores both, so we look
+# up by region_id.
+var _registry: Node = null
 var _canvas: Control
+var _summary: Label
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_PASS
+	_registry = get_node_or_null("/root/LodestoneRegistry")
 
 	var title := Label.new()
-	title.text = "World Map  ·  Marduk's Realm"
+	title.text = "World Map  ·  Lodestones of Marduk's Realm"
 	title.add_theme_font_size_override("font_size", 22)
 	add_child(title)
 
+	_summary = Label.new()
+	_summary.anchor_left = 0.0
+	_summary.anchor_top = 0.06
+	_summary.modulate = Color(0.95, 0.85, 0.30)
+	add_child(_summary)
+
 	_canvas = Control.new()
 	_canvas.anchor_left = 0.05
-	_canvas.anchor_top = 0.10
+	_canvas.anchor_top = 0.12
 	_canvas.anchor_right = 0.95
 	_canvas.anchor_bottom = 0.95
 	add_child(_canvas)
@@ -46,35 +62,59 @@ func _ready() -> void:
 	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_canvas.add_child(bg)
 
-	# Region tiles
-	for region_id in REGION_LAYOUT.keys():
-		var btn := Button.new()
-		btn.text = String(region_id).replace("_", " ").capitalize()
-		btn.custom_minimum_size = Vector2(150, 36)
-		var pos: Vector2 = REGION_LAYOUT[region_id]
-		btn.anchor_left = pos.x
-		btn.anchor_top = pos.y
-		btn.anchor_right = pos.x
-		btn.anchor_bottom = pos.y
-		btn.offset_left = -75.0
-		btn.offset_top = -18.0
-		btn.offset_right = 75.0
-		btn.offset_bottom = 18.0
-		btn.pressed.connect(_on_region_pressed.bind(region_id))
-		_canvas.add_child(btn)
-
 	refresh()
 
-func refresh() -> void:
-	pass
+	if _registry and _registry.has_signal("discovered"):
+		_registry.discovered.connect(func(_id, _name): refresh())
 
-func _on_region_pressed(region_id: StringName) -> void:
-	# Try WorldManager.travel_to; if not available, scene-change directly.
-	var wm = get_node_or_null("/root/WorldManager")
-	if wm and wm.has_method("travel_to"):
-		wm.travel_to(region_id)
+func refresh() -> void:
+	# Clear and rebuild buttons
+	for c in _canvas.get_children():
+		if c is Button:
+			c.queue_free()
+	if _registry == null:
 		return
-	# Fallback: load scenes/world/regions/<id>.tscn directly
-	var path := "res://scenes/world/regions/%s.tscn" % String(region_id)
-	if ResourceLoader.exists(path):
-		get_tree().change_scene_to_file(path)
+	# Build by region/lodestone position
+	# Look up each region_id in LODESTONE_LAYOUT against the registry's ids.
+	var all_meta: Dictionary = _registry.get_all() if _registry.has_method("get_all") else {}
+	var disc_count: int = 0
+	for lid in all_meta.keys():
+		var meta: Dictionary = all_meta[lid]
+		var region_id: StringName = meta.get("region_id", &"")
+		var pos: Vector2 = LODESTONE_LAYOUT.get(region_id, Vector2(0.5, 0.5))
+		if region_id == &"sword_vow_ruins":
+			pos = LODESTONE_LAYOUT.get(&"sword_vow_dais", Vector2(0.5, 0.1))
+		var discovered: bool = _registry.is_discovered(lid)
+		if discovered:
+			disc_count += 1
+		_canvas.add_child(_make_node(lid, meta, pos, discovered))
+	_summary.text = "Discovered  %d / %d lodestones" % [disc_count, all_meta.size()]
+
+func _make_node(lid: StringName, meta: Dictionary, pos: Vector2, discovered: bool) -> Button:
+	var btn := Button.new()
+	if discovered:
+		btn.text = String(meta.get("name", lid))
+		btn.modulate = Color(1.0, 0.85, 0.55)
+	else:
+		btn.text = "?"
+		btn.modulate = Color(0.4, 0.4, 0.45)
+	btn.custom_minimum_size = Vector2(160, 36)
+	btn.anchor_left = pos.x
+	btn.anchor_top = pos.y
+	btn.anchor_right = pos.x
+	btn.anchor_bottom = pos.y
+	btn.offset_left = -80.0
+	btn.offset_top = -18.0
+	btn.offset_right = 80.0
+	btn.offset_bottom = 18.0
+	btn.disabled = not discovered
+	if discovered:
+		btn.tooltip_text = "Travel to %s" % meta.get("name", "")
+		btn.pressed.connect(_on_lodestone_pressed.bind(lid))
+	else:
+		btn.tooltip_text = "Undiscovered. Find this lodestone in the world to attune."
+	return btn
+
+func _on_lodestone_pressed(lid: StringName) -> void:
+	if _registry and _registry.has_method("travel"):
+		_registry.travel(lid)

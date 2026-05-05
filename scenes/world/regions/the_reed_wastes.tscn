@@ -1,4 +1,6 @@
-[gd_scene load_steps=6 format=3 uid="uid://b117c52cffaa5"]
+[gd_scene load_steps=8 format=3 uid="uid://b117c52cffaa5"]
+[ext_resource type="Script" path="res://scripts/world/lodestone.gd" id="boss_lodestone_reed_drowned_keep"]
+[ext_resource type="Script" path="res://scripts/world/lodestone.gd" id="lodestone_reed_marker"]
 [ext_resource type="Script" path="res://scripts/world/warp_portal.gd" id="warp_"]
 
 [ext_resource type="Script" path="res://scripts/world/spawn/zone_composer.gd" id="ZoneComposer_the_reed_wastes"]
@@ -91,4 +93,14 @@ script = ExtResource("warp_")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.5, 30)
 target_scene_path = "res://scenes/world/intros/sword_vow_ruins.tscn"
 label = "Return to Sword-Vow Ruins (V)"
+[node name="Lodestone" type="Area3D" parent="."]
+script = ExtResource("lodestone_reed_marker")
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -6, 0.5, 26)
+lodestone_id = &"reed_marker"
+display_name = "Reed-Wastes Marker"
+[node name="LodestoneBoss" type="Area3D" parent="."]
+script = ExtResource("boss_lodestone_reed_drowned_keep")
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4, 0.5, -25)
+lodestone_id = &"reed_drowned_keep"
+display_name = "Drowned Keep"
 

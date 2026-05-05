@@ -1,4 +1,6 @@
-[gd_scene load_steps=6 format=3 uid="uid://b8b5b88a8103b"]
+[gd_scene load_steps=8 format=3 uid="uid://b8b5b88a8103b"]
+[ext_resource type="Script" path="res://scripts/world/lodestone.gd" id="boss_lodestone_shrieking_storm_tomb"]
+[ext_resource type="Script" path="res://scripts/world/lodestone.gd" id="lodestone_shrieking_runestone"]
 [ext_resource type="Script" path="res://scripts/world/warp_portal.gd" id="warp_"]
 
 [ext_resource type="Script" path="res://scripts/world/spawn/zone_composer.gd" id="ZoneComposer_shrieking_highlands"]
@@ -87,4 +89,14 @@ script = ExtResource("warp_")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.5, 30)
 target_scene_path = "res://scenes/world/intros/sword_vow_ruins.tscn"
 label = "Return to Sword-Vow Ruins (V)"
+[node name="Lodestone" type="Area3D" parent="."]
+script = ExtResource("lodestone_shrieking_runestone")
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -6, 0.5, 26)
+lodestone_id = &"shrieking_runestone"
+display_name = "Shrieking Runestone"
+[node name="LodestoneBoss" type="Area3D" parent="."]
+script = ExtResource("boss_lodestone_shrieking_storm_tomb")
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4, 0.5, -25)
+lodestone_id = &"shrieking_storm_tomb"
+display_name = "Storm-Tomb"
 

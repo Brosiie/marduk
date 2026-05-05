@@ -1,4 +1,6 @@
-[gd_scene load_steps=6 format=3 uid="uid://bf975fad6589a"]
+[gd_scene load_steps=8 format=3 uid="uid://bf975fad6589a"]
+[ext_resource type="Script" path="res://scripts/world/lodestone.gd" id="boss_lodestone_cradle_throne"]
+[ext_resource type="Script" path="res://scripts/world/lodestone.gd" id="lodestone_cradle_altar"]
 [ext_resource type="Script" path="res://scripts/world/warp_portal.gd" id="warp_"]
 
 [ext_resource type="Script" path="res://scripts/world/spawn/zone_composer.gd" id="ZoneComposer_the_cradle"]
@@ -99,4 +101,14 @@ script = ExtResource("warp_")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.5, 30)
 target_scene_path = "res://scenes/world/intros/sword_vow_ruins.tscn"
 label = "Return to Sword-Vow Ruins (V)"
+[node name="Lodestone" type="Area3D" parent="."]
+script = ExtResource("lodestone_cradle_altar")
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -6, 0.5, 26)
+lodestone_id = &"cradle_altar"
+display_name = "Cradle of Marduk"
+[node name="LodestoneBoss" type="Area3D" parent="."]
+script = ExtResource("boss_lodestone_cradle_throne")
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4, 0.5, -25)
+lodestone_id = &"cradle_throne"
+display_name = "Cradle Throne"
 

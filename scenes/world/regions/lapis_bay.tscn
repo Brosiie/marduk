@@ -1,4 +1,6 @@
-[gd_scene load_steps=6 format=3 uid="uid://ba1bdee66dbd2"]
+[gd_scene load_steps=8 format=3 uid="uid://ba1bdee66dbd2"]
+[ext_resource type="Script" path="res://scripts/world/lodestone.gd" id="boss_lodestone_lapis_lighthouse"]
+[ext_resource type="Script" path="res://scripts/world/lodestone.gd" id="lodestone_lapis_dock"]
 [ext_resource type="Script" path="res://scripts/world/warp_portal.gd" id="warp_"]
 
 [ext_resource type="Script" path="res://scripts/world/spawn/zone_composer.gd" id="ZoneComposer_lapis_bay"]
@@ -91,4 +93,14 @@ script = ExtResource("warp_")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.5, 30)
 target_scene_path = "res://scenes/world/intros/sword_vow_ruins.tscn"
 label = "Return to Sword-Vow Ruins (V)"
+[node name="Lodestone" type="Area3D" parent="."]
+script = ExtResource("lodestone_lapis_dock")
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -6, 0.5, 26)
+lodestone_id = &"lapis_dock"
+display_name = "Lapis Bay Dockstone"
+[node name="LodestoneBoss" type="Area3D" parent="."]
+script = ExtResource("boss_lodestone_lapis_lighthouse")
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4, 0.5, -25)
+lodestone_id = &"lapis_lighthouse"
+display_name = "Sunken Lighthouse"
 

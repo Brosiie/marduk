@@ -262,13 +262,32 @@ Each class has `max_armor_type`. Equip is rejected if item.armor_type > class.ma
 | Chaos Druid | Intellect | Form Energy | Shapeshifts. Capstone: Spawn of Tiamat dragon. |
 | **Paladin Guardian** | Strength/Vitality | Mana | **TANK.** Plate, shield + hammer, protection auras, heavy mitigation. |
 | **Paladin Lightbringer** | Intellect | Mana (130) | **HEALER.** Mail (no plate), shield + ceremonial mace, strong heals. |
-| **Demon** | Hybrid | Corruption | **LOCKED.** Drains own HP for devastation. Unlocks after defeating Lucifer. |
+| **Demon** | Hybrid | **Blood (kill-fed)** | **LOCKED.** Lifesteal vampire. Heals from damage dealt + max-HP gain on each kill. Each Blood point = +1% ability damage. Day/night flips +/-20% damage. Unlocks after defeating Lucifer. |
 
 ### Lucifer Arc (post-Tiamat secret)
 
 Tiamat is the climax of the visible game. After her, a hidden gate opens. The player descends through a fire-stair into Lucifer's domain. Defeating Lucifer sets the save flag `lucifer_defeated`, which unlocks the Demon class on the character creation screen for ALL future characters on that save profile.
 
-The Demon class fights on *borrowed life*: most signature abilities cost HP (drained into corruption), corruption then fuels devastation finishers. Glass cannon with self-bleed economy.
+### Demon mechanics (clarified)
+
+Demons do NOT use a corruption resource. Their economy is built on three
+always-on passives plus the kill-fed Blood pool (see "Resource Mechanics"
+above for the full table):
+
+- **Lifesteal passive:** every hit heals 5% of damage dealt back to the Demon.
+- **Kill-heal:** every kill restores 5% of max HP.
+- **Blood pool (0-100):** fills only on kills (+5 mob, +25 boss). Each Blood
+  point grants +1% ability damage. Demon abilities themselves cost nothing,
+  so the gameplay loop is: kill -> stack Blood -> bigger hits -> bigger
+  lifesteal swings -> heal back to full -> repeat. Glass-cannon economy
+  built around momentum, not self-bleed.
+- **Day/Night cycle:** Day -20% damage with no auto-regen; Night +20% damage
+  + 4 HP/sec regen. Demons play around the cycle.
+
+(There is one item, `Lucifer's Shed`, that re-routes Blood gain through
+damage taken and reduces ability HP costs by half. It is the *only* place
+"corruption" is referenced in the systems and it is an opt-in equip-bonus,
+not the core class economy.)
 
 ## Skill Trees (49 nodes per class)
 

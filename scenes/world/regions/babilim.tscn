@@ -1,4 +1,6 @@
-[gd_scene load_steps=6 format=3 uid="uid://b6d8417303853"]
+[gd_scene load_steps=8 format=3 uid="uid://b6d8417303853"]
+[ext_resource type="Script" path="res://scripts/world/lodestone.gd" id="boss_lodestone_babilim_holy_sanctum"]
+[ext_resource type="Script" path="res://scripts/world/lodestone.gd" id="lodestone_babilim_altar"]
 [ext_resource type="Script" path="res://scripts/world/warp_portal.gd" id="warp_"]
 
 [ext_resource type="Script" path="res://scripts/world/spawn/zone_composer.gd" id="ZoneComposer_babilim"]
@@ -71,4 +73,14 @@ script = ExtResource("warp_")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.5, 30)
 target_scene_path = "res://scenes/world/intros/sword_vow_ruins.tscn"
 label = "Return to Sword-Vow Ruins (V)"
+[node name="Lodestone" type="Area3D" parent="."]
+script = ExtResource("lodestone_babilim_altar")
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -6, 0.5, 26)
+lodestone_id = &"babilim_altar"
+display_name = "Babilim Grand Altar"
+[node name="LodestoneBoss" type="Area3D" parent="."]
+script = ExtResource("boss_lodestone_babilim_holy_sanctum")
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4, 0.5, -25)
+lodestone_id = &"babilim_holy_sanctum"
+display_name = "Holy Sanctum"
 
