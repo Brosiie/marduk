@@ -38,7 +38,7 @@ func roll(prestige_level: int = 0) -> Array[Item]:
 			results.append(vr)
 
 	# Roll the chance gate (with prestige amplification)
-	var effective_chance := min(1.0, base_drop_chance * (1.0 + float(prestige_level)))
+	var effective_chance: float = min(1.0, base_drop_chance * (1.0 + float(prestige_level)))
 	if randf() >= effective_chance:
 		return results
 

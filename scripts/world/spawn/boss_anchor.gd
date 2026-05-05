@@ -13,7 +13,9 @@ class_name BossAnchor
 
 func _ready() -> void:
 	if auto_spawn_on_ready:
-		spawn_boss()
+		# Defer to next frame so the parent scene is fully constructed before
+		# we add the boss as a sibling.
+		call_deferred("spawn_boss")
 
 func spawn_boss() -> void:
 	var boss_scene := preload("res://scenes/enemies/boss_base.tscn") if ResourceLoader.exists("res://scenes/enemies/boss_base.tscn") else null

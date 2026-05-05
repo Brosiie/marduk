@@ -73,7 +73,7 @@ func sync_character(slot: int, save_blob: Dictionary) -> void:
 		func(_success, _data): pass)
 
 func fetch_leaderboard(callback: Callable) -> void:
-	_get("/v1/leaderboards/prestige", callback)
+	_http_get("/v1/leaderboards/prestige", callback)
 
 # === Credential persistence ===
 func _save_credentials() -> void:
@@ -116,7 +116,7 @@ func _post_with_auth(path: String, body: Dictionary, callback: Callable) -> void
 	_http.request_completed.connect(_wrap_callback(callback), CONNECT_ONE_SHOT)
 	_http.request(url, headers, HTTPClient.METHOD_POST, json)
 
-func _get(path: String, callback: Callable) -> void:
+func _http_get(path: String, callback: Callable) -> void:
 	var url := base_url() + path
 	var headers := PackedStringArray([])
 	if account.is_signed_in():
@@ -128,9 +128,11 @@ func _wrap_callback(callback: Callable) -> Callable:
 	return func(_result, response_code, _headers, body):
 		var success: bool = response_code >= 200 and response_code < 300
 		var data: Dictionary = {}
-		var text := body.get_string_from_utf8()
+		var text: String = ""
+		if body is PackedByteArray:
+			text = (body as PackedByteArray).get_string_from_utf8()
 		if text.length() > 0:
-			var parsed = JSON.parse_string(text)
+			var parsed: Variant = JSON.parse_string(text)
 			if parsed is Dictionary:
 				data = parsed
 		callback.call(success, data)

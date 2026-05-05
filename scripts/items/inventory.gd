@@ -24,8 +24,8 @@ func add_item(item: Item, count: int = 1) -> int:
 	if item.stack_size > 1:
 		for s: Stack in bag:
 			if s.item.id == item.id and s.count < item.stack_size:
-				var space := item.stack_size - s.count
-				var add := min(space, count)
+				var space: int = item.stack_size - s.count
+				var add: int = min(space, count)
 				s.count += add
 				count -= add
 				if count <= 0:

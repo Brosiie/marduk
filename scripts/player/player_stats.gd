@@ -91,7 +91,7 @@ func gain_xp(amount: int) -> void:
 	# Wisdom/luck multipliers stack into incoming XP
 	var effective: int = int(round(float(amount) * xp_gain_mult))
 	# Party multiplier: +10% at full 4-member party (Bond's spec)
-	var pm := Engine.get_main_loop().root.get_node_or_null("PartyManager")
+	var pm: Node = Engine.get_main_loop().root.get_node_or_null("PartyManager")
 	if pm:
 		effective = int(round(float(effective) * pm.xp_multiplier()))
 	xp += effective

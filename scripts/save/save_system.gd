@@ -93,7 +93,7 @@ func load_slot(slot: int, player) -> bool:
 	# Class first (to set class_def before stats compute)
 	var class_id := StringName(cfg.get_value("meta", "class_id", ""))
 	if class_id != &"":
-		var cls := ClassRegistry.get_class(class_id)
+		var cls := ClassRegistry.get_class_def(class_id)
 		if cls and player.stats:
 			player.stats.class_def = cls
 	# Stats

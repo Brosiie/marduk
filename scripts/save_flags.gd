@@ -33,7 +33,7 @@ func set_permanent(name: StringName, value: Variant) -> void:
 	save_state()
 
 func has_permanent(name: StringName) -> bool:
-	var v := permanent.get(name, null)
+	var v: Variant = permanent.get(name, null)
 	return v != null and v != false
 
 func increment_permanent(name: StringName, delta: int = 1) -> int:
@@ -54,7 +54,7 @@ func set_run(name: StringName, value: Variant) -> void:
 	save_state()
 
 func has_run(name: StringName) -> bool:
-	var v := run_flags.get(name, null)
+	var v: Variant = run_flags.get(name, null)
 	return v != null and v != false
 
 func clear_run_flags() -> void:

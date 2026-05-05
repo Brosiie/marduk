@@ -5,7 +5,7 @@ class_name Hitbox
 # scans for Hurtboxes, applies damage, despawns or disables.
 
 @export var ability: Ability
-@export var attacker_stats: Resource  # PlayerStats or EnemyStats
+var attacker_stats  # PlayerStats Resource OR an EnemyBase/BossBase Node (duck-typed)
 @export var lifetime: float = 0.15
 @export var team: StringName = &"player"  # do not damage same-team hurtboxes
 

@@ -27,7 +27,7 @@ func _ready() -> void:
 	_register_paladin_guardian()
 	_register_paladin_lightbringer()
 
-func get_class(id: StringName) -> PlayerClass:
+func get_class_def(id: StringName) -> PlayerClass:
 	return classes.get(id)
 
 func all_classes() -> Array[PlayerClass]:

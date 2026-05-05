@@ -32,6 +32,8 @@ class_name PlayerClass
 @export var spell_attribute: StringName = &"intellect"   # used to scale spell damage
 @export var armor: float = 5.0
 @export var magic_resist: float = 5.0
+@export var crit_chance: float = 0.05
+@export var crit_multiplier: float = 1.75
 
 @export_group("Abilities and Tree")
 @export var starting_abilities: Array[Ability] = []

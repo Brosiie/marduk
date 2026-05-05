@@ -19,6 +19,10 @@ var _next_respawn_at: float = 0.0
 
 func _ready() -> void:
 	add_to_group("spawner")
+	# Defer initial spawns: scene is still adding children, can't add siblings yet
+	call_deferred("_initial_spawn")
+
+func _initial_spawn() -> void:
 	for _i in range(initial_count):
 		_spawn_one()
 
