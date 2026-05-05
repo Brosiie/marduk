@@ -100,7 +100,8 @@ func _candidates() -> Array:
 func _score_target(target: Node3D) -> float:
 	if not owner_player:
 		return 0.0
-	var dist := owner_player.global_position.distance_to(target.global_position)
+	var owner3d := owner_player as Node3D
+	var dist: float = owner3d.global_position.distance_to(target.global_position)
 	# Closer is better, also prefer ones near screen center
 	var screen_score := 0.0
 	if _camera:

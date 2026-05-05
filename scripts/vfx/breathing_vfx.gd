@@ -31,11 +31,16 @@ func _ready() -> void:
 		t.tween_property(flash, "light_energy", 0.0, lifetime).set_trans(Tween.TRANS_EXPO)
 	get_tree().create_timer(lifetime + 0.4).timeout.connect(queue_free)
 
-# Static helper: spawn a configured VFX at a position with the form's data
+# Static helper: spawn a configured VFX at a position with the form's data.
+# Loads lazily so missing scene file doesn't error during initial parse.
 static func spawn_for(form: BreathingForm, parent: Node, at_position: Vector3) -> Node:
-	var inst := preload("res://scenes/vfx/breathing_vfx.tscn").instantiate()
+	var scene := load("res://scenes/vfx/breathing_vfx.tscn") as PackedScene
+	if not scene:
+		return null
+	var inst: Node = scene.instantiate()
 	if inst is BreathingVFX:
 		(inst as BreathingVFX).color = form.vfx_color
 	parent.add_child(inst)
-	inst.global_position = at_position
+	if inst is Node3D:
+		(inst as Node3D).global_position = at_position
 	return inst

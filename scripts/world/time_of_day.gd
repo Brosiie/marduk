@@ -35,7 +35,7 @@ func _process(delta: float) -> void:
 func _apply() -> void:
 	if _sun:
 		# Sun arcs from east (rising at 0.25) to west (setting at 0.75)
-		var angle := lerp(0.0, TAU, time_of_day) - PI * 0.5
+		var angle: float = lerp(0.0, TAU, time_of_day) - PI * 0.5
 		_sun.rotation.x = -sin(angle)
 		_sun.rotation.y = cos(angle) * 0.4
 		_sun.light_color = _sun_color_for_time(time_of_day)

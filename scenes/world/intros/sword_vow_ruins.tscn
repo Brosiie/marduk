@@ -1,4 +1,4 @@
-[gd_scene load_steps=16 format=3]
+[gd_scene load_steps=17 format=3]
 
 ; Sword-Vow Ruins - Ronin intro arena.
 ; Stone fortress courtyard. Burned ramparts. A throne hall in the distance.
@@ -11,6 +11,7 @@
 [ext_resource type="Shader" path="res://shaders/toon.gdshader" id="4_toon"]
 [ext_resource type="Script" path="res://scripts/world/spawn/spawner.gd" id="5_spawner"]
 [ext_resource type="Script" path="res://scripts/world/spawn/boss_anchor.gd" id="6_boss_anchor"]
+[ext_resource type="PackedScene" path="res://assets/characters/kaykit/Characters/gltf/Knight.glb" id="7_knight"]
 
 [sub_resource type="PlaneMesh" id="floor_mesh"]
 size = Vector2(80, 80)
@@ -119,10 +120,8 @@ shape = SubResource("player_shape")
 
 [node name="MeshRoot" type="Node3D" parent="Player"]
 
-[node name="Mesh" type="MeshInstance3D" parent="Player/MeshRoot"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.85, 0)
-mesh = SubResource("player_mesh")
-surface_material_override/0 = SubResource("player_mat")
+[node name="KnightMesh" parent="Player/MeshRoot" instance=ExtResource("7_knight")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
 
 [node name="CameraRig" type="Node3D" parent="."]
 script = ExtResource("2_cam")

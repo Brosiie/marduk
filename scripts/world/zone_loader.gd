@@ -88,7 +88,7 @@ func _perform_swap(zone: Zone, scene: PackedScene, player) -> void:
 	# Move player into new scene if it expects one
 	if player and is_instance_valid(player) and new_root.has_node("PlayerSpawn"):
 		var spawn: Node3D = new_root.get_node("PlayerSpawn")
-		var old_parent := player.get_parent()
+		var old_parent: Node = player.get_parent()
 		if old_parent:
 			old_parent.remove_child(player)
 		new_root.add_child(player)
