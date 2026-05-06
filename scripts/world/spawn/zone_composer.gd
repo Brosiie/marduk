@@ -81,8 +81,15 @@ func _ready() -> void:
 		var key2: String = String(get_parent().get_meta("region_id"))
 		if STYLE_BY_ID.has(key2):
 			style = STYLE_BY_ID[key2]
+	print("[ZoneComposer] style=%d size=%s parent=%s" % [int(style), str(size), name])
 	if auto_build_on_ready:
-		call_deferred("build")
+		call_deferred("_build_with_diag")
+
+func _build_with_diag() -> void:
+	var before: int = get_child_count()
+	build()
+	var after: int = get_child_count()
+	print("[ZoneComposer] spawned %d props for style %d" % [after - before, int(style)])
 
 func build() -> void:
 	match style:

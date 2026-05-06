@@ -116,6 +116,11 @@ func _ready() -> void:
 	# Find the imported AnimationPlayer wherever it lives in the mesh hierarchy.
 	# KayKit .glbs put AnimationPlayer inside the imported scene root, not directly under MeshRoot.
 	anim_player = _find_animation_player(self)
+	# Visibility safety net: if no MeshInstance3D is rendering under MeshRoot
+	# (Mixamo import edge case, or scale collapses everything to a point),
+	# spawn a tinted capsule fallback so the player position is always visible.
+	# Also logs mesh AABB once for remote diagnostics.
+	_install_visibility_fallback()
 	# Merge shared + class-specific Mixamo anims onto the AnimationPlayer (silent if .fbx
 	# files are missing on disk; gameplay falls through to whatever the mesh ships with).
 	_load_marduk_animation_library()
@@ -128,6 +133,65 @@ func _ready() -> void:
 			anim_player.play(idle_name)
 
 var _resolved_anims: Dictionary = {}  # generic key -> actual animation name in this character
+
+# Walks the MeshRoot subtree to count visible MeshInstance3D nodes and
+# computes their combined AABB. If the count is zero or the AABB is
+# below 0.2m on any axis (effectively invisible due to scale collapse),
+# spawn a colored capsule fallback so the player position is always
+# discernible and log the diagnostic for remote debugging.
+func _install_visibility_fallback() -> void:
+	if not mesh:
+		return
+	var meshes: Array[MeshInstance3D] = []
+	_collect_meshes(mesh, meshes)
+	var combined_aabb := AABB()
+	var first := true
+	for mi in meshes:
+		if mi.mesh == null:
+			continue
+		var aabb := mi.get_aabb()
+		# Apply local scale chain up to MeshRoot
+		var scale_chain: Vector3 = mi.global_transform.basis.get_scale()
+		aabb.size *= scale_chain
+		aabb.position *= scale_chain
+		if first:
+			combined_aabb = aabb
+			first = false
+		else:
+			combined_aabb = combined_aabb.merge(aabb)
+	var size: Vector3 = combined_aabb.size
+	print("[Player] %d MeshInstance3D under MeshRoot, combined AABB size = %s" % [meshes.size(), str(size)])
+	# Heuristic: a 1.7m-tall character should have AABB y >= 1.0m. If anything
+	# collapses below 0.2m on the largest axis, the character is effectively
+	# invisible.
+	var biggest: float = max(size.x, max(size.y, size.z))
+	if meshes.is_empty() or biggest < 0.2:
+		_spawn_fallback_capsule()
+
+func _collect_meshes(node: Node, out: Array[MeshInstance3D]) -> void:
+	if node is MeshInstance3D:
+		out.append(node)
+	for c in node.get_children():
+		_collect_meshes(c, out)
+
+func _spawn_fallback_capsule() -> void:
+	if mesh.get_node_or_null("FallbackCapsule") != null:
+		return
+	var mi := MeshInstance3D.new()
+	mi.name = "FallbackCapsule"
+	var caps := CapsuleMesh.new()
+	caps.radius = 0.4
+	caps.height = 1.7
+	mi.mesh = caps
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = Color(0.92, 0.72, 0.30)
+	mat.emission_enabled = true
+	mat.emission = Color(0.92, 0.72, 0.30)
+	mat.emission_energy_multiplier = 0.4
+	mi.material_override = mat
+	mi.position = Vector3(0, 0.85, 0)
+	mesh.add_child(mi)
+	print("[Player] mesh invisible — spawned fallback capsule so player is visible")
 
 # Pulls the Mixamo .fbx animations declared in AnimationRegistry onto this
 # Player's AnimationPlayer under the canonical "marduk/<slot>" namespace.
