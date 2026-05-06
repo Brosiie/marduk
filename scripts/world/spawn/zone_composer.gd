@@ -171,32 +171,37 @@ func _torch(pos: Vector3, lit: bool = true) -> void:
 # When a real Quaternius nature pack lands, swap rubble/columns for grass
 # tufts and tree stumps; swap walls for ruined-arch stone fragments.
 func _build_sword_vow_ruins() -> void:
-	# Open courtyard reading as a SUMERIAN-RUIN-IN-A-FOREST: grass under
-	# foot, scattered trees forming a perimeter, broken stone columns
-	# from the dungeon kit + a throne dais at the north end. Mixes
-	# Kenney nature (trees / grass / flowers / cliffs) with KayKit
-	# dungeon (columns / wall_arched / floor stones for the dais).
+	# Open courtyard reading as a SUMERIAN-RUIN-IN-A-FOREST. Ground is
+	# now provided by TerrainGenerator (heightmapped grass / dirt / rock
+	# blend with rolling hills). This builder only places nature decor
+	# and stone ruin props on top.
 	#
-	# Floor: alternating dirt tiles + grass tufts so the ground reads
-	# as a clearing, not a stone room.
-	var tile_size := 4.0
-	var grid := int(size / tile_size)
-	for x in range(-grid, grid + 1):
-		for z in range(-grid, grid + 1):
-			# Cobbled stone center path so the player has a clear line
-			# of sight to the throne
-			if abs(x) <= 1 and z >= -int(size / 2) + 4:
-				_spawn("floor_tile_large.gltf.glb", Vector3(x * tile_size, 0, z * tile_size))
-			else:
-				_spawn("floor_dirt_large.gltf.glb", Vector3(x * tile_size, 0, z * tile_size))
-				# Sprinkle grass tufts on dirt tiles, ~30% density
-				if randf() < 0.30:
-					var pick: String = ["grass.glb", "grass_large.glb", "grass_leafs.glb", "grass_leafsLarge.glb"].pick_random()
-					_nat(pick, Vector3(x * tile_size + randf_range(-1, 1), 0, z * tile_size + randf_range(-1, 1)), randf() * 360.0)
-				# Sprinkle flowers, ~10% density
-				if randf() < 0.10:
-					var fpick: String = ["flower_purpleA.glb", "flower_redA.glb", "flower_yellowA.glb"].pick_random()
-					_nat(fpick, Vector3(x * tile_size + randf_range(-1.5, 1.5), 0, z * tile_size + randf_range(-1.5, 1.5)), randf() * 360.0)
+	# Density: ~50 grass tufts + ~30 flowers scattered across the
+	# central play area, avoiding the cobbled center path so combat
+	# space stays clear.
+	var grid_step := 4.0
+	var grid := int(size / grid_step)
+	# Cobbled stone center path leading to the throne (visual cue,
+	# helps the player navigate)
+	for z in range(-int(size / 2) + 4, int(size / 2) + 1, 2):
+		_spawn("floor_tile_large.gltf.glb", Vector3(0, 0.05, z))
+	# Scatter grass + flowers over the open ground
+	for _i in range(140):
+		var ox: float = randf_range(-size / 2 + 2, size / 2 - 2)
+		var oz: float = randf_range(-size / 2 + 2, size / 2 - 2)
+		# Avoid the cobbled center path
+		if abs(ox) <= 1.5 and oz >= -int(size / 2) + 4:
+			continue
+		var roll: float = randf()
+		if roll < 0.55:
+			var pick: String = ["grass.glb", "grass_large.glb", "grass_leafs.glb", "grass_leafsLarge.glb"].pick_random()
+			_nat(pick, Vector3(ox, 0, oz), randf() * 360.0)
+		elif roll < 0.80:
+			var fpick: String = ["flower_purpleA.glb", "flower_purpleB.glb", "flower_redA.glb", "flower_redB.glb", "flower_yellowA.glb", "flower_yellowB.glb"].pick_random()
+			_nat(fpick, Vector3(ox, 0, oz), randf() * 360.0)
+		elif roll < 0.95:
+			var bpick: String = ["plant_bush.glb", "mushroom_red.glb", "mushroom_tan.glb"].pick_random()
+			_nat(bpick, Vector3(ox, 0, oz), randf() * 360.0, randf_range(0.8, 1.2))
 	# Tree perimeter — frames the arena and breaks the empty horizon
 	for i in range(28):
 		var angle: float = i * TAU / 28.0
