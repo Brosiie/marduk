@@ -1,7 +1,7 @@
 [gd_scene load_steps=5 format=3]
 
 [ext_resource type="Script" path="res://scripts/enemies/enemy_base.gd" id="1_enemy"]
-[ext_resource type="PackedScene" path="res://assets/characters/mixamo/mobs/usurper_footman.fbx" id="2_skel"]
+[ext_resource type="PackedScene" path="res://assets/characters/kaykit_skeletons/Characters/gltf/Skeleton_Warrior.glb" id="2_skel"]
 
 [sub_resource type="CapsuleShape3D" id="enemy_shape"]
 radius = 0.45
@@ -20,7 +20,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.85, 0)
 shape = SubResource("enemy_shape")
 
 [node name="MobMesh" parent="." instance=ExtResource("2_skel")]
-transform = Transform3D(0.01, 0, 0, 0, 0.01, 0, 0, 0, 0.01, 0, 0, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
 
 [node name="Hurtbox" type="Area3D" parent="."]
 collision_layer = 4

@@ -65,7 +65,10 @@ func _spawn_one() -> void:
 		var archer_script: GDScript = load("res://scripts/enemies/archer_mob.gd")
 		if archer_script:
 			inst.set_script(archer_script)
-	_swap_mesh_for_mob(inst, mob_id)
+	# Mesh swap disabled while Mixamo retarget is pending. The baked-in
+	# KayKit Skeleton_Warrior in enemy_base.tscn renders for every mob;
+	# variety returns once Mixamo characters animate properly.
+	# _swap_mesh_for_mob(inst, mob_id)
 	get_tree().current_scene.add_child(inst)
 	inst.global_position = global_position
 	# Level-scale: every mob gets +10% HP / +6% damage / +5% XP per player

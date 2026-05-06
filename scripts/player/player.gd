@@ -164,10 +164,14 @@ func _install_visibility_fallback() -> void:
 	# Heuristic: a 1.7m-tall character should have AABB y >= 1.0m. If anything
 	# collapses below 0.2m on the largest axis, the character is effectively
 	# invisible.
-	# ALWAYS spawn the fallback capsule until Mixamo retarget is done.
-	# AABB diagnostic was misleading us; the only reliable guarantee that
-	# Bond can see his player is to render an unmistakable proxy.
-	_spawn_fallback_capsule()
+	# Conditional fallback: only when the spawned mesh has zero
+	# MeshInstance3D children OR collapses below a believable size.
+	# With KayKit characters baked in, this should never trigger; if a
+	# scene reverts to Mixamo before retarget the capsule re-appears.
+	var biggest: float = max(size.x, max(size.y, size.z))
+	var smallest: float = min(size.x, min(size.y, size.z))
+	if meshes.is_empty() or biggest < 0.4 or smallest < 0.15:
+		_spawn_fallback_capsule()
 
 func _collect_meshes(node: Node, out: Array[MeshInstance3D]) -> void:
 	if node is MeshInstance3D:
