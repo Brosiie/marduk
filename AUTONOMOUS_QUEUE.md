@@ -45,9 +45,136 @@ back here, then ship the first piece.
 - [x] QuestTrackerHUD + CombatLog + AutoSave + MusicDirector
 - [x] TrainerNPC + VendorNPC variants
 
+## Bond's vision pillars (re-prioritized 2026-05-06)
+
+Bond chose maximalist: ALL FOUR moods (Soulslike grim + Diablo loot + WoW
+MMO + Demon Slayer anime). ALL emotional registers (sad/love/angry/happy).
+**Iconic story**, **deep lore**, **dark fantasy**, **never bored**, **PvP
+deeply balanced**. Six load-bearing pillars now drive priority:
+
+1. Story emotional beats (named companion arcs, betrayal, love, sacrifice)
+2. Lore engine (Codex, memory items, environmental notes, books)
+3. PvP arena + ranked + balanced damage curve
+4. Replayability scaffold (NG+, prestige cycles, daily bounties, challenge dungeons)
+5. Combat juice (hitstop, screenshake, slow-mo, status effects)
+6. Itemization depth (affixes, set bonuses, sockets, salvage/crafting)
+
 ## Next up (priority order; work top to bottom)
 
-### Tier 1 — gameplay loop polish (HIGHEST priority)
+### Tier 1 — story emotional beats (HIGHEST priority)
+
+- [ ] **Codex autoload + menu tab**: scrollable lore archive grouped by
+      category (regions, characters, items, achievements). Entries unlock
+      on first encounter. Persists via SaveFlags. Replaces Achievements
+      tab usage as the dominant lore-discovery surface. (~120 lines.)
+- [ ] **Memory item flashback system**: certain items carry a
+      `memory_id` that, on first pickup, fades the camera into a 4-6s
+      scripted flashback (camera moves through a posed Tableau in the
+      world, voiceover-style label scrolls). Wire 3 starter memories:
+      Lord Ennum's broken sword, Belitu's brother's pendant, the
+      Storyteller's first verse. (~100 lines per memory + system.)
+- [ ] **Belitu's Brother quest payoff**: the brother is alive in the
+      Cradle, dying. Player must escort him back to Ashurim (slow walk,
+      stamina bar drains as he leans on you). He dies in the plaza in
+      front of Belitu. Quest reward is a memorial sash item. (~150 lines.)
+- [ ] **Iddinu betrayal arc**: 3rd quest from Iddinu reveals a coded
+      ledger in his crate. Player can confront him; he draws steel.
+      Combat encounter with custom dialogue. Killing him opens a new
+      quest line tracing the Tashmu spy network. (~200 lines.)
+- [ ] **Companion NPC: Saru the Wandering Ronin**: rescued in Bone
+      Mountains; joins party as a follower (uses TrainerNPC-style
+      follower AI but combat-capable, fights alongside you). 10
+      conversation beats unlock as you progress. Sacrifices themselves
+      in Black Citadel boss fight (scripted death). Memorial tomb at
+      Mist Vale unlocks a weapon engraved with their name + stats.
+- [ ] **Festival of Marduk** (post-Tiamat): scene swap when player
+      enters Ashurim with `tiamat_defeated` save flag set. Plaza
+      decorated (banners, candles, NPC dance loops), music shifts to
+      G-major bright pad, special vendor sells festival cosmetics.
+
+### Tier 2 — lore engine
+
+- [ ] **Lore notes scattered**: each region scene gets 3-5 readable
+      notes placed as Area3D pickups. Reading adds a Codex entry. ~50
+      notes total across 13 regions.
+- [ ] **Books in Inkstone Tower**: dedicated library room with 10
+      readable tomes, each a paragraph of world history. Codex entries.
+- [ ] **Environmental graffiti**: scratched messages on dungeon walls
+      using Label3D. "TASHMU LIES", "the seal weeps", "she comes from
+      below". Souls-style flavor.
+- [ ] **NPC ambient barks**: every named NPC gets 5-10 random barks
+      that fire when player walks past. Builds a sense of "they were
+      already living here when you arrived."
+
+### Tier 3 — PvP scaffold
+
+- [ ] **PvP damage track** in damage_calc.gd: 0.4x multiplier when
+      target is Player class. Per-ability tuning override allowed.
+- [ ] **Arena scene** scenes/pvp/colosseum.tscn: 60m circular sandstone
+      arena, 1v1 / 3v3 / 5v5 spawn anchors, gates that open on round
+      start. King-of-the-hill capture point at center.
+- [ ] **Match server** in backend/: WebSocket relay matchmaker over
+      existing RealtimeChannel. ELO ranking. Cloudflare Worker.
+- [ ] **Spectator mode**: dead players become camera-free observers
+      with all 6 ability slots replaced by camera position presets.
+- [ ] **Seasonal cosmetic rewards**: top-100 ranked players each
+      season get a unique title + nameplate glow. Cosmetic only; never
+      power.
+
+### Tier 4 — replayability scaffold
+
+- [ ] **NG+**: on Tiamat defeat, dialog offers "Begin again, harder."
+      Resets player to level 1 + zone state but keeps gear/skills/Codex.
+      Mob HP/damage bumped 1.5x per cycle.
+- [ ] **Prestige cycle reward**: Prestige autoload exists. Hook the
+      ascend ritual scene + +difficulty + permanent stat bonus +
+      cycle-counter UI badge.
+- [ ] **Daily bounty board** in Ashurim plaza: 3 randomly-generated
+      kill quests refresh every in-game day (WorldClock dawn). Gold
+      reward scales with player level.
+- [ ] **Challenge dungeon**: roguelike mode. Random ZoneComposer style
+      chained 7 levels deep. Permadeath in dungeon. Score = depth +
+      kills. Leaderboard per cycle.
+- [ ] **Faction reputation**: Iron Crown / Sun-Sworn / Whisper Shrine.
+      Killing certain mobs raises one and lowers another. Vendors gate
+      stock by rep.
+
+### Tier 5 — combat juice (impact-per-line)
+
+- [ ] **Hitstop**: 80ms `Engine.time_scale = 0.05` on every hit landing.
+      Tween-back over 40ms.
+- [ ] **CameraRig.shake(magnitude, duration)**: real implementation.
+      Hook into BossAttackPattern execute, player crit-kill, boss
+      phase transition.
+- [ ] **Slow-mo on critical kills**: 0.4s of `time_scale = 0.35` on
+      the killing blow that ends a mob's life when crit was rolled.
+- [ ] **Status effects with icons**: burn / freeze / poison / slow /
+      stun / bleed. Element interactions (frozen + lightning =
+      shatter, double damage). Resistances per mob tag (undead resist
+      physical, take +30% holy).
+- [ ] **Knockback on heavy hits**: ability_kit entries with
+      `knockback_force` field. Apply impulse to enemy CharacterBody3D.
+- [ ] **Footsteps** per surface: stone / grass / wood / sand. Hooked
+      to move_and_slide ground contact.
+- [ ] **Damage number scaling pop**: tween scale 0.6→1.2→1.0 in 0.15s
+      on spawn.
+
+### Tier 6 — itemization depth
+
+- [ ] **Affixes**: 30 prefixes ("Cruel", "Bloodied", "Heaven-Touched")
+      + 30 suffixes ("of the Bear", "of Three Vows"). Roll 0-2 per drop
+      weighted by rarity. Tooltips show full rolled name.
+- [ ] **Set items**: 5-piece sets with cumulative bonuses. 3 starter
+      sets: Ash-Step Raider's Garb, Sun-Sworn Vestments, Inkstone
+      Initiate's Robes.
+- [ ] **Sockets + gems**: RARE+ items roll 0-3 sockets. Gems craft via
+      a new Crafting NPC in Ashurim.
+- [ ] **Salvage**: right-click items in inventory to break into
+      crafting materials.
+- [ ] **Item comparison in tooltip**: hover an item, show "+12 atk,
+      -4 dex vs equipped" in red/green delta.
+
+### Already done
 
 - [x] **Quest progress wiring**: shipped in commit `06733e4`. EnemyBase._die
       and LodestoneRegistry.discover both call QuestRegistry.progress(kind,
