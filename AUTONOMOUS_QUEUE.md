@@ -69,7 +69,7 @@ deeply balanced**. Six load-bearing pillars now drive priority:
       via SaveFlags `codex_<id>` permanent flags. 6 standard categories
       (regions, characters, items, lore, bestiary, achievements).
       Tolerant unlock: stubs an entry if unlock fires before register.
-- [x] **Codex panel UI (sub-task B)**: shipped in commit `<pending>`.
+- [x] **Codex panel UI (sub-task B)**: shipped in commit `045b406`.
       New scripts/ui/panels/codex_panel.gd with two-column layout
       (categories left, scrollable cards right). Live-refreshes via
       CodexRegistry.entry_unlocked signal. New &"codex" tab in
