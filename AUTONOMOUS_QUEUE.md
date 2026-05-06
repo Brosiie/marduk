@@ -49,7 +49,7 @@ back here, then ship the first piece.
 
 ### Tier 1 — gameplay loop polish (HIGHEST priority)
 
-- [x] **Quest progress wiring**: shipped in commit `<pending>`. EnemyBase._die
+- [x] **Quest progress wiring**: shipped in commit `06733e4`. EnemyBase._die
       and LodestoneRegistry.discover both call QuestRegistry.progress(kind,
       target_id, 1). Per-active-quest counters live in `_progress` parallel
       to `_active`. Auto-completes via complete_quest when all objectives
