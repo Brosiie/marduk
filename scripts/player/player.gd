@@ -165,7 +165,12 @@ func _install_visibility_fallback() -> void:
 	# collapses below 0.2m on the largest axis, the character is effectively
 	# invisible.
 	var biggest: float = max(size.x, max(size.y, size.z))
-	if meshes.is_empty() or biggest < 0.2:
+	# Mixamo skin can render with valid Y AABB but collapsed Z (~0.13m)
+	# when skeleton bones lack a proper rest pose pre-retarget. Force a
+	# fallback capsule whenever ANY axis is below 0.3m or no meshes exist,
+	# so the player position is always unambiguous.
+	var smallest: float = min(size.x, min(size.y, size.z))
+	if meshes.is_empty() or biggest < 0.2 or smallest < 0.3:
 		_spawn_fallback_capsule()
 
 func _collect_meshes(node: Node, out: Array[MeshInstance3D]) -> void:

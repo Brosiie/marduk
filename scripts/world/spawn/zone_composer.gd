@@ -144,37 +144,63 @@ func _torch(pos: Vector3, lit: bool = true) -> void:
 		light.position = Vector3(0, 1.5, 0)
 
 # ----------------------------------------------------------------
-# SWORD-VOW RUINS — burned-out stone fortress, throne at north
-# ----------------------------------------------------------------
+# SWORD-VOW RUINS — open-air burned courtyard, throne at north.
+# Re-tuned 2026-05-06: Bond's playtest feedback was "just random walls".
+# This pass kills the wall-spam corridor look. The arena now reads as an
+# OPEN ruin: scattered rubble, broken columns, low foliage suggested by
+# barrier_columns, a clear central path to the throne, lit torches only
+# at the throne (north) and entry (south). Walls only at the back of the
+# throne dais so the player has line-of-sight to everything.
+#
+# When a real Quaternius nature pack lands, swap rubble/columns for grass
+# tufts and tree stumps; swap walls for ruined-arch stone fragments.
 func _build_sword_vow_ruins() -> void:
-	# Floor tiles in a grid
+	# Open dirt floor — single texture variant, no checkerboard pattern
 	var tile_size := 4.0
 	var grid := int(size / tile_size)
 	for x in range(-grid, grid + 1):
 		for z in range(-grid, grid + 1):
-			var asset := "floor_dirt_large_rocky.gltf.glb" if (x + z) % 3 == 0 else "floor_dirt_large.gltf.glb"
+			var asset: String
+			# Cobbled center path (z from -8 to +28, x from -3 to +3)
+			if abs(x) < 1 and z >= -int(size / 2) + 4 and z <= int(size / 2):
+				asset = "floor_tile_large.gltf.glb"
+			else:
+				asset = "floor_dirt_large.gltf.glb"
 			_spawn(asset, Vector3(x * tile_size, 0, z * tile_size))
-
-	# Side walls - arched stone forming a corridor
-	for z in range(-int(size / 2), int(size / 2), 4):
-		_spawn("wall_arched.gltf.glb", Vector3(-size / 2, 0, z), 0.0)
-		_spawn("wall_arched.gltf.glb", Vector3(size / 2, 0, z), 180.0)
-
-	# Decorated pillars at the four corners
-	_spawn("pillar_decorated.gltf.glb", Vector3(-size / 2 + 2, 0, -size / 2 + 2))
-	_spawn("pillar_decorated.gltf.glb", Vector3(size / 2 - 2, 0, -size / 2 + 2))
-	_spawn("pillar_decorated.gltf.glb", Vector3(-size / 2 + 2, 0, size / 2 - 2))
-	_spawn("pillar_decorated.gltf.glb", Vector3(size / 2 - 2, 0, size / 2 - 2))
-
-	# Smaller pillars lining the central path
-	for z_step in [-12, -4, 4, 12]:
-		_spawn("pillar.gltf.glb", Vector3(-6, 0, z_step))
-		_spawn("pillar.gltf.glb", Vector3(6, 0, z_step))
-
-	# Torches along the walls - lit, casting warm pools of light
-	for z_step in [-16, -8, 0, 8, 16]:
-		_torch(Vector3(-size / 2 + 1.5, 0, z_step), true)
-		_torch(Vector3(size / 2 - 1.5, 0, z_step), true)
+	# Throne dais at north — visible target the player walks toward.
+	# Three rising tiles form a low platform.
+	for tier in range(3):
+		var w: int = 5 - tier
+		var y: float = 0.35 * float(tier + 1)
+		for dx in range(-w, w + 1):
+			_spawn("floor_tile_large.gltf.glb", Vector3(float(dx) * 1.0, y, -size / 2 + 4 + tier))
+	# Throne back-wall: a short stone arch behind the boss
+	_spawn("wall_arched.gltf.glb", Vector3(-2, 0.7, -size / 2 + 6))
+	_spawn("wall_arched.gltf.glb", Vector3(2, 0.7, -size / 2 + 6), 180.0)
+	# Two tall flanking columns at the throne
+	_spawn("column.gltf.glb", Vector3(-3, 0.7, -size / 2 + 4))
+	_spawn("column.gltf.glb", Vector3(3, 0.7, -size / 2 + 4))
+	# Scattered broken columns / rubble across the courtyard (avoid the
+	# central path so the player has clear movement)
+	for _i in range(18):
+		var ox: float = randf_range(-size / 2 + 4, size / 2 - 4)
+		var oz: float = randf_range(-size / 2 + 8, size / 2 - 4)
+		# Skip the central spine
+		if abs(ox) < 4:
+			continue
+		var pick: String = ["pillar.gltf.glb", "barrier_column.gltf.glb", "rubble_large.gltf.glb", "rubble_half.gltf.glb"].pick_random()
+		var p: Node3D = _spawn(pick, Vector3(ox, 0, oz), randf() * 360.0)
+		# Tilt half of the broken columns so they read as ruin
+		if p and pick == "pillar.gltf.glb" and randf() < 0.4:
+			p.rotation.x = deg_to_rad(randf_range(-25, 25))
+			p.rotation.z = deg_to_rad(randf_range(-25, 25))
+	# Torches: just at the throne (north) and the entry (south player spawn)
+	_torch(Vector3(-4, 0.7, -size / 2 + 4), true)
+	_torch(Vector3(4, 0.7, -size / 2 + 4), true)
+	_torch(Vector3(-6, 0, size / 2 - 4), true)
+	_torch(Vector3(6, 0, size / 2 - 4), true)
+	# Sword-shield ornament half-buried in the courtyard, lore-flavor
+	_spawn("sword_shield_broken.gltf.glb", Vector3(0, 0, 8), 25.0)
 
 	# Throne dais at the north end (boss spawn area)
 	_spawn("floor_dirt_large_rocky.gltf.glb", Vector3(0, 0.4, -size / 2 + 4))
