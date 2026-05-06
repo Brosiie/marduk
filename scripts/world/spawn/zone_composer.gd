@@ -36,6 +36,22 @@ enum Style {
 }
 
 const KIT := "res://assets/environments/kaykit_dungeon/Assets/gltf/"
+const NATURE := "res://assets/environments/kenney_nature/"
+
+# Spawn from the nature kit (trees, grass, flowers, cliffs).
+func _nat(asset: String, pos: Vector3, rot_y_deg: float = 0.0, scale: float = 1.0) -> Node3D:
+	var path: String = NATURE + asset
+	if not ResourceLoader.exists(path):
+		return null
+	var packed: PackedScene = load(path)
+	if not packed:
+		return null
+	var inst: Node3D = packed.instantiate()
+	add_child(inst)
+	inst.position = pos
+	inst.rotation.y = deg_to_rad(rot_y_deg)
+	inst.scale = Vector3.ONE * scale
+	return inst
 
 # String alias map so region scenes can carry region_id metadata and the
 # composer auto-resolves to the right enum at build time.
@@ -155,51 +171,80 @@ func _torch(pos: Vector3, lit: bool = true) -> void:
 # When a real Quaternius nature pack lands, swap rubble/columns for grass
 # tufts and tree stumps; swap walls for ruined-arch stone fragments.
 func _build_sword_vow_ruins() -> void:
-	# Open dirt floor — single texture variant, no checkerboard pattern
+	# Open courtyard reading as a SUMERIAN-RUIN-IN-A-FOREST: grass under
+	# foot, scattered trees forming a perimeter, broken stone columns
+	# from the dungeon kit + a throne dais at the north end. Mixes
+	# Kenney nature (trees / grass / flowers / cliffs) with KayKit
+	# dungeon (columns / wall_arched / floor stones for the dais).
+	#
+	# Floor: alternating dirt tiles + grass tufts so the ground reads
+	# as a clearing, not a stone room.
 	var tile_size := 4.0
 	var grid := int(size / tile_size)
 	for x in range(-grid, grid + 1):
 		for z in range(-grid, grid + 1):
-			var asset: String
-			# Cobbled center path (z from -8 to +28, x from -3 to +3)
-			if abs(x) < 1 and z >= -int(size / 2) + 4 and z <= int(size / 2):
-				asset = "floor_tile_large.gltf.glb"
+			# Cobbled stone center path so the player has a clear line
+			# of sight to the throne
+			if abs(x) <= 1 and z >= -int(size / 2) + 4:
+				_spawn("floor_tile_large.gltf.glb", Vector3(x * tile_size, 0, z * tile_size))
 			else:
-				asset = "floor_dirt_large.gltf.glb"
-			_spawn(asset, Vector3(x * tile_size, 0, z * tile_size))
-	# Throne dais at north — visible target the player walks toward.
-	# Three rising tiles form a low platform.
+				_spawn("floor_dirt_large.gltf.glb", Vector3(x * tile_size, 0, z * tile_size))
+				# Sprinkle grass tufts on dirt tiles, ~30% density
+				if randf() < 0.30:
+					var pick: String = ["grass.glb", "grass_large.glb", "grass_leafs.glb", "grass_leafsLarge.glb"].pick_random()
+					_nat(pick, Vector3(x * tile_size + randf_range(-1, 1), 0, z * tile_size + randf_range(-1, 1)), randf() * 360.0)
+				# Sprinkle flowers, ~10% density
+				if randf() < 0.10:
+					var fpick: String = ["flower_purpleA.glb", "flower_redA.glb", "flower_yellowA.glb"].pick_random()
+					_nat(fpick, Vector3(x * tile_size + randf_range(-1.5, 1.5), 0, z * tile_size + randf_range(-1.5, 1.5)), randf() * 360.0)
+	# Tree perimeter — frames the arena and breaks the empty horizon
+	for i in range(28):
+		var angle: float = i * TAU / 28.0
+		var r: float = size / 2 + 1.0 + randf_range(-1, 2)
+		var tx: float = cos(angle) * r
+		var tz: float = sin(angle) * r
+		# Skip the south entry corridor so player can see the spawn point
+		if abs(tx) < 4 and tz > 0:
+			continue
+		var tree_pick: String = ["tree_default.glb", "tree_default_dark.glb", "tree_detailed.glb", "tree_fat.glb", "tree_blocks.glb"].pick_random()
+		_nat(tree_pick, Vector3(tx, 0, tz), randf() * 360.0, randf_range(0.9, 1.4))
+	# Throne dais at north — three rising stone tiers
 	for tier in range(3):
 		var w: int = 5 - tier
 		var y: float = 0.35 * float(tier + 1)
 		for dx in range(-w, w + 1):
 			_spawn("floor_tile_large.gltf.glb", Vector3(float(dx) * 1.0, y, -size / 2 + 4 + tier))
-	# Throne back-wall: a short stone arch behind the boss
+	# Throne back arch + flanking columns
 	_spawn("wall_arched.gltf.glb", Vector3(-2, 0.7, -size / 2 + 6))
 	_spawn("wall_arched.gltf.glb", Vector3(2, 0.7, -size / 2 + 6), 180.0)
-	# Two tall flanking columns at the throne
 	_spawn("column.gltf.glb", Vector3(-3, 0.7, -size / 2 + 4))
 	_spawn("column.gltf.glb", Vector3(3, 0.7, -size / 2 + 4))
-	# Scattered broken columns / rubble across the courtyard (avoid the
-	# central path so the player has clear movement)
-	for _i in range(18):
+	# Scattered broken columns + cliff rocks across the courtyard,
+	# avoiding the central path so combat space stays clear
+	for _i in range(22):
 		var ox: float = randf_range(-size / 2 + 4, size / 2 - 4)
 		var oz: float = randf_range(-size / 2 + 8, size / 2 - 4)
-		# Skip the central spine
 		if abs(ox) < 4:
 			continue
-		var pick: String = ["pillar.gltf.glb", "barrier_column.gltf.glb", "rubble_large.gltf.glb", "rubble_half.gltf.glb"].pick_random()
-		var p: Node3D = _spawn(pick, Vector3(ox, 0, oz), randf() * 360.0)
-		# Tilt half of the broken columns so they read as ruin
-		if p and pick == "pillar.gltf.glb" and randf() < 0.4:
+		var pick: int = randi() % 5
+		var p: Node3D
+		match pick:
+			0: p = _spawn("pillar.gltf.glb", Vector3(ox, 0, oz), randf() * 360.0)
+			1: p = _spawn("rubble_large.gltf.glb", Vector3(ox, 0, oz), randf() * 360.0)
+			2: p = _nat("cliff_blockHalf_stone.glb", Vector3(ox, 0, oz), randf() * 360.0)
+			3: p = _nat("plant_bush.glb", Vector3(ox, 0, oz), randf() * 360.0)
+			4: p = _nat("mushroom_red.glb", Vector3(ox, 0, oz), randf() * 360.0)
+		if p and pick == 0 and randf() < 0.4:
 			p.rotation.x = deg_to_rad(randf_range(-25, 25))
 			p.rotation.z = deg_to_rad(randf_range(-25, 25))
-	# Torches: just at the throne (north) and the entry (south player spawn)
+	# Campfire ring at the player spawn so south end is recognizable
+	_nat("campfire_stones.glb", Vector3(0, 0, size / 2 - 6))
+	# Lit torches at throne + entry
 	_torch(Vector3(-4, 0.7, -size / 2 + 4), true)
 	_torch(Vector3(4, 0.7, -size / 2 + 4), true)
 	_torch(Vector3(-6, 0, size / 2 - 4), true)
 	_torch(Vector3(6, 0, size / 2 - 4), true)
-	# Sword-shield ornament half-buried in the courtyard, lore-flavor
+	# Lore flavor: half-buried sword in the central path
 	_spawn("sword_shield_broken.gltf.glb", Vector3(0, 0, 8), 25.0)
 
 	# Throne dais at the north end (boss spawn area)

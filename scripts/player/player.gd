@@ -182,21 +182,45 @@ func _collect_meshes(node: Node, out: Array[MeshInstance3D]) -> void:
 func _spawn_fallback_capsule() -> void:
 	if mesh.get_node_or_null("FallbackCapsule") != null:
 		return
+	# Bright glowing capsule that's bigger than a normal character so
+	# Bond can't miss it. Hue chosen to pop against the burned-out
+	# Sword-Vow Ruins palette (pale gold against red-brown earth).
 	var mi := MeshInstance3D.new()
 	mi.name = "FallbackCapsule"
 	var caps := CapsuleMesh.new()
-	caps.radius = 0.4
-	caps.height = 1.7
+	caps.radius = 0.5
+	caps.height = 2.0
 	mi.mesh = caps
 	var mat := StandardMaterial3D.new()
-	mat.albedo_color = Color(0.92, 0.72, 0.30)
+	mat.albedo_color = Color(1.0, 0.85, 0.30)
 	mat.emission_enabled = true
-	mat.emission = Color(0.92, 0.72, 0.30)
-	mat.emission_energy_multiplier = 0.4
+	mat.emission = Color(1.0, 0.75, 0.25)
+	mat.emission_energy_multiplier = 1.4
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_PER_PIXEL
 	mi.material_override = mat
-	mi.position = Vector3(0, 0.85, 0)
+	mi.position = Vector3(0, 1.0, 0)
 	mesh.add_child(mi)
-	print("[Player] mesh invisible — spawned fallback capsule so player is visible")
+	# Floating label above the capsule
+	var lbl := Label3D.new()
+	lbl.text = "PLAYER"
+	lbl.font_size = 32
+	lbl.outline_size = 6
+	lbl.outline_modulate = Color(0, 0, 0, 0.9)
+	lbl.modulate = Color(1.0, 0.95, 0.55)
+	lbl.position = Vector3(0, 2.6, 0)
+	lbl.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	lbl.no_depth_test = true
+	lbl.fixed_size = true
+	lbl.pixel_size = 0.005
+	mesh.add_child(lbl)
+	# Personal point light so the capsule is bright even at night
+	var lit := OmniLight3D.new()
+	lit.light_color = Color(1.0, 0.85, 0.40)
+	lit.light_energy = 1.8
+	lit.omni_range = 6.0
+	lit.position = Vector3(0, 1.6, 0)
+	mesh.add_child(lit)
+	print("[Player] mesh invisible (skinning collapse) — spawned glowing fallback capsule + label + light")
 
 # Pulls the Mixamo .fbx animations declared in AnimationRegistry onto this
 # Player's AnimationPlayer under the canonical "marduk/<slot>" namespace.
