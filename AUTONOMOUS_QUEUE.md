@@ -64,7 +64,7 @@ deeply balanced**. Six load-bearing pillars now drive priority:
 ### Tier 1 — story emotional beats (HIGHEST priority)
 
 - [x] **Codex autoload (sub-task A of Codex menu)**: shipped in commit
-      `<pending>`. CodexRegistry autoload with register / unlock /
+      `c4e871a`. CodexRegistry autoload with register / unlock /
       is_unlocked / entries_by_category / get_entry API. Persistence
       via SaveFlags `codex_<id>` permanent flags. 6 standard categories
       (regions, characters, items, lore, bestiary, achievements).
