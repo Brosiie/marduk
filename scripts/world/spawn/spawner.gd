@@ -72,7 +72,7 @@ func _spawn_one() -> void:
 	# level past 1. Keeps the world from going trivial as the player grows.
 	var p = get_tree().get_first_node_in_group("player")
 	var player_level: int = 1
-	if p and p.has("stats") and p.stats and "level" in p.stats:
+	if p and "stats" in p and p.stats and "level" in p.stats:
 		player_level = max(1, int(p.stats.level))
 	var lvl_step: int = max(0, player_level - 1)
 	var hp_mult: float = 1.0 + 0.10 * float(lvl_step)

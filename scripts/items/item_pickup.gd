@@ -110,7 +110,7 @@ func _pickup(player: Node) -> void:
 		ar.unlock(&"a_first_pickup")
 	if player.has_method("collect_item"):
 		player.collect_item(item, quantity)
-	elif player.has("inventory") and player.inventory and player.inventory.has_method("add_item"):
+	elif "inventory" in player and player.inventory and player.inventory.has_method("add_item"):
 		player.inventory.add_item(item, quantity)
 	# Pickup SFX, pitch-shift by rarity so rares sound shinier
 	var ab = player.get_node_or_null("/root/AudioBus")

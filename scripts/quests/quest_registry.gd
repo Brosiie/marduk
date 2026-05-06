@@ -293,9 +293,9 @@ func complete_quest(id: StringName) -> bool:
 	_completed[id] = q
 	# Award XP + gold to the player
 	var player = get_tree().get_first_node_in_group("player") if get_tree() else null
-	if player and player.has("stats") and player.stats and player.stats.has_method("gain_xp"):
+	if player and "stats" in player and player.stats and player.stats.has_method("gain_xp"):
 		player.stats.gain_xp(int(q.xp_reward))
-	if player and player.has("stats") and player.stats and "gold" in player.stats:
+	if player and "stats" in player and player.stats and "gold" in player.stats:
 		player.stats.gold += int(q.gold_reward)
 	# Achievement: first quest completion
 	var ar = get_node_or_null("/root/AchievementRegistry")

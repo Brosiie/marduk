@@ -25,7 +25,7 @@ func _process(delta: float) -> void:
 
 func _player_has_unspent_points() -> bool:
 	var p := get_tree().get_first_node_in_group("player") if get_tree() else null
-	if p == null or not (p.has("stats") and p.stats):
+	if p == null or not ("stats" in p and p.stats):
 		return false
 	var pts = p.stats.get("skill_points") if p.stats.has_method("get") else 0
 	return int(pts) > 0

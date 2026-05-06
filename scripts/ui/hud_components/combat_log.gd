@@ -69,7 +69,7 @@ func _attach_signals() -> void:
 		p.hp_changed.connect(_on_hp_changed)
 	if p.has_signal("died"):
 		p.died.connect(_on_died)
-	if p.has("stats") and p.stats and p.stats.has_signal("leveled_up"):
+	if "stats" in p and p.stats and p.stats.has_signal("leveled_up"):
 		p.stats.leveled_up.connect(log_level_up)
 
 	# Quest registry

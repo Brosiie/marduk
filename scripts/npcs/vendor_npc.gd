@@ -117,7 +117,7 @@ func _buy(item: Item, price: int, btn: Button) -> void:
 	if p == null:
 		return
 	# Spend gold
-	var gold = p.stats.get("gold") if (p.has("stats") and p.stats and p.stats.has_method("get")) else 0
+	var gold = p.stats.get("gold") if ("stats" in p and p.stats and p.stats.has_method("get")) else 0
 	if int(gold) < price:
 		var ab = get_node_or_null("/root/AudioBus")
 		if ab and ab.has_method("play_cue"):

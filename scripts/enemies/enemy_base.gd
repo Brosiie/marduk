@@ -158,7 +158,7 @@ func take_damage(amount: float, source: Node = null) -> void:
 	var floater_script: GDScript = load("res://scripts/combat/damage_floater.gd")
 	var is_crit: bool = false
 	if floater_script and floater_script.has_method("spawn"):
-		if source and source.has("stats") and source.stats:
+		if source and "stats" in source and source.stats:
 			var cc: float = float(source.stats.get("crit_chance") if "crit_chance" in source.stats else 0.0)
 			is_crit = randf() < cc and amount > 30.0
 		floater_script.spawn(self, amount, is_crit, &"physical")

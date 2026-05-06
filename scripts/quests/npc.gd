@@ -1,7 +1,12 @@
 extends StaticBody3D
-class_name NPC
+class_name LegacyQuestNPC
 
-# An NPC in the world. Carries a Dialogue resource, optionally offers Quests,
+# Legacy NPC implementation kept for compatibility. The active NPC class
+# lives in scripts/npcs/npc.gd which has Mixamo mesh attachment,
+# animation library merge, and a dialogue panel. Renamed from `NPC` to
+# avoid class_name collision; nothing currently extends this.
+#
+# Original purpose: carries a Dialogue resource, optionally offers Quests,
 # optionally vends items. Player triggers via E key when in interact_radius.
 
 @export var id: StringName = &""

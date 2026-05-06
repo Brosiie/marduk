@@ -119,7 +119,7 @@ func get_discovered() -> Dictionary:
 func get_all() -> Dictionary:
 	return LODESTONES.duplicate()
 
-func get_meta(id: StringName) -> Dictionary:
+func get_lodestone_meta(id: StringName) -> Dictionary:
 	return LODESTONES.get(id, {})
 
 # Travel: change_scene to the lodestone's owning scene if discovered.

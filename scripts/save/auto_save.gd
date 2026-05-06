@@ -30,9 +30,9 @@ func _attempt_save() -> void:
 		return
 	# Don't autosave during boss fights or while dead — those are bad
 	# moments to crystallize state.
-	if player.has("locked") and player.locked:
+	if "locked" in player and player.locked:
 		return
-	if player.has("stats") and player.stats and "hp" in player.stats and player.stats.hp <= 0.0:
+	if "stats" in player and player.stats and "hp" in player.stats and player.stats.hp <= 0.0:
 		return
 	var save_sys := get_node_or_null("/root/SaveSystem")
 	if save_sys == null or not save_sys.has_method("save_slot"):

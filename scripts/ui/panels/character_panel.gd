@@ -37,30 +37,31 @@ func refresh() -> void:
 
 	var hdr := HBoxContainer.new()
 	_v.add_child(hdr)
-	hdr.add_child(_label_big(_player.character_name if _player.has("character_name") else "Champion"))
+	hdr.add_child(_label_big(_player.character_name if "character_name" in _player else "Champion"))
 	var class_id: String = String(s.class_def.class_id) if s.class_def else "no_class"
 	hdr.add_child(_label("  · " + class_id.capitalize()))
 	hdr.add_child(_label("  · Lv " + str(s.level)))
 
 	_v.add_child(_separator())
 
-	# Primary attributes
+	# Primary attributes (PlayerStats fields, see scripts/player/player_stats.gd)
 	_v.add_child(_section("Attributes"))
-	_v.add_child(_pair("Strength",     str(s.strength)))
-	_v.add_child(_pair("Dexterity",    str(s.dexterity)))
-	_v.add_child(_pair("Constitution", str(s.constitution)))
-	_v.add_child(_pair("Intelligence", str(s.intelligence)))
-	_v.add_child(_pair("Wisdom",       str(s.wisdom)))
-	_v.add_child(_pair("Charisma",     str(s.charisma) if s.has_method("get") and "charisma" in s else "-"))
+	_v.add_child(_pair("Strength",  str(int(s.strength))))
+	_v.add_child(_pair("Dexterity", str(int(s.dexterity))))
+	_v.add_child(_pair("Intellect", str(int(s.intellect))))
+	_v.add_child(_pair("Vitality",  str(int(s.vitality))))
+	_v.add_child(_pair("Wisdom",    str(int(s.wisdom))))
+	_v.add_child(_pair("Luck",      str(int(s.luck))))
+	_v.add_child(_pair("Endurance", str(int(s.endurance))))
 
 	_v.add_child(_separator())
 
 	# Derived stats
 	_v.add_child(_section("Vitals"))
-	_v.add_child(_pair("HP",        "%d / %d" % [int(s.hp), int(s.max_hp)]))
-	_v.add_child(_pair("Mana",      "%d / %d" % [int(s.mana), int(s.max_mana)]))
-	_v.add_child(_pair("Armor",     "%d" % int(s.armor) if "armor" in s else "-"))
-	_v.add_child(_pair("Crit",      "%.1f%%" % (s.crit_chance * 100.0) if "crit_chance" in s else "-"))
+	_v.add_child(_pair("HP",      "%d / %d" % [int(s.hp), int(s.max_hp)]))
+	_v.add_child(_pair("Mana",    "%d / %d" % [int(s.mana), int(s.max_mana)]))
+	_v.add_child(_pair("Stamina", "%d / %d" % [int(s.stamina), int(s.max_stamina)]))
+	_v.add_child(_pair("XP",      "%d / next" % int(s.xp)))
 
 	_v.add_child(_separator())
 

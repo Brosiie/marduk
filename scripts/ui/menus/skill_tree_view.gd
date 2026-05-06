@@ -18,7 +18,10 @@ var tree: SkillTree
 
 func _ready() -> void:
 	player = get_node_or_null(player_path) if player_path else get_tree().get_first_node_in_group("player")
-	if player and player.stats:
+	# class_def can be null when the player hasn't picked a class yet (start
+	# menu / pre-creation). Skip the tree lookup in that case so the panel
+	# just renders empty rather than crashing.
+	if player and player.stats and player.stats.class_def:
 		tree = player.stats.class_def.skill_tree
 	queue_redraw()
 
