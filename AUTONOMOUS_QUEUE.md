@@ -69,11 +69,12 @@ deeply balanced**. Six load-bearing pillars now drive priority:
       via SaveFlags `codex_<id>` permanent flags. 6 standard categories
       (regions, characters, items, lore, bestiary, achievements).
       Tolerant unlock: stubs an entry if unlock fires before register.
-- [ ] **Codex panel UI (sub-task B)**: replace the placeholder Codex
-      tab in MenuPanel with a real scrollable list. Left column is
-      category buttons; right column shows the unlocked entries in
-      that category with full body text. Locked entries show as "?"
-      with the unlock_hint dimmed. (~80 lines.)
+- [x] **Codex panel UI (sub-task B)**: shipped in commit `<pending>`.
+      New scripts/ui/panels/codex_panel.gd with two-column layout
+      (categories left, scrollable cards right). Live-refreshes via
+      CodexRegistry.entry_unlocked signal. New &"codex" tab in
+      MenuPanel.TABS. New `toggle_codex` action bound to L. HUD
+      _unhandled_input + menu hint string updated.
 - [ ] **Codex seed entries (sub-task C)**: register() entries for all
       14 regions, 9 player classes, 12 starter NPCs, top 25 unique
       items in ItemRegistry, and the ~80 existing achievements. Lore

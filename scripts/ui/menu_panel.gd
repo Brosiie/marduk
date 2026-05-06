@@ -15,6 +15,7 @@ const TABS := [
 	&"skills",
 	&"quests",
 	&"map",
+	&"codex",
 	&"achievements",
 	&"options",
 ]
@@ -26,6 +27,7 @@ const HOTKEY_TO_TAB := {
 	&"toggle_skills":        &"skills",
 	&"toggle_map":           &"map",
 	&"toggle_quests":        &"quests",
+	&"toggle_codex":         &"codex",
 	&"toggle_achievements":  &"achievements",
 	&"toggle_pause":         &"options",
 }
@@ -102,7 +104,7 @@ func _build_layout() -> void:
 
 	# Footer
 	var hint := Label.new()
-	hint.text = "  V=Pick Up  Shift=Dodge  I=Inventory  T=Character  K=Skills  M=Map  J=Quests  Y=Achievements  Esc=Close"
+	hint.text = "  V=Pick Up  Shift=Dodge  I=Inventory  T=Character  K=Skills  M=Map  J=Quests  L=Codex  Y=Achievements  Esc=Close"
 	hint.modulate = Color(0.7, 0.7, 0.7)
 	v.add_child(hint)
 
@@ -114,6 +116,7 @@ func _spawn_tab_panel(tab: StringName) -> Control:
 		&"skills":       "res://scripts/ui/panels/skills_panel.gd",
 		&"quests":       "res://scripts/ui/panels/quests_panel.gd",
 		&"map":          "res://scripts/ui/panels/map_panel.gd",
+		&"codex":        "res://scripts/ui/panels/codex_panel.gd",
 		&"achievements": "res://scripts/ui/panels/achievements_panel.gd",
 		&"options":      "res://scripts/ui/panels/options_panel.gd",
 	}

@@ -146,6 +146,8 @@ func _unhandled_input(event: InputEvent) -> void:
 		menu_panel.toggle_tab(&"quests")
 	elif event.is_action_pressed("toggle_achievements"):
 		menu_panel.toggle_tab(&"achievements")
+	elif event.is_action_pressed("toggle_codex"):
+		menu_panel.toggle_tab(&"codex")
 	elif event.is_action_pressed("toggle_pause"):
 		menu_panel.toggle_tab(&"options")
 
