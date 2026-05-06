@@ -49,11 +49,12 @@ back here, then ship the first piece.
 
 ### Tier 1 — gameplay loop polish (HIGHEST priority)
 
-- [ ] **Quest progress wiring**: hook EnemyBase._die into QuestRegistry
-      to increment kill-count objectives by mob_id. Hook lodestone
-      discover into the `lodestone_count` objective kind. Hook landmark
-      examine into `examine` objective. Auto-call complete_quest when
-      all objectives finish. (~80 lines.)
+- [x] **Quest progress wiring**: shipped in commit `<pending>`. EnemyBase._die
+      and LodestoneRegistry.discover both call QuestRegistry.progress(kind,
+      target_id, 1). Per-active-quest counters live in `_progress` parallel
+      to `_active`. Auto-completes via complete_quest when all objectives
+      reach required_count. Quest reward also pays gold. Landmark
+      examine hook deferred until landmarks are placed in scenes.
 - [ ] **Spawn cradle search marker** in the_cradle.tscn boss room so
       Belitu's Brother quest has a target. Cheap Area3D + Label3D "?"
       that the player walks over to complete the objective.

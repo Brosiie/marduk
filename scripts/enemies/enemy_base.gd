@@ -182,6 +182,12 @@ func _die(killer: Node) -> void:
 		ar.unlock(&"a_first_blood")
 		if self is BossBase:
 			ar.unlock(&"a_first_boss")
+	# Quest progress: count this kill against any active quest with a
+	# matching kill objective (e.g. "Slay 6 Tashmu's Footmen" tracks
+	# every usurper_footman death).
+	var qr = get_node_or_null("/root/QuestRegistry")
+	if qr and qr.has_method("progress") and mob_id != &"":
+		qr.progress(&"kill", mob_id, 1)
 	if killer and killer.get("stats") and killer.stats.has_method("gain_xp"):
 		killer.stats.gain_xp(xp_reward)
 	# Award stance charge to Ronin killers, drop loot via prestige-aware table

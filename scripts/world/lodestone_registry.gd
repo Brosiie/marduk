@@ -101,6 +101,11 @@ func discover(id: StringName) -> bool:
 			ar.unlock(&"a_three_lodestones")
 		if _discovered.size() >= LODESTONES.size():
 			ar.unlock(&"a_all_lodestones")
+	# Quest progress: any active quest with a "lodestone_count" objective
+	# (target_id "lodestone") increments by 1 per discovery.
+	var qr = get_node_or_null("/root/QuestRegistry")
+	if qr and qr.has_method("progress"):
+		qr.progress(&"lodestone_count", &"lodestone", 1)
 	return true
 
 # Returns dict[id] -> metadata for every discovered lodestone.

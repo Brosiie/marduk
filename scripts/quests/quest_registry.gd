@@ -259,6 +259,11 @@ func _register_side_quests() -> void:
 # ----------------------------------------------------------------
 var _active: Dictionary = {}     # quest_id -> Quest (started, not yet finished)
 var _completed: Dictionary = {}  # quest_id -> Quest (already turned in)
+# Per-active-quest objective counters. Parallel to _active. Each entry is
+# Array[int] sized to the quest's objectives_data length; entry [i] is the
+# current count for objective i. Reset on accept; never mutates after
+# completion.
+var _progress: Dictionary = {}   # quest_id -> Array[int]
 
 signal quest_accepted(quest: Quest)
 signal quest_completed(quest: Quest)
@@ -271,6 +276,11 @@ func accept_quest(id: StringName) -> bool:
 	if _active.has(id) or _completed.has(id):
 		return false
 	_active[id] = q
+	# Initialize progress counters at zero for each objective.
+	var counters: Array[int] = []
+	for _i in range(q.objectives_data.size()):
+		counters.append(0)
+	_progress[id] = counters
 	quest_accepted.emit(q)
 	return true
 
@@ -279,13 +289,70 @@ func complete_quest(id: StringName) -> bool:
 		return false
 	var q: Quest = _active[id]
 	_active.erase(id)
+	_progress.erase(id)
 	_completed[id] = q
 	# Award XP + gold to the player
 	var player = get_tree().get_first_node_in_group("player") if get_tree() else null
 	if player and player.has("stats") and player.stats and player.stats.has_method("gain_xp"):
 		player.stats.gain_xp(int(q.xp_reward))
+	if player and player.has("stats") and player.stats and "gold" in player.stats:
+		player.stats.gold += int(q.gold_reward)
+	# Achievement: first quest completion
+	var ar = get_node_or_null("/root/AchievementRegistry")
+	if ar and ar.has_method("unlock"):
+		ar.unlock(&"a_first_quest")
 	quest_completed.emit(q)
 	return true
+
+# Public: bump progress on every active quest whose objectives match
+# (kind, target_id). When all objectives of a quest reach their
+# required_count, the quest auto-completes.
+#
+# `kind` examples: "kill" (target_id is mob_id), "lodestone_count"
+# (target_id is "lodestone"), "examine" (target_id is landmark_id).
+# `delta` is the increment (1 for a single kill, N for batched events).
+func progress(kind: StringName, target_id: StringName, delta: int = 1) -> void:
+	if delta <= 0:
+		return
+	var to_complete: Array[StringName] = []
+	for quest_id in _active.keys():
+		var q: Quest = _active[quest_id]
+		var counters: Array = _progress.get(quest_id, [])
+		var changed: bool = false
+		for i in range(q.objectives_data.size()):
+			var obj: Dictionary = q.objectives_data[i]
+			var obj_kind: String = String(obj.get("kind", ""))
+			var obj_target: String = String(obj.get("target_id", ""))
+			if obj_kind != String(kind):
+				continue
+			# target_id "" means any target of the matching kind
+			if obj_target != "" and obj_target != String(target_id):
+				continue
+			var required: int = int(obj.get("required_count", 1))
+			if i < counters.size():
+				if counters[i] >= required:
+					continue
+				counters[i] = min(required, counters[i] + delta)
+				changed = true
+				quest_progress.emit(q, i, counters[i])
+		if changed and _all_objectives_done(q, counters):
+			to_complete.append(quest_id)
+	for quest_id in to_complete:
+		complete_quest(quest_id)
+
+func _all_objectives_done(q: Quest, counters: Array) -> bool:
+	for i in range(q.objectives_data.size()):
+		var obj: Dictionary = q.objectives_data[i]
+		var required: int = int(obj.get("required_count", 1))
+		if i >= counters.size() or counters[i] < required:
+			return false
+	return true
+
+# Public: counter array for an active quest. Returns [] if not active.
+# Used by QuestTrackerHUD and InventoryPanel quests panel to render
+# "[count / required]" tails.
+func get_progress(id: StringName) -> Array:
+	return _progress.get(id, [])
 
 func get_active_quests() -> Array:
 	return _active.values()

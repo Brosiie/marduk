@@ -85,30 +85,34 @@ func refresh() -> void:
 	header.add_theme_font_size_override("font_size", 14)
 	header.modulate = Color(1.0, 0.85, 0.55)
 	_v.add_child(header)
-	# Objectives list
+	# Objectives list — pull live counters from QuestRegistry.get_progress
 	var objectives: Array = []
+	var quest_id: StringName = &""
 	if typeof(focused) == TYPE_DICTIONARY:
 		objectives = focused.get("objectives_data", [])
-	elif "objectives_data" in focused:
+		quest_id = StringName(focused.get("id", ""))
+	else:
 		objectives = focused.objectives_data
-	for obj in objectives:
-		_v.add_child(_objective_row(obj))
+		quest_id = focused.id
+	var counters: Array = []
+	if _registry.has_method("get_progress"):
+		counters = _registry.get_progress(quest_id)
+	for i in range(objectives.size()):
+		var current: int = counters[i] if i < counters.size() else 0
+		_v.add_child(_objective_row(objectives[i], current))
 
-func _objective_row(obj: Dictionary) -> Control:
+func _objective_row(obj: Dictionary, current_count: int) -> Control:
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 6)
+	var required: int = int(obj.get("required_count", 1))
+	var done: bool = current_count >= required
 	var bullet := Label.new()
-	var done: bool = bool(obj.get("done", false))
 	bullet.text = "✓" if done else "•"
 	bullet.modulate = Color(0.45, 0.95, 0.55) if done else Color(0.65, 0.65, 0.7)
 	bullet.add_theme_font_size_override("font_size", 13)
 	row.add_child(bullet)
 	var lbl := Label.new()
-	lbl.text = "%s [%d / %d]" % [
-		obj.get("description", ""),
-		int(obj.get("count", 0)),
-		int(obj.get("required_count", 1))
-	]
+	lbl.text = "%s [%d / %d]" % [obj.get("description", ""), current_count, required]
 	lbl.add_theme_font_size_override("font_size", 12)
 	lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	lbl.size_flags_horizontal = SIZE_EXPAND_FILL
