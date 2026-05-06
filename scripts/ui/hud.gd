@@ -70,6 +70,20 @@ func _ready() -> void:
 		minimap.set_script(mm_script)
 		minimap.name = "WowMinimap"
 		$Root.add_child(minimap)
+	# Quest tracker (top left, under bars)
+	var qt_script: GDScript = load("res://scripts/ui/hud_components/quest_tracker.gd")
+	if qt_script:
+		var qt := Control.new()
+		qt.set_script(qt_script)
+		qt.name = "QuestTracker"
+		$Root.add_child(qt)
+	# Combat log (bottom left, above ability bar)
+	var cl_script: GDScript = load("res://scripts/ui/hud_components/combat_log.gd")
+	if cl_script:
+		var cl := Control.new()
+		cl.set_script(cl_script)
+		cl.name = "CombatLog"
+		$Root.add_child(cl)
 	# Toast container for pickup notifications
 	_setup_toast_layer()
 	if player.has_signal("item_collected"):
