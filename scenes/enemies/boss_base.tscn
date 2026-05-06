@@ -1,7 +1,7 @@
 [gd_scene load_steps=5 format=3]
 
 [ext_resource type="Script" path="res://scripts/enemies/boss_base.gd" id="1_boss"]
-[ext_resource type="PackedScene" path="res://assets/characters/mixamo/bosses/usurper_enforcer.fbx" id="2_boss_mesh"]
+[ext_resource type="PackedScene" path="res://assets/characters/mixamo/bosses/usurper_enforcer.glb" id="2_boss_mesh"]
 
 [sub_resource type="CapsuleShape3D" id="boss_shape"]
 radius = 0.7

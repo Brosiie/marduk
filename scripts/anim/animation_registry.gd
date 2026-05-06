@@ -99,44 +99,44 @@ const ANIM_ROOT := "res://assets/animations"
 # slot or to whatever the .fbx already shipped with).
 const SHARED_SLOTS := {
 	# --- Already on disk (Bond's drops) ---
-	SLOT_IDLE:               "shared/locomotion/idle.fbx",                # Standing Idle
-	SLOT_RUN:                "shared/locomotion/run.fbx",                 # Standing Run Forward
-	SLOT_RUN_LEFT:           "shared/locomotion/run_left.fbx",            # Standing Run Left
-	SLOT_WALK_BACK:          "shared/locomotion/walk_back.fbx",           # Standing Walk Back
-	SLOT_WALK_LEFT:          "shared/locomotion/walk_left.fbx",           # Standing Walk Left
-	SLOT_TURN_RIGHT:         "shared/locomotion/turn_right.fbx",          # Standing Turn Right 90
-	SLOT_CHANGE_DIRECTION:   "shared/locomotion/change_direction.fbx",    # Change Direction
-	SLOT_RUN_TO_TURN:        "shared/locomotion/run_to_turn.fbx",         # Running To Turn
-	SLOT_DODGE_BACK:         "shared/locomotion/dodge_back.fbx",          # Standing Dodge Backward
-	SLOT_DODGE_CORKSCREW:    "shared/locomotion/dodge_corkscrew.fbx",     # Corkscrew Evade
-	SLOT_ATTACK_BASIC:       "shared/combat/attack_basic.fbx",            # Sword And Shield Attack
-	SLOT_BLOCK_IDLE:         "shared/combat/block_idle.fbx",              # Standing Block Idle
-	SLOT_HIT_REACT_LEFT:     "shared/reactions/hit_react_left.fbx",       # Standing React Small From Left
-	SLOT_HIT_REACT_RIGHT:    "shared/reactions/hit_react_right.fbx",      # Standing React Small From Right
-	SLOT_DEATH:              "shared/reactions/death.fbx",                # Dying
-	SLOT_DEATH_FORWARD:      "shared/reactions/death_forward.fbx",        # Standing Death Forward 01
-	SLOT_DEATH_REACT_FORWARD: "shared/reactions/death_react_forward.fbx", # Standing React Death Forward
-	SLOT_DEATH_REACT_RIGHT:  "shared/reactions/death_react_right.fbx",    # Standing React Death Right
-	SLOT_TAUNT:              "shared/utility/taunt_battlecry.fbx",        # Standing Taunt Battlecry
-	SLOT_STAND_UP:           "shared/utility/crouch_to_stand.fbx",        # Crouch To Stand
-	SLOT_UNARMED_IDLE:       "shared/utility/unarmed_idle.fbx",           # Unarmed Idle
-	SLOT_UNARMED_IDLE_LOOK:  "shared/utility/unarmed_idle_looking.fbx",   # Unarmed Idle Looking Ver. 2
+	SLOT_IDLE:               "shared/locomotion/idle.glb",                # Standing Idle
+	SLOT_RUN:                "shared/locomotion/run.glb",                 # Standing Run Forward
+	SLOT_RUN_LEFT:           "shared/locomotion/run_left.glb",            # Standing Run Left
+	SLOT_WALK_BACK:          "shared/locomotion/walk_back.glb",           # Standing Walk Back
+	SLOT_WALK_LEFT:          "shared/locomotion/walk_left.glb",           # Standing Walk Left
+	SLOT_TURN_RIGHT:         "shared/locomotion/turn_right.glb",          # Standing Turn Right 90
+	SLOT_CHANGE_DIRECTION:   "shared/locomotion/change_direction.glb",    # Change Direction
+	SLOT_RUN_TO_TURN:        "shared/locomotion/run_to_turn.glb",         # Running To Turn
+	SLOT_DODGE_BACK:         "shared/locomotion/dodge_back.glb",          # Standing Dodge Backward
+	SLOT_DODGE_CORKSCREW:    "shared/locomotion/dodge_corkscrew.glb",     # Corkscrew Evade
+	SLOT_ATTACK_BASIC:       "shared/combat/attack_basic.glb",            # Sword And Shield Attack
+	SLOT_BLOCK_IDLE:         "shared/combat/block_idle.glb",              # Standing Block Idle
+	SLOT_HIT_REACT_LEFT:     "shared/reactions/hit_react_left.glb",       # Standing React Small From Left
+	SLOT_HIT_REACT_RIGHT:    "shared/reactions/hit_react_right.glb",      # Standing React Small From Right
+	SLOT_DEATH:              "shared/reactions/death.glb",                # Dying
+	SLOT_DEATH_FORWARD:      "shared/reactions/death_forward.glb",        # Standing Death Forward 01
+	SLOT_DEATH_REACT_FORWARD: "shared/reactions/death_react_forward.glb", # Standing React Death Forward
+	SLOT_DEATH_REACT_RIGHT:  "shared/reactions/death_react_right.glb",    # Standing React Death Right
+	SLOT_TAUNT:              "shared/utility/taunt_battlecry.glb",        # Standing Taunt Battlecry
+	SLOT_STAND_UP:           "shared/utility/crouch_to_stand.glb",        # Crouch To Stand
+	SLOT_UNARMED_IDLE:       "shared/utility/unarmed_idle.glb",           # Unarmed Idle
+	SLOT_UNARMED_IDLE_LOOK:  "shared/utility/unarmed_idle_looking.glb",   # Unarmed Idle Looking Ver. 2
 
 	# --- Not yet on disk; declared so Mixamo download targets are obvious ---
-	SLOT_WALK:        "shared/locomotion/walk.fbx",            # Walking
-	SLOT_SPRINT:      "shared/locomotion/sprint.fbx",          # Sprint
-	SLOT_JUMP_UP:     "shared/locomotion/jump_up.fbx",         # Jump
-	SLOT_JUMP_DOWN:   "shared/locomotion/jump_land.fbx",       # Falling To Landing
-	SLOT_DODGE_FWD:   "shared/locomotion/dodge_forward.fbx",   # Standing Dodge Forward
-	SLOT_DODGE_LEFT:  "shared/locomotion/dodge_left.fbx",      # Standing Dodge Left
-	SLOT_DODGE_RIGHT: "shared/locomotion/dodge_right.fbx",     # Standing Dodge Right
-	SLOT_HIT_REACT:   "shared/reactions/hit_react.fbx",        # Hit Reaction (generic)
-	SLOT_STAGGER:     "shared/reactions/stagger.fbx",          # Heavy Hit Reaction
-	SLOT_KNOCKDOWN:   "shared/reactions/knockdown.fbx",        # Falling Back Death (mid-loop)
-	SLOT_GET_UP:      "shared/reactions/get_up.fbx",           # Standing Up
-	SLOT_DEATH_BACK:  "shared/reactions/death_back.fbx",       # Falling Back Death
-	SLOT_BLOCK_HIT:   "shared/combat/block_hit.fbx",           # Sword And Shield Block Hit
-	SLOT_PARRY:       "shared/combat/parry.fbx",               # Standing Block (deflect)
+	SLOT_WALK:        "shared/locomotion/walk.glb",            # Walking
+	SLOT_SPRINT:      "shared/locomotion/sprint.glb",          # Sprint
+	SLOT_JUMP_UP:     "shared/locomotion/jump_up.glb",         # Jump
+	SLOT_JUMP_DOWN:   "shared/locomotion/jump_land.glb",       # Falling To Landing
+	SLOT_DODGE_FWD:   "shared/locomotion/dodge_forward.glb",   # Standing Dodge Forward
+	SLOT_DODGE_LEFT:  "shared/locomotion/dodge_left.glb",      # Standing Dodge Left
+	SLOT_DODGE_RIGHT: "shared/locomotion/dodge_right.glb",     # Standing Dodge Right
+	SLOT_HIT_REACT:   "shared/reactions/hit_react.glb",        # Hit Reaction (generic)
+	SLOT_STAGGER:     "shared/reactions/stagger.glb",          # Heavy Hit Reaction
+	SLOT_KNOCKDOWN:   "shared/reactions/knockdown.glb",        # Falling Back Death (mid-loop)
+	SLOT_GET_UP:      "shared/reactions/get_up.glb",           # Standing Up
+	SLOT_DEATH_BACK:  "shared/reactions/death_back.glb",       # Falling Back Death
+	SLOT_BLOCK_HIT:   "shared/combat/block_hit.glb",           # Sword And Shield Block Hit
+	SLOT_PARRY:       "shared/combat/parry.glb",               # Standing Block (deflect)
 }
 
 # --- Per-class slot tables ---
@@ -145,98 +145,98 @@ const SHARED_SLOTS := {
 # &"breath_form_1" or &"spell_3".
 const CLASS_SLOTS := {
 	&"berserker": {
-		SLOT_ATTACK_HEAVY:    "berserker/fury_swing.fbx",
-		SLOT_ATTACK_COMBO_1:  "berserker/cleave_1.fbx",
-		SLOT_ATTACK_COMBO_2:  "berserker/cleave_2.fbx",
-		SLOT_ATTACK_COMBO_3:  "berserker/cleave_finisher.fbx",
-		&"charge":            "berserker/charge.fbx",
-		&"war_cry":           "berserker/war_cry.fbx",
-		&"leap_smash":        "berserker/leap_smash.fbx",
-		&"axe_throw":         "berserker/axe_throw.fbx",
-		&"ground_pound":      "berserker/ground_pound.fbx",
+		SLOT_ATTACK_HEAVY:    "berserker/fury_swing.glb",
+		SLOT_ATTACK_COMBO_1:  "berserker/cleave_1.glb",
+		SLOT_ATTACK_COMBO_2:  "berserker/cleave_2.glb",
+		SLOT_ATTACK_COMBO_3:  "berserker/cleave_finisher.glb",
+		&"charge":            "berserker/charge.glb",
+		&"war_cry":           "berserker/war_cry.glb",
+		&"leap_smash":        "berserker/leap_smash.glb",
+		&"axe_throw":         "berserker/axe_throw.glb",
+		&"ground_pound":      "berserker/ground_pound.glb",
 	},
 	&"assassin": {
-		SLOT_ATTACK_COMBO_1:  "assassin/dagger_1.fbx",
-		SLOT_ATTACK_COMBO_2:  "assassin/dagger_2.fbx",
-		SLOT_ATTACK_COMBO_3:  "assassin/dagger_3.fbx",
-		&"stealth_in":        "assassin/stealth_in.fbx",
-		&"stealth_out":       "assassin/stealth_out.fbx",
-		&"backstab":          "assassin/backstab.fbx",
-		&"throw_kunai":       "assassin/throw_kunai.fbx",
-		&"blink_dash":        "assassin/blink_dash.fbx",
+		SLOT_ATTACK_COMBO_1:  "assassin/dagger_1.glb",
+		SLOT_ATTACK_COMBO_2:  "assassin/dagger_2.glb",
+		SLOT_ATTACK_COMBO_3:  "assassin/dagger_3.glb",
+		&"stealth_in":        "assassin/stealth_in.glb",
+		&"stealth_out":       "assassin/stealth_out.glb",
+		&"backstab":          "assassin/backstab.glb",
+		&"throw_kunai":       "assassin/throw_kunai.glb",
+		&"blink_dash":        "assassin/blink_dash.glb",
 	},
 	&"ronin": {
 		# Greatsword stance — landed: katana_idle, katana_blocking, katana_180, katana_impact
-		SLOT_KATANA_IDLE:      "ronin/katana_idle.fbx",       # Great Sword Idle
-		SLOT_KATANA_BLOCKING:  "ronin/katana_blocking.fbx",   # Great Sword Blocking
-		SLOT_KATANA_180:       "ronin/katana_180.fbx",        # Great Sword 180 Turn
-		SLOT_KATANA_IMPACT:    "ronin/katana_impact.fbx",     # Great Sword Impact
+		SLOT_KATANA_IDLE:      "ronin/katana_idle.glb",       # Great Sword Idle
+		SLOT_KATANA_BLOCKING:  "ronin/katana_blocking.glb",   # Great Sword Blocking
+		SLOT_KATANA_180:       "ronin/katana_180.glb",        # Great Sword 180 Turn
+		SLOT_KATANA_IMPACT:    "ronin/katana_impact.glb",     # Great Sword Impact
 		# Override the shared idle so Ronin holds katana stance, not unarmed
-		SLOT_IDLE:             "ronin/katana_idle.fbx",
+		SLOT_IDLE:             "ronin/katana_idle.glb",
 		# 7 representative breathing forms (full 49 unlock progressively)
-		&"breath_form_1":     "ronin/breath_water.fbx",
-		&"breath_form_2":     "ronin/breath_thunder.fbx",
-		&"breath_form_3":     "ronin/breath_flame.fbx",
-		&"breath_form_4":     "ronin/breath_wind.fbx",
-		&"breath_form_5":     "ronin/breath_stone.fbx",
-		&"breath_form_6":     "ronin/breath_moon.fbx",
-		&"breath_form_7":     "ronin/breath_sun.fbx",
-		&"sheathe":           "ronin/sheathe.fbx",
-		&"unsheathe":         "ronin/unsheathe.fbx",
-		&"iai_strike":        "ronin/iai_strike.fbx",
-		SLOT_RIPOSTE:         "ronin/riposte.fbx",
+		&"breath_form_1":     "ronin/breath_water.glb",
+		&"breath_form_2":     "ronin/breath_thunder.glb",
+		&"breath_form_3":     "ronin/breath_flame.glb",
+		&"breath_form_4":     "ronin/breath_wind.glb",
+		&"breath_form_5":     "ronin/breath_stone.glb",
+		&"breath_form_6":     "ronin/breath_moon.glb",
+		&"breath_form_7":     "ronin/breath_sun.glb",
+		&"sheathe":           "ronin/sheathe.glb",
+		&"unsheathe":         "ronin/unsheathe.glb",
+		&"iai_strike":        "ronin/iai_strike.glb",
+		SLOT_RIPOSTE:         "ronin/riposte.glb",
 	},
 	&"ranger": {
-		&"bow_idle":          "ranger/bow_idle.fbx",
-		&"bow_draw":          "ranger/bow_draw.fbx",
-		&"bow_release":       "ranger/bow_release.fbx",
-		&"bow_snipe":         "ranger/bow_snipe.fbx",
-		&"hawk_command":      "ranger/hawk_command.fbx",
-		&"trap_set":          "ranger/trap_set.fbx",
+		&"bow_idle":          "ranger/bow_idle.glb",
+		&"bow_draw":          "ranger/bow_draw.glb",
+		&"bow_release":       "ranger/bow_release.glb",
+		&"bow_snipe":         "ranger/bow_snipe.glb",
+		&"hawk_command":      "ranger/hawk_command.glb",
+		&"trap_set":          "ranger/trap_set.glb",
 	},
 	&"mage": {
-		SLOT_CAST_LOOP:       "mage/cast_loop.fbx",
-		SLOT_CAST_RELEASE:    "mage/cast_release.fbx",
-		&"spell_1":           "mage/fireball.fbx",
-		&"spell_2":           "mage/frost_nova.fbx",
-		&"spell_3":           "mage/lightning_bolt.fbx",
-		&"spell_4":           "mage/teleport.fbx",
-		&"spell_5":           "mage/meteor.fbx",
-		&"staff_strike":      "mage/staff_strike.fbx",
-		&"channel_idle":      "mage/channel_idle.fbx",
+		SLOT_CAST_LOOP:       "mage/cast_loop.glb",
+		SLOT_CAST_RELEASE:    "mage/cast_release.glb",
+		&"spell_1":           "mage/fireball.glb",
+		&"spell_2":           "mage/frost_nova.glb",
+		&"spell_3":           "mage/lightning_bolt.glb",
+		&"spell_4":           "mage/teleport.glb",
+		&"spell_5":           "mage/meteor.glb",
+		&"staff_strike":      "mage/staff_strike.glb",
+		&"channel_idle":      "mage/channel_idle.glb",
 	},
 	&"chaos_druid": {
-		&"shapeshift_in":     "chaos_druid/shapeshift_in.fbx",
-		&"shapeshift_out":    "chaos_druid/shapeshift_out.fbx",
-		&"druid_idle":        "chaos_druid/druid_idle.fbx",
-		&"totem_plant":       "chaos_druid/totem_plant.fbx",
-		&"vine_lash":         "chaos_druid/vine_lash.fbx",
-		&"bear_swipe":        "chaos_druid/bear_swipe.fbx",
-		&"wolf_pounce":       "chaos_druid/wolf_pounce.fbx",
+		&"shapeshift_in":     "chaos_druid/shapeshift_in.glb",
+		&"shapeshift_out":    "chaos_druid/shapeshift_out.glb",
+		&"druid_idle":        "chaos_druid/druid_idle.glb",
+		&"totem_plant":       "chaos_druid/totem_plant.glb",
+		&"vine_lash":         "chaos_druid/vine_lash.glb",
+		&"bear_swipe":        "chaos_druid/bear_swipe.glb",
+		&"wolf_pounce":       "chaos_druid/wolf_pounce.glb",
 	},
 	&"demon": {
-		&"demon_idle":        "demon/demon_idle.fbx",
-		&"demon_claw":        "demon/claw_rake.fbx",
-		&"demon_wing_flap":   "demon/wing_flap.fbx",
-		&"demon_burst":       "demon/hellfire_burst.fbx",
-		&"demon_drain":       "demon/soul_drain.fbx",
-		&"demon_glide":       "demon/wing_glide.fbx",
+		&"demon_idle":        "demon/demon_idle.glb",
+		&"demon_claw":        "demon/claw_rake.glb",
+		&"demon_wing_flap":   "demon/wing_flap.glb",
+		&"demon_burst":       "demon/hellfire_burst.glb",
+		&"demon_drain":       "demon/soul_drain.glb",
+		&"demon_glide":       "demon/wing_glide.glb",
 	},
 	&"paladin_guardian": {
-		&"shield_block":      "paladin_guardian/shield_block.fbx",
-		&"shield_bash":       "paladin_guardian/shield_bash.fbx",
-		&"holy_smite":        "paladin_guardian/sword_smite.fbx",
-		&"holy_pillar":       "paladin_guardian/holy_pillar.fbx",
-		&"judgment_strike":   "paladin_guardian/judgment_strike.fbx",
-		&"kneel_pray":        "paladin_guardian/kneel_pray.fbx",
+		&"shield_block":      "paladin_guardian/shield_block.glb",
+		&"shield_bash":       "paladin_guardian/shield_bash.glb",
+		&"holy_smite":        "paladin_guardian/sword_smite.glb",
+		&"holy_pillar":       "paladin_guardian/holy_pillar.glb",
+		&"judgment_strike":   "paladin_guardian/judgment_strike.glb",
+		&"kneel_pray":        "paladin_guardian/kneel_pray.glb",
 	},
 	&"paladin_lightbringer": {
-		&"holy_blessing":     "paladin_lightbringer/blessing_cast.fbx",
-		&"holy_sun_beam":     "paladin_lightbringer/sun_beam.fbx",
-		&"holy_aura":         "paladin_lightbringer/healing_aura.fbx",
-		&"holy_shield":       "paladin_lightbringer/divine_shield.fbx",
-		&"mace_swing":        "paladin_lightbringer/mace_swing.fbx",
-		&"hymn_idle":         "paladin_lightbringer/hymn_idle.fbx",
+		&"holy_blessing":     "paladin_lightbringer/blessing_cast.glb",
+		&"holy_sun_beam":     "paladin_lightbringer/sun_beam.glb",
+		&"holy_aura":         "paladin_lightbringer/healing_aura.glb",
+		&"holy_shield":       "paladin_lightbringer/divine_shield.glb",
+		&"mace_swing":        "paladin_lightbringer/mace_swing.glb",
+		&"hymn_idle":         "paladin_lightbringer/hymn_idle.glb",
 	},
 }
 
@@ -245,32 +245,32 @@ const CLASS_SLOTS := {
 # falls through to the shared library.
 const MOB_SLOTS := {
 	&"usurper_footman": {
-		SLOT_ATTACK_BASIC:    "usurper_footman/spear_thrust.fbx",
-		&"shield_raise":      "usurper_footman/shield_raise.fbx",
+		SLOT_ATTACK_BASIC:    "usurper_footman/spear_thrust.glb",
+		&"shield_raise":      "usurper_footman/shield_raise.glb",
 	},
 	&"usurper_archer": {
-		&"bow_draw":          "usurper_archer/bow_draw.fbx",
-		&"bow_release":       "usurper_archer/bow_release.fbx",
+		&"bow_draw":          "usurper_archer/bow_draw.glb",
+		&"bow_release":       "usurper_archer/bow_release.glb",
 	},
 	&"raider_grunt": {
-		SLOT_ATTACK_BASIC:    "raider_grunt/club_swing.fbx",
-		SLOT_ATTACK_HEAVY:    "raider_grunt/overhead_smash.fbx",
+		SLOT_ATTACK_BASIC:    "raider_grunt/club_swing.glb",
+		SLOT_ATTACK_HEAVY:    "raider_grunt/overhead_smash.glb",
 	},
 	&"raider_archer": {
-		&"bow_draw":          "raider_archer/bow_draw.fbx",
-		&"bow_release":       "raider_archer/bow_release.fbx",
+		&"bow_draw":          "raider_archer/bow_draw.glb",
+		&"bow_release":       "raider_archer/bow_release.glb",
 	},
 	&"shrine_acolyte": {
-		SLOT_ATTACK_BASIC:    "shrine_acolyte/dagger_jab.fbx",
-		&"chant":             "shrine_acolyte/chant.fbx",
+		SLOT_ATTACK_BASIC:    "shrine_acolyte/dagger_jab.glb",
+		&"chant":             "shrine_acolyte/chant.glb",
 	},
 	&"binding_construct": {
-		SLOT_ATTACK_BASIC:    "binding_construct/bone_swing.fbx",
-		&"reanimate":         "binding_construct/reanimate.fbx",
+		SLOT_ATTACK_BASIC:    "binding_construct/bone_swing.glb",
+		&"reanimate":         "binding_construct/reanimate.glb",
 	},
 	&"blood_hunter": {
-		SLOT_ATTACK_BASIC:    "blood_hunter/claw.fbx",
-		&"feed":              "blood_hunter/feed.fbx",
+		SLOT_ATTACK_BASIC:    "blood_hunter/claw.glb",
+		&"feed":              "blood_hunter/feed.glb",
 	},
 }
 
@@ -279,10 +279,10 @@ const MOB_SLOTS := {
 # the boss AI can swap between them.
 const BOSS_SLOTS := {
 	&"usurper_enforcer": {
-		&"phase_1_combo":     "usurper_enforcer/halberd_combo.fbx",
-		&"phase_2_charge":    "usurper_enforcer/iron_charge.fbx",
-		&"phase_3_quake":     "usurper_enforcer/iron_quake.fbx",
-		&"intro_roar":        "usurper_enforcer/intro_roar.fbx",
+		&"phase_1_combo":     "usurper_enforcer/halberd_combo.glb",
+		&"phase_2_charge":    "usurper_enforcer/iron_charge.glb",
+		&"phase_3_quake":     "usurper_enforcer/iron_quake.glb",
+		&"intro_roar":        "usurper_enforcer/intro_roar.glb",
 	},
 }
 
@@ -290,22 +290,22 @@ const BOSS_SLOTS := {
 # NPCs need talk loops, idle variations, vendor anims.
 const NPC_SLOTS := {
 	&"peasant_male": {
-		&"talk":              "peasant_male/talk.fbx",
-		&"sit":               "peasant_male/sit_chair.fbx",
-		&"sweep":             "peasant_male/sweep.fbx",
+		&"talk":              "peasant_male/talk.glb",
+		&"sit":               "peasant_male/sit_chair.glb",
+		&"sweep":             "peasant_male/sweep.glb",
 	},
 	&"peasant_female": {
 		# Catwalk anim set — Bond's drops, lands as runway-style female NPC loops.
 		# Override shared SLOT_IDLE/SLOT_WALK so feminine NPCs use these instead.
-		SLOT_IDLE:            "peasant_female/idle.fbx",          # Catwalk Idle Twist R
-		SLOT_WALK:            "peasant_female/walk.fbx",          # Catwalk Walk Forward 02
-		&"walk_turn":         "peasant_female/walk_turn.fbx",     # Catwalk Walk Forward Arc 90R
-		&"talk":              "peasant_female/talk.fbx",
-		&"carry_basket":      "peasant_female/carry_basket.fbx",
+		SLOT_IDLE:            "peasant_female/idle.glb",          # Catwalk Idle Twist R
+		SLOT_WALK:            "peasant_female/walk.glb",          # Catwalk Walk Forward 02
+		&"walk_turn":         "peasant_female/walk_turn.glb",     # Catwalk Walk Forward Arc 90R
+		&"talk":              "peasant_female/talk.glb",
+		&"carry_basket":      "peasant_female/carry_basket.glb",
 	},
 	&"ranger_npc": {
-		&"talk":              "ranger_npc/talk.fbx",
-		&"point":             "ranger_npc/point_directions.fbx",
+		&"talk":              "ranger_npc/talk.glb",
+		&"point":             "ranger_npc/point_directions.glb",
 	},
 }
 

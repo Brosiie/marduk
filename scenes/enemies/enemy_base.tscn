@@ -1,7 +1,7 @@
 [gd_scene load_steps=5 format=3]
 
 [ext_resource type="Script" path="res://scripts/enemies/enemy_base.gd" id="1_enemy"]
-[ext_resource type="PackedScene" path="res://assets/characters/mixamo/mobs/usurper_footman.fbx" id="2_skel"]
+[ext_resource type="PackedScene" path="res://assets/characters/mixamo/mobs/usurper_footman.glb" id="2_skel"]
 
 [sub_resource type="CapsuleShape3D" id="enemy_shape"]
 radius = 0.45
