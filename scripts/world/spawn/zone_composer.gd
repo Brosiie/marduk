@@ -51,7 +51,23 @@ func _nat(asset: String, pos: Vector3, rot_y_deg: float = 0.0, scale: float = 1.
 	inst.position = pos
 	inst.rotation.y = deg_to_rad(rot_y_deg)
 	inst.scale = Vector3.ONE * scale
+	_strip_colliders(inst)
 	return inst
+
+# Walk the prop subtree and disable every CollisionShape3D / StaticBody3D
+# so the player cannot get wedged inside a scattered pillar or tree
+# trunk. Decoration is purely visual; only the floor + designed walls
+# need to block movement.
+func _strip_colliders(node: Node) -> void:
+	for child in node.get_children():
+		if child is CollisionShape3D:
+			child.disabled = true
+		elif child is StaticBody3D:
+			# Keep the body but neutralize its collision layers so it
+			# doesn't intersect the player's mask.
+			(child as StaticBody3D).collision_layer = 0
+			(child as StaticBody3D).collision_mask = 0
+		_strip_colliders(child)
 
 # String alias map so region scenes can carry region_id metadata and the
 # composer auto-resolves to the right enum at build time.
@@ -146,6 +162,10 @@ func _spawn(asset: String, pos: Vector3, rot_y_deg: float = 0.0, scale: float = 
 	inst.position = pos
 	inst.rotation.y = deg_to_rad(rot_y_deg)
 	inst.scale = Vector3.ONE * scale
+	# Disable any collision shapes on decoration props. Otherwise the
+	# player can get wedged between scattered pillars + walls and lose
+	# all movement freedom.
+	_strip_colliders(inst)
 	return inst
 
 func _torch(pos: Vector3, lit: bool = true) -> void:

@@ -164,14 +164,10 @@ func _install_visibility_fallback() -> void:
 	# Heuristic: a 1.7m-tall character should have AABB y >= 1.0m. If anything
 	# collapses below 0.2m on the largest axis, the character is effectively
 	# invisible.
-	var biggest: float = max(size.x, max(size.y, size.z))
-	# Mixamo skin can render with valid Y AABB but collapsed Z (~0.13m)
-	# when skeleton bones lack a proper rest pose pre-retarget. Force a
-	# fallback capsule whenever ANY axis is below 0.3m or no meshes exist,
-	# so the player position is always unambiguous.
-	var smallest: float = min(size.x, min(size.y, size.z))
-	if meshes.is_empty() or biggest < 0.2 or smallest < 0.3:
-		_spawn_fallback_capsule()
+	# ALWAYS spawn the fallback capsule until Mixamo retarget is done.
+	# AABB diagnostic was misleading us; the only reliable guarantee that
+	# Bond can see his player is to render an unmistakable proxy.
+	_spawn_fallback_capsule()
 
 func _collect_meshes(node: Node, out: Array[MeshInstance3D]) -> void:
 	if node is MeshInstance3D:
@@ -738,6 +734,8 @@ func _perform_basic_attack() -> void:
 	# Build rage / refresh combat timer
 	on_combat_event(2.0)
 
+var _debug_tick: float = 0.0
+
 func _physics_process(delta: float) -> void:
 	if locked:
 		velocity.x = 0
@@ -751,6 +749,18 @@ func _physics_process(delta: float) -> void:
 	_tick_resource(delta)
 	_tick_form(delta)
 	_tick_heaven_aura(delta)
+	# Heartbeat log — once per second print player position + on-floor
+	# state + input dir so we can see remotely whether movement is working.
+	_debug_tick += delta
+	if _debug_tick >= 1.0:
+		_debug_tick = 0.0
+		print("[Player] pos=%s on_floor=%s locked=%s input=%s vel=%s" % [
+			str(global_position.snapped(Vector3(0.1, 0.1, 0.1))),
+			str(is_on_floor()),
+			str(locked),
+			str(input_dir.snapped(Vector3(0.01, 0, 0.01))),
+			str(velocity.snapped(Vector3(0.1, 0.1, 0.1)))
+		])
 
 func _tick_resource(delta: float) -> void:
 	if not stats or not stats.class_def:
