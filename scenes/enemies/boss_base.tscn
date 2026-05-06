@@ -1,7 +1,7 @@
 [gd_scene load_steps=5 format=3]
 
 [ext_resource type="Script" path="res://scripts/enemies/boss_base.gd" id="1_boss"]
-[ext_resource type="PackedScene" path="res://assets/characters/kaykit/Characters/gltf/Barbarian.glb" id="2_boss_mesh"]
+[ext_resource type="PackedScene" path="res://assets/characters/mixamo/bosses/usurper_enforcer.fbx" id="2_boss_mesh"]
 
 [sub_resource type="CapsuleShape3D" id="boss_shape"]
 radius = 0.7
@@ -20,7 +20,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.2, 0)
 shape = SubResource("boss_shape")
 
 [node name="BossMesh" parent="." instance=ExtResource("2_boss_mesh")]
-transform = Transform3D(1.4, 0, 0, 0, 1.4, 0, 0, 0, 1.4, 0, 0, 0)
+transform = Transform3D(0.014, 0, 0, 0, 0.014, 0, 0, 0, 0.014, 0, 0, 0)
 
 [node name="Hurtbox" type="Area3D" parent="."]
 collision_layer = 4

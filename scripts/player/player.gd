@@ -113,6 +113,14 @@ func _ready() -> void:
 	if stats.class_def:
 		resource_value = stats.class_def.resource_max if stats.class_def.resource_mechanic == &"mana" else 0.0
 	_camera_basis_provider = get_tree().get_first_node_in_group("camera_rig")
+	# Mixamo skin fix: reset bone poses + show rest only so the character
+	# renders at T-pose instead of collapsing into a flat plane. Without
+	# this, FBX-imported skinned meshes from Mixamo render invisible
+	# until manual SkeletonProfileHumanoid retarget. Applied before any
+	# animation work so the rest pose is the baseline.
+	var fixer_script: GDScript = load("res://scripts/anim/mixamo_skeleton_fixer.gd")
+	if fixer_script and fixer_script.has_method("fix") and mesh:
+		fixer_script.fix(mesh)
 	# Find the imported AnimationPlayer wherever it lives in the mesh hierarchy.
 	# KayKit .glbs put AnimationPlayer inside the imported scene root, not directly under MeshRoot.
 	anim_player = _find_animation_player(self)
@@ -164,13 +172,13 @@ func _install_visibility_fallback() -> void:
 	# Heuristic: a 1.7m-tall character should have AABB y >= 1.0m. If anything
 	# collapses below 0.2m on the largest axis, the character is effectively
 	# invisible.
-	# Conditional fallback: only when the spawned mesh has zero
-	# MeshInstance3D children OR collapses below a believable size.
-	# With KayKit characters baked in, this should never trigger; if a
-	# scene reverts to Mixamo before retarget the capsule re-appears.
-	var biggest: float = max(size.x, max(size.y, size.z))
-	var smallest: float = min(size.x, min(size.y, size.z))
-	if meshes.is_empty() or biggest < 0.4 or smallest < 0.15:
+	# Fallback capsule disabled while we test Mixamo skeleton-fix
+	# rendering. Local AABB returned by mi.get_aabb() is the bind-pose
+	# extent and doesn't reflect post-skinning rendered shape, so the
+	# heuristic was firing false positives and the bright capsule was
+	# occluding any Mixamo character that actually rendered.
+	# Re-enable in a future iteration if the bug actually returns.
+	if meshes.is_empty():
 		_spawn_fallback_capsule()
 
 func _collect_meshes(node: Node, out: Array[MeshInstance3D]) -> void:

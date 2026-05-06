@@ -38,6 +38,12 @@ func _ready() -> void:
 	add_to_group("enemy")
 	_apply_prestige_scaling()
 	_attach_nameplate()
+	# Reset Mixamo skeleton bones to rest pose so the skinned mesh
+	# renders correctly. Without this Mixamo characters appear
+	# invisible (skin collapses to a flat plane).
+	var fixer_script: GDScript = load("res://scripts/anim/mixamo_skeleton_fixer.gd")
+	if fixer_script and fixer_script.has_method("fix"):
+		fixer_script.fix(self)
 	_load_marduk_animation_library()
 
 # Merges the slot animations declared in AnimationRegistry for this mob_id
