@@ -63,10 +63,27 @@ deeply balanced**. Six load-bearing pillars now drive priority:
 
 ### Tier 1 — story emotional beats (HIGHEST priority)
 
-- [ ] **Codex autoload + menu tab**: scrollable lore archive grouped by
-      category (regions, characters, items, achievements). Entries unlock
-      on first encounter. Persists via SaveFlags. Replaces Achievements
-      tab usage as the dominant lore-discovery surface. (~120 lines.)
+- [x] **Codex autoload (sub-task A of Codex menu)**: shipped in commit
+      `<pending>`. CodexRegistry autoload with register / unlock /
+      is_unlocked / entries_by_category / get_entry API. Persistence
+      via SaveFlags `codex_<id>` permanent flags. 6 standard categories
+      (regions, characters, items, lore, bestiary, achievements).
+      Tolerant unlock: stubs an entry if unlock fires before register.
+- [ ] **Codex panel UI (sub-task B)**: replace the placeholder Codex
+      tab in MenuPanel with a real scrollable list. Left column is
+      category buttons; right column shows the unlocked entries in
+      that category with full body text. Locked entries show as "?"
+      with the unlock_hint dimmed. (~80 lines.)
+- [ ] **Codex seed entries (sub-task C)**: register() entries for all
+      14 regions, 9 player classes, 12 starter NPCs, top 25 unique
+      items in ItemRegistry, and the ~80 existing achievements. Lore
+      prose pulled from existing registries' lore + display_name
+      fields. (~150 lines, mostly data.)
+- [ ] **First-encounter unlock hooks (sub-task D)**: region scenes
+      call CodexRegistry.unlock(&"r_<region_id>") on _ready; NPCs call
+      unlock on first dialogue; ItemPickup calls unlock on first
+      pickup of a unique item; AchievementRegistry.unlock pairs with
+      a codex unlock per achievement. (~50 lines across files.)
 - [ ] **Memory item flashback system**: certain items carry a
       `memory_id` that, on first pickup, fades the camera into a 4-6s
       scripted flashback (camera moves through a posed Tableau in the
