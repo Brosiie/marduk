@@ -47,21 +47,18 @@ static func _collect_skeletons(node: Node, out: Array[Skeleton3D]) -> void:
 static func _fix_skeleton(sk: Skeleton3D) -> void:
 	if sk.get_bone_count() == 0:
 		return
-	# Reset every bone's pose to its captured rest transform. This is
-	# the heart of the fix.
+	# Reset every bone's pose to its captured rest transform. The .glb
+	# pipeline (commit 3005718) usually has bones in correct rest pose
+	# already, but resetting is harmless and catches edge cases.
 	for i in range(sk.get_bone_count()):
 		sk.reset_bone_pose(i)
-	# Belt-and-braces: also show_rest_only so any deferred animation
-	# applied during _ready doesn't immediately re-collapse the mesh.
-	# We disable this once an animation actually plays via
-	# AnimationLibraryLoader, but for the first frame it stays on.
-	sk.show_rest_only = true
 	# Force skeleton to apply the pose change this frame.
 	sk.advance(0.0)
-	# Force every skinned MeshInstance3D under this skeleton to bright,
-	# unshaded, double-sided materials so the character is visible
-	# regardless of the FBX's imported material settings.
-	_force_visible_materials(sk)
+	# show_rest_only is intentionally NOT set anymore. With .glb working,
+	# we want animations to drive bones when AnimationLibraryLoader merges
+	# them. The old material override (force_visible_materials) is also
+	# removed because .glb materials import correctly via Godot's native
+	# parser; overriding them was masking the real Mixamo textures.
 
 # Walk the skeleton and force visible / lit materials on every skinned
 # MeshInstance3D so Mixamo characters render with a guaranteed-visible

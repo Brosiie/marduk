@@ -324,26 +324,49 @@ func _build_whisper_shrine() -> void:
 		_torch(Vector3(10, 0, z_step), true)
 
 # ----------------------------------------------------------------
-# GREENHEART GLADE — forest clearing, mossy ground, broken cart
+# GREENHEART GLADE — Ranger intro forest clearing, dense canopy
 # ----------------------------------------------------------------
 func _build_greenheart_glade() -> void:
-	# Use small dirt tiles scattered with rocky patches for organic feel
+	# Forest floor: dirt + dense grass + flowers + mushrooms
 	var tile_size := 4.0
 	var grid := int(size / tile_size)
 	for x in range(-grid, grid + 1):
 		for z in range(-grid, grid + 1):
 			var asset := "floor_dirt_small_A.gltf.glb"
-			if randf() < 0.3:
+			if randf() < 0.2:
 				asset = "floor_dirt_large_rocky.gltf.glb"
 			_spawn(asset, Vector3(x * tile_size, 0, z * tile_size), randf() * 360.0)
-
-	# Scattered tree-stump-ish columns (using barrier_column as moss-covered logs)
-	for _i in range(12):
-		var x: float = randf_range(-size / 2, size / 2)
-		var z: float = randf_range(-size / 2, size / 2)
-		if abs(x) < 6 and abs(z) < 6:
-			continue  # keep central area clear
-		_spawn("barrier_column.gltf.glb", Vector3(x, 0, z), randf() * 360.0)
+			# Dense ground cover (60% chance grass, 20% chance flower)
+			if randf() < 0.60:
+				var pick: String = ["grass.glb", "grass_large.glb", "grass_leafs.glb", "grass_leafsLarge.glb"].pick_random()
+				_nat(pick, Vector3(x * tile_size + randf_range(-1.5, 1.5), 0, z * tile_size + randf_range(-1.5, 1.5)), randf() * 360.0)
+			elif randf() < 0.30:
+				var fpick: String = ["flower_purpleA.glb", "flower_purpleB.glb", "flower_redA.glb", "flower_yellowA.glb"].pick_random()
+				_nat(fpick, Vector3(x * tile_size + randf_range(-1, 1), 0, z * tile_size + randf_range(-1, 1)), randf() * 360.0)
+	# Dense tree canopy: 50 trees scattered, larger toward perimeter
+	for _i in range(50):
+		var ox: float = randf_range(-size / 2 + 2, size / 2 - 2)
+		var oz: float = randf_range(-size / 2 + 2, size / 2 - 2)
+		var d_from_center: float = sqrt(ox * ox + oz * oz)
+		# Skip the center 6m so combat space is clear
+		if d_from_center < 6:
+			continue
+		var t_pick: String = ["tree_default.glb", "tree_default_dark.glb", "tree_detailed.glb", "tree_detailed_dark.glb", "tree_fat.glb", "tree_fat_darkh.glb", "tree_thin.glb", "tree_thin_dark.glb"].pick_random()
+		_nat(t_pick, Vector3(ox, 0, oz), randf() * 360.0, randf_range(0.9, 1.5))
+	# Mossy log ring (campfire-style suggestion of past travelers)
+	for i in range(6):
+		var angle: float = i * TAU / 6.0
+		var r: float = 4.0
+		_nat("plant_bush.glb", Vector3(cos(angle) * r, 0, sin(angle) * r), randf() * 360.0, 1.2)
+	# Center campfire stones — Greenheart hunter's bivouac
+	_nat("campfire_stones.glb", Vector3(0, 0, 0))
+	# Mushroom rings scattered (forest atmosphere)
+	for _i in range(8):
+		var ox: float = randf_range(-size / 2, size / 2)
+		var oz: float = randf_range(-size / 2, size / 2)
+		if abs(ox) < 4 and abs(oz) < 4: continue
+		var m_pick: String = ["mushroom_red.glb", "mushroom_redGroup.glb", "mushroom_redTall.glb", "mushroom_tan.glb", "mushroom_tanGroup.glb"].pick_random()
+		_nat(m_pick, Vector3(ox, 0, oz), randf() * 360.0)
 
 # ----------------------------------------------------------------
 # INKSTONE TOWER — interior of magical tower, columns, dim
@@ -372,28 +395,52 @@ func _build_inkstone_tower() -> void:
 		_torch(Vector3(cos(angle) * radius, 0, sin(angle) * radius), true)
 
 # ----------------------------------------------------------------
-# COVEN GLEN — marshy circle of standing stones
+# COVEN GLEN — Druid intro: standing stone circle in misty marsh
 # ----------------------------------------------------------------
 func _build_coven_glen() -> void:
 	var tile_size := 4.0
 	var grid := int(size / tile_size)
 	for x in range(-grid, grid + 1):
 		for z in range(-grid, grid + 1):
-			_spawn("floor_dirt_small_B.gltf.glb",
-				Vector3(x * tile_size, 0, z * tile_size), randf() * 90.0)
-	# Standing-stone circle
+			# Mossy ground with weeds
+			var asset: String = "floor_dirt_small_weeds.gltf.glb" if (x + z) % 2 == 0 else "floor_dirt_small_B.gltf.glb"
+			_spawn(asset, Vector3(x * tile_size, 0, z * tile_size), randf() * 90.0)
+			# Heavy moss/grass coverage
+			if randf() < 0.55:
+				_nat("grass_leafsLarge.glb", Vector3(x * tile_size + randf_range(-1.5, 1.5), 0, z * tile_size + randf_range(-1.5, 1.5)), randf() * 360.0)
+	# Outer ring of trees framing the glen
+	for i in range(20):
+		var angle: float = i * TAU / 20.0
+		var r: float = size / 2 + 1.0
+		_nat("tree_detailed_dark.glb", Vector3(cos(angle) * r, 0, sin(angle) * r), randf() * 360.0, randf_range(1.1, 1.5))
+	# Standing-stone circle (7 stones, lore: one per breathing style)
 	for i in range(7):
 		var angle: float = i * TAU / 7.0
 		var radius := 8.0
-		_spawn("pillar.gltf.glb",
+		_spawn("pillar_decorated.gltf.glb",
 			Vector3(cos(angle) * radius, 0, sin(angle) * radius),
 			rad_to_deg(angle) + 90.0)
-	# Central altar stone
+	# Central altar stone surrounded by candles
 	_spawn("column.gltf.glb", Vector3(0, 0, 0))
-	# Dim torches at the cardinal points (only 4)
+	for i in range(4):
+		var angle: float = i * TAU / 4.0
+		_spawn("candle_thin_lit.gltf.glb", Vector3(cos(angle) * 1.4, 0.5, sin(angle) * 1.4))
+	# Mushroom rings (witchy)
+	for _i in range(12):
+		var ox: float = randf_range(-size / 2 + 2, size / 2 - 2)
+		var oz: float = randf_range(-size / 2 + 2, size / 2 - 2)
+		var d: float = sqrt(ox * ox + oz * oz)
+		if d < 12.0 and d > 9.0:  # ring just outside the standing stones
+			_nat(["mushroom_red.glb", "mushroom_redGroup.glb"].pick_random(), Vector3(ox, 0, oz), randf() * 360.0)
+	# 4 dim torches at cardinal points outside the stone circle
 	for i in range(4):
 		var angle: float = i * TAU / 4.0
 		_torch(Vector3(cos(angle) * 14.0, 0, sin(angle) * 14.0), true)
+	# Plant bushes scattered for marsh feel
+	for _i in range(10):
+		var ox: float = randf_range(-size / 2, size / 2)
+		var oz: float = randf_range(-size / 2, size / 2)
+		_nat("plant_bush.glb", Vector3(ox, 0, oz), randf() * 360.0, randf_range(0.8, 1.2))
 
 # ----------------------------------------------------------------
 # SUNSWORN CHAPEL — interior chapel courtyard
@@ -506,19 +553,43 @@ func _build_the_reed_wastes() -> void:
 # LAPIS BAY — coastal docks, stacked crates, weathered piers
 # ----------------------------------------------------------------
 func _build_lapis_bay() -> void:
+	# Coastal dock: sandy beach south, wooden pier north, crates/barrels
+	# stacked along the dock, broken bridges suggesting Crown's ban on
+	# trade caused the smugglers to cut their own piers.
 	var tile := 4.0
 	var grid := int(size / tile)
 	for x in range(-grid, grid + 1):
 		for z in range(-grid, grid + 1):
-			# Sandy ground transitioning to wood near the dock
-			var asset := "floor_dirt_small_A.gltf.glb"
-			if z > 0:
+			var asset: String
+			if z > 4:
+				# Pier wood
 				asset = "floor_wood_large.gltf.glb" if (x + z) % 2 == 0 else "floor_wood_small.gltf.glb"
+			elif z > -4:
+				# Wet sand zone
+				asset = "floor_dirt_small_A.gltf.glb"
+			else:
+				# Beach proper - sparse grass tufts above sand
+				asset = "floor_dirt_small_A.gltf.glb"
 			_spawn(asset, Vector3(x * tile, 0, z * tile))
+			# Beach grass on south end
+			if z < -4 and randf() < 0.20:
+				_nat("grass.glb", Vector3(x * tile + randf_range(-1, 1), 0, z * tile + randf_range(-1, 1)), randf() * 360.0, 0.7)
+	# Tree line at the south edge (where beach meets forest)
+	for i in range(12):
+		var tx: float = randf_range(-size / 2 + 2, size / 2 - 2)
+		_nat("tree_thin.glb", Vector3(tx, 0, -size / 2 + 1), randf() * 360.0, randf_range(0.9, 1.2))
+	# Cattails / bushes near water edge
+	for _i in range(20):
+		var ox: float = randf_range(-size / 2 + 2, size / 2 - 2)
+		var oz: float = randf_range(-2, 4)  # at water line
+		_nat(["plant_bush.glb", "grass_leafsLarge.glb"].pick_random(), Vector3(ox, 0, oz), randf() * 360.0)
 	# Pier columns extending into bay (north end)
 	for x in [-12, -8, -4, 4, 8, 12]:
 		_spawn("pillar.gltf.glb", Vector3(x, 0, size / 2 - 2))
 		_spawn("pillar.gltf.glb", Vector3(x, 0, size / 2 - 6))
+	# Bridge sections (kenney has stone+wood variants)
+	_nat("bridge_wood.glb", Vector3(0, 0, size / 2 - 2), 90.0)
+	_nat("bridge_stone.glb", Vector3(0, 0, 0), 90.0)
 	# Stacked crates and barrels — cargo
 	for offset in [-10, -6, 6, 10]:
 		_spawn("crates_stacked.gltf.glb", Vector3(offset, 0, 4))
@@ -527,66 +598,108 @@ func _build_lapis_bay() -> void:
 	# Mooring banners
 	_spawn("banner_blue.gltf.glb", Vector3(-12, 0.2, size / 2 - 2))
 	_spawn("banner_blue.gltf.glb", Vector3(12, 0.2, size / 2 - 2))
+	# Cliff edges around the bay (rock formations)
+	for _i in range(6):
+		var ox: float = randf_range(-size / 2, size / 2)
+		var oz: float = randf_range(-size / 2 + 1, -size / 2 + 4)
+		_nat(["cliff_blockHalf_rock.glb", "cliff_blockCave_rock.glb"].pick_random(), Vector3(ox, 0, oz), randf() * 360.0)
 	# Lit lanterns along the dock
 	for x in [-12, 0, 12]:
 		_torch(Vector3(x, 0, size / 2 - 4), true)
+	# Campfire on beach
+	_nat("campfire_stones.glb", Vector3(0, 0, -size / 2 + 6))
 
 # ----------------------------------------------------------------
 # BONE MOUNTAINS — rocky pass, scattered bones, narrow path
 # ----------------------------------------------------------------
 func _build_bone_mountains() -> void:
+	# Rocky pass strewn with bones (rubble) and cliff blocks. Lore: ribs
+	# of giants line the path, scattered rocks form a narrow corridor.
 	var tile := 4.0
 	var grid := int(size / tile)
 	for x in range(-grid, grid + 1):
 		for z in range(-grid, grid + 1):
 			var asset := "floor_dirt_large_rocky.gltf.glb"
-			if randf() < 0.3:
+			if randf() < 0.4:
 				asset = "floor_tile_large_rocks.gltf.glb"
 			_spawn(asset, Vector3(x * tile, 0, z * tile), randf() * 360.0)
-	# Rubble piles scattered (suggesting bone middens)
-	for _i in range(15):
+	# Cliff walls flanking the spine — kenney cliff blocks at varied heights
+	for z_step in range(-int(size / 2) + 4, int(size / 2), 4):
+		# Stagger left wall
+		var lh: float = 0.0 if (z_step / 4) % 2 == 0 else 1.5
+		_nat(["cliff_blockHalf_rock.glb", "cliff_blockHalf_stone.glb"].pick_random(), Vector3(-12, lh, z_step), randf() * 360.0)
+		var rh: float = 1.5 if (z_step / 4) % 2 == 0 else 0.0
+		_nat(["cliff_blockHalf_rock.glb", "cliff_blockHalf_stone.glb"].pick_random(), Vector3(12, rh, z_step), randf() * 360.0)
+	# Rubble (bone middens) scattered
+	for _i in range(20):
 		var x: float = randf_range(-size / 2 + 4, size / 2 - 4)
 		var z: float = randf_range(-size / 2 + 4, size / 2 - 4)
-		if abs(x) < 4 and abs(z) < 4:
-			continue
+		if abs(x) < 3: continue  # keep central path clear
 		var asset: String = "rubble_large.gltf.glb" if randf() < 0.5 else "rubble_half.gltf.glb"
 		_spawn(asset, Vector3(x, 0, z), randf() * 360.0)
-	# Narrow pass walls flanking the spine (rocky outcrop)
-	for z_step in range(-int(size / 2) + 4, int(size / 2), 6):
-		_spawn("wall_cracked.gltf.glb", Vector3(-8, 0, z_step), 90.0)
-		_spawn("wall_cracked.gltf.glb", Vector3(8, 0, z_step), -90.0)
-	# Sword & shield offerings (bones, dropped weapons)
+	# Cliff blocks scattered as boulders
+	for _i in range(12):
+		var ox: float = randf_range(-size / 2 + 6, size / 2 - 6)
+		var oz: float = randf_range(-size / 2 + 6, size / 2 - 6)
+		if abs(ox) < 4: continue
+		_nat(["cliff_blockCave_rock.glb", "cliff_blockCave_stone.glb", "cliff_blockDiagonal_rock.glb"].pick_random(), Vector3(ox, 0, oz), randf() * 360.0)
+	# Sword & shield offerings (dropped from earlier expedition deaths)
 	for z_step in [-10, 0, 10]:
-		_spawn("sword_shield_broken.gltf.glb", Vector3(randf_range(-3, 3), 0, z_step))
+		_spawn("sword_shield_broken.gltf.glb", Vector3(randf_range(-2, 2), 0, z_step))
+	# Sparse dead grass tufts (high altitude is bare)
+	for _i in range(10):
+		var ox: float = randf_range(-size / 2, size / 2)
+		var oz: float = randf_range(-size / 2, size / 2)
+		_nat("grass.glb", Vector3(ox, 0, oz), randf() * 360.0, 0.8)
 
 # ----------------------------------------------------------------
 # VERDANT WOUND — corrupted forest, tilted ruins, weeds in stone
 # ----------------------------------------------------------------
 func _build_verdant_wound() -> void:
+	# Corrupted forest: dark trees, twisted growth, broken ruins
+	# overgrown with weeds. Lore: Tiamat's seep warps the foliage here.
 	var tile := 4.0
 	var grid := int(size / tile)
 	for x in range(-grid, grid + 1):
 		for z in range(-grid, grid + 1):
 			var asset := "floor_tile_small_weeds_A.gltf.glb" if (x + z) % 2 == 0 else "floor_tile_small_weeds_B.gltf.glb"
 			_spawn(asset, Vector3(x * tile, 0, z * tile), randf() * 360.0)
+			# Heavy weed coverage suggests corruption
+			if randf() < 0.55:
+				_nat(["grass_leafs.glb", "grass_leafsLarge.glb"].pick_random(), Vector3(x * tile + randf_range(-1.5, 1.5), 0, z * tile + randf_range(-1.5, 1.5)), randf() * 360.0)
+	# Dense DARK tree canopy (corruption-twisted)
+	for _i in range(40):
+		var ox: float = randf_range(-size / 2 + 2, size / 2 - 2)
+		var oz: float = randf_range(-size / 2 + 2, size / 2 - 2)
+		if abs(ox) < 5 and abs(oz) < 5: continue
+		var tp: Node3D = _nat(["tree_default_dark.glb", "tree_detailed_dark.glb", "tree_thin_dark.glb", "tree_fat_darkh.glb", "tree_blocks_dark.glb"].pick_random(), Vector3(ox, 0, oz), randf() * 360.0, randf_range(0.9, 1.4))
+		# 30% of trees tilted to read as corrupted/withered
+		if tp and randf() < 0.30:
+			tp.rotation.x = deg_to_rad(randf_range(-15, 15))
+			tp.rotation.z = deg_to_rad(randf_range(-15, 15))
 	# Tilted broken pillars (overgrown ruin)
-	for _i in range(8):
-		var x: float = randf_range(-size / 2, size / 2)
-		var z: float = randf_range(-size / 2, size / 2)
-		if abs(x) < 6 and abs(z) < 6:
-			continue
+	for _i in range(10):
+		var x: float = randf_range(-size / 2 + 4, size / 2 - 4)
+		var z: float = randf_range(-size / 2 + 4, size / 2 - 4)
+		if abs(x) < 5 and abs(z) < 5: continue
 		var p := _spawn("pillar.gltf.glb", Vector3(x, 0, z), randf() * 360.0)
 		if p:
 			p.rotation.x = deg_to_rad(randf_range(-20, 20))
 			p.rotation.z = deg_to_rad(randf_range(-20, 20))
-	# Mossy log fall suggested by barrier columns and trunks
-	for _i in range(10):
-		var x: float = randf_range(-size / 2, size / 2)
-		var z: float = randf_range(-size / 2, size / 2)
-		_spawn("trunk_large_A.gltf.glb", Vector3(x, 0, z), randf() * 360.0)
-	# Center: ancient corrupted altar
+	# Cracked walls scattered, half-eaten by foliage
+	for _i in range(8):
+		var ox: float = randf_range(-size / 2 + 6, size / 2 - 6)
+		var oz: float = randf_range(-size / 2 + 6, size / 2 - 6)
+		_spawn("wall_cracked.gltf.glb", Vector3(ox, 0, oz), randf() * 360.0)
+	# Center: ancient corrupted altar with red candles
 	_spawn("column.gltf.glb", Vector3(0, 0, 0))
-	_spawn("candle_thin_lit.gltf.glb", Vector3(0, 1.4, 0))
+	_spawn("candle_thin_lit.gltf.glb", Vector3(0.6, 1.0, 0))
+	_spawn("candle_thin_lit.gltf.glb", Vector3(-0.6, 1.0, 0))
+	# Mushroom growth (forest corruption signal)
+	for _i in range(20):
+		var ox: float = randf_range(-size / 2, size / 2)
+		var oz: float = randf_range(-size / 2, size / 2)
+		_nat(["mushroom_red.glb", "mushroom_redGroup.glb", "mushroom_redTall.glb"].pick_random(), Vector3(ox, 0, oz), randf() * 360.0)
 
 # ----------------------------------------------------------------
 # EMBER STEPPES — wind-blown plain with scattered fire pits
@@ -612,29 +725,48 @@ func _build_ember_steppes() -> void:
 # MIST VALE — fogged grove, stones in mist, mossy logs
 # ----------------------------------------------------------------
 func _build_mist_vale() -> void:
+	# Foggy druid grove: scattered standing stones, mossy logs, dense
+	# light-fall trees suggesting autumn mist. Memorial cairn near
+	# center for Saru once she falls in the storyline.
 	var tile := 4.0
 	var grid := int(size / tile)
 	for x in range(-grid, grid + 1):
 		for z in range(-grid, grid + 1):
 			var asset := "floor_dirt_small_weeds.gltf.glb" if (x + z) % 2 == 0 else "floor_dirt_small_A.gltf.glb"
 			_spawn(asset, Vector3(x * tile, 0, z * tile), randf() * 360.0)
+			# Light coverage of ground (more dirt visible than greenheart)
+			if randf() < 0.35:
+				_nat(["grass.glb", "grass_leafs.glb"].pick_random(), Vector3(x * tile + randf_range(-1.5, 1.5), 0, z * tile + randf_range(-1.5, 1.5)), randf() * 360.0)
+	# Tree perimeter — autumn fall variants for that misty-grove look
+	for i in range(24):
+		var angle: float = i * TAU / 24.0
+		var r: float = size / 2
+		var tree_pick: String = ["tree_default_fall.glb", "tree_detailed_fall.glb", "tree_fat_fall.glb", "tree_blocks_fall.glb"].pick_random()
+		_nat(tree_pick, Vector3(cos(angle) * r, 0, sin(angle) * r), randf() * 360.0, randf_range(1.0, 1.4))
 	# Standing stone half-circle (north end)
 	for i in range(5):
 		var angle: float = lerp(PI * 0.25, PI * 0.75, float(i) / 4.0)
 		var radius := 12.0
-		_spawn("pillar.gltf.glb",
+		_spawn("pillar_decorated.gltf.glb",
 			Vector3(cos(angle) * radius, 0, -sin(angle) * radius),
 			rad_to_deg(angle))
-	# Mossy logs (trunk_medium variants) scattered
-	for _i in range(6):
+	# Mossy logs scattered (from KayKit dungeon kit's trunk variants)
+	for _i in range(8):
 		var x: float = randf_range(-size / 2, size / 2)
 		var z: float = randf_range(-size / 2, size / 2)
-		if abs(x) < 4 and abs(z) < 4:
-			continue
+		if abs(x) < 4 and abs(z) < 4: continue
 		var asset: String = ["trunk_medium_A.gltf.glb","trunk_medium_B.gltf.glb","trunk_medium_C.gltf.glb"].pick_random()
 		_spawn(asset, Vector3(x, 0, z), randf() * 360.0)
-	# Center druid altar
+	# Center: druid altar with candles
 	_spawn("column.gltf.glb", Vector3(0, 0, 0))
+	for i in range(4):
+		var angle: float = i * TAU / 4.0
+		_spawn("candle_thin_lit.gltf.glb", Vector3(cos(angle) * 1.4, 0.5, sin(angle) * 1.4))
+	# Bushes for misty undergrowth
+	for _i in range(15):
+		var ox: float = randf_range(-size / 2, size / 2)
+		var oz: float = randf_range(-size / 2, size / 2)
+		_nat("plant_bush.glb", Vector3(ox, 0, oz), randf() * 360.0, randf_range(0.7, 1.1))
 
 # ----------------------------------------------------------------
 # SHRIEKING HIGHLANDS — windy cliffs, runestones, abandoned shrine
