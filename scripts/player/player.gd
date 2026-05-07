@@ -1015,6 +1015,18 @@ func take_damage(amount: float, source: Node = null) -> void:
 	var floater_script: GDScript = load("res://scripts/combat/damage_floater.gd")
 	if floater_script and floater_script.has_method("spawn"):
 		floater_script.spawn(self, amount, false, &"physical")
+	# Combat feel: small camera shake + red flash on incoming hits. Scaling
+	# with damage as fraction of max HP so light scratches feel different
+	# from "you just lost a quarter of your bar". Big hits also briefly
+	# zoom-tint the screen for that "you're losing this fight" reading.
+	var juice = get_node_or_null("/root/Juice")
+	if juice:
+		var hp_pct: float = clamp(amount / max(stats.max_hp, 1.0), 0.0, 1.0)
+		juice.shake(0.05 + hp_pct * 0.40, 0.18)
+		# Only flash on substantial hits (>=10% max HP) so chip damage doesn't
+		# strobe the screen.
+		if hp_pct >= 0.10:
+			juice.flash(Color(0.85, 0.10, 0.10), 0.18 + hp_pct * 0.25, 0.22)
 	# Hit react animation if available
 	if anim_player:
 		var hit_name: String = _resolved_anims.get("hit", "")

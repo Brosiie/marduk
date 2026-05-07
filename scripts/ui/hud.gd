@@ -29,6 +29,10 @@ var player: Player
 
 var menu_panel: Control = null
 var boss_bar: Control = null
+# Low-HP vignette: a screen-filling ColorRect with a radial gradient
+# shader. Alpha lerps in based on how low HP is, so the screen turns
+# bloodier as the player edges toward death. Common ARPG juice.
+var _low_hp_vignette: ColorRect = null
 
 func _ready() -> void:
 	add_to_group("hud")
@@ -36,6 +40,7 @@ func _ready() -> void:
 	if not player:
 		push_warning("HUD: no player found")
 		return
+	_install_low_hp_vignette()
 	player.hp_changed.connect(_on_hp)
 	player.mana_changed.connect(_on_mana)
 	player.resource_changed.connect(_on_resource)
@@ -154,6 +159,48 @@ func _unhandled_input(event: InputEvent) -> void:
 func _on_hp(cur: float, mx: float) -> void:
 	hp_bar.max_value = mx
 	hp_bar.value = cur
+	# Low-HP vignette: kicks in below 40% max HP, ramps to full opacity
+	# at 0% (just before death). Pulses slightly via shader's _process so
+	# the screen breathes red.
+	if _low_hp_vignette and _low_hp_vignette.material:
+		var hp_pct: float = cur / max(mx, 1.0)
+		var threshold: float = 0.40
+		var t: float = clamp((threshold - hp_pct) / threshold, 0.0, 1.0)  # 0 at 40%+, 1 at 0%
+		(_low_hp_vignette.material as ShaderMaterial).set_shader_parameter("intensity", t)
+
+func _install_low_hp_vignette() -> void:
+	# Full-screen ColorRect with a radial-gradient shader. The shader is
+	# inline so we don't ship an extra .gdshader file just for one effect.
+	# Black at center, deep red at edges, alpha controlled by `intensity`.
+	var shader := Shader.new()
+	shader.code = """
+shader_type canvas_item;
+uniform float intensity : hint_range(0.0, 1.0) = 0.0;
+uniform vec4 vignette_color : source_color = vec4(0.7, 0.05, 0.05, 1.0);
+
+void fragment() {
+	// SCREEN_UV is 0..1, distance from center
+	float d = distance(SCREEN_UV, vec2(0.5));
+	// Inner radius is fully clear; outer ring is the red. 0.35-0.75 range.
+	float vignette = smoothstep(0.35, 0.75, d);
+	// Subtle pulse so it 'breathes' at low HP
+	float pulse = 0.85 + 0.15 * sin(TIME * 4.0);
+	float a = vignette * intensity * pulse;
+	COLOR = vec4(vignette_color.rgb, a);
+}
+"""
+	var mat := ShaderMaterial.new()
+	mat.shader = shader
+	mat.set_shader_parameter("intensity", 0.0)
+	_low_hp_vignette = ColorRect.new()
+	_low_hp_vignette.name = "LowHPVignette"
+	_low_hp_vignette.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_low_hp_vignette.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_low_hp_vignette.material = mat
+	# Add as a child of the HUD so it renders above the world. Goes BEFORE
+	# bars/menus so they stay readable through the vignette.
+	add_child(_low_hp_vignette)
+	move_child(_low_hp_vignette, 0)  # behind UI children
 
 func _on_mana(cur: float, mx: float) -> void:
 	mana_bar.max_value = mx
