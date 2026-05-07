@@ -124,7 +124,37 @@ func _fill_buffer(pb: AudioStreamGeneratorPlayback, name: StringName) -> void:
 		&"swing":         _gen_burst(pb, 320.0, 90.0, 0.06, 0.25)
 		&"button":        _gen_burst(pb, 880.0, 600.0, 0.04, 0.15)
 		&"deny":          _gen_burst(pb, 110.0, 80.0, 0.10, 0.35)
+		# Combat additions wired by Player buffs
+		&"taunt":         _gen_arp(pb, [220.0, 277.0, 330.0], 0.07)
+		&"block":         _gen_burst(pb, 110.0, 90.0, 0.08, 0.45)
+		&"heal":          _gen_chirp(pb, 440.0, 660.0, 0.25)
+		# Footsteps (light/heavy)
+		&"step":          _gen_burst(pb, 90.0, 70.0, 0.04, 0.18)
+		&"step_heavy":    _gen_burst(pb, 70.0, 50.0, 0.06, 0.30)
+		# Weather: thunder is a short low rumble + sharp transient
+		&"thunder":       _gen_thunder(pb)
 		_:                _gen_burst(pb, 440.0, 100.0, 0.08, 0.3)
+
+# Thunder: a sharp crack (high-freq transient) followed by a low
+# rumble that fades. Stacks two waveforms in the same buffer.
+func _gen_thunder(pb: AudioStreamGeneratorPlayback) -> void:
+	var sample_rate := SFX_SAMPLE_RATE
+	var duration: float = 0.35
+	var n: int = int(duration * sample_rate)
+	var rng_state: int = 1
+	for i in range(n):
+		var t: float = float(i) / float(max(1, n))
+		# Sharp crack at the start (decays in 50ms)
+		var crack_env: float = exp(-25.0 * t)
+		rng_state = (rng_state * 1103515245 + 12345) % 2147483647
+		var noise: float = (float(rng_state % 1000) / 500.0) - 1.0
+		var crack: float = noise * crack_env * 0.6
+		# Low rumble layer (decays in 350ms, two sin tones for body)
+		var rumble: float = sin(t * 80.0 * TAU) * 0.3 + sin(t * 60.0 * TAU) * 0.2
+		var rumble_env: float = exp(-3.0 * t)
+		var sample: float = crack + rumble * rumble_env
+		sample = clamp(sample, -1.0, 1.0)
+		pb.push_frame(Vector2(sample, sample))
 
 # Square-ish burst with exponential decay
 func _gen_burst(pb: AudioStreamGeneratorPlayback, freq_start: float, freq_end: float, duration: float, gain: float) -> void:
@@ -164,6 +194,62 @@ func _take_sfx_player() -> AudioStreamPlayer3D:
 		if not p.playing:
 			return p
 	return null  # all busy; soft-drop the request
+
+# --- Continuous rain hiss ---
+# AudioBus.set_rain_intensity(0..1) tells the rain layer how heavy to
+# play. WeatherDirector calls this each weather change. The rain
+# generator streams pink-ish noise into a dedicated AudioStreamPlayer
+# (non-3D so it surrounds the player evenly).
+var _rain_player: AudioStreamPlayer = null
+var _rain_playback: AudioStreamGeneratorPlayback = null
+var _rain_intensity: float = 0.0
+var _rain_target_intensity: float = 0.0
+var _rain_rng_state: int = 9173
+const RAIN_BUFFER_SECONDS: float = 0.5
+
+func _ensure_rain_player() -> void:
+	if _rain_player != null:
+		return
+	_rain_player = AudioStreamPlayer.new()
+	_rain_player.bus = "Ambient"
+	_rain_player.volume_db = -80.0
+	add_child(_rain_player)
+	var stream := AudioStreamGenerator.new()
+	stream.mix_rate = SFX_SAMPLE_RATE
+	stream.buffer_length = RAIN_BUFFER_SECONDS
+	_rain_player.stream = stream
+	_rain_player.play()
+	_rain_playback = _rain_player.get_stream_playback()
+
+# Called by WeatherDirector on weather change. 0.0 = silent, 0.5 = light
+# rain, 1.0 = pouring storm. Smoothly fades volume in _process.
+func set_rain_intensity(target: float) -> void:
+	_rain_target_intensity = clamp(target, 0.0, 1.0)
+	_ensure_rain_player()
+
+func _process(delta: float) -> void:
+	# Refill rain buffer with noise + lerp intensity
+	if _rain_playback == null:
+		return
+	# Smooth toward target so rain crossfades cleanly
+	_rain_intensity = lerp(_rain_intensity, _rain_target_intensity, clamp(delta * 0.5, 0.0, 1.0))
+	if _rain_player:
+		# Volume in dB: silence at 0, ~-12 dB at full pour
+		var target_db: float = -80.0 if _rain_intensity < 0.01 else lerp(-32.0, -10.0, _rain_intensity)
+		_rain_player.volume_db = lerp(_rain_player.volume_db, target_db, clamp(delta * 1.5, 0.0, 1.0))
+	var frames_needed: int = _rain_playback.get_frames_available()
+	if frames_needed <= 0:
+		return
+	for i in range(frames_needed):
+		# Pink-ish noise: avg of two LFSR samples gives a slightly
+		# muffled tone that reads as rain rather than white static
+		_rain_rng_state = (_rain_rng_state * 1103515245 + 12345) % 2147483647
+		var n1: float = (float(_rain_rng_state % 1000) / 500.0) - 1.0
+		_rain_rng_state = (_rain_rng_state * 1103515245 + 12345) % 2147483647
+		var n2: float = (float(_rain_rng_state % 1000) / 500.0) - 1.0
+		# Mix: 70% smooth, 30% sharp gives a raindrop hiss
+		var sample: float = (n1 + n2) * 0.5 * 0.30 + n1 * 0.10
+		_rain_playback.push_frame(Vector2(sample, sample))
 
 func _fade_to(player: AudioStreamPlayer, target_db: float, time: float) -> void:
 	var t := create_tween()

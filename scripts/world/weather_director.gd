@@ -149,15 +149,24 @@ func _tick_lightning() -> void:
 func _strike_lightning() -> void:
 	# Brief white flash via the Juice autoload + a thunder cue if the
 	# audio bus is wired. Two-stage: bright flash, then dim flicker.
+	# Thunder fires 0.4s after the flash for that "see the bolt, hear
+	# it shortly after" lag (light is faster than sound) — sells
+	# distance and scale.
 	var juice: Node = get_node_or_null("/root/Juice")
 	if juice and juice.has_method("flash"):
 		juice.flash(Color(0.95, 0.95, 1.0), 0.08, 0.30)
-		# Second weaker pulse 0.15s later for the flicker feel
 		var t := get_tree().create_timer(0.15)
 		t.timeout.connect(func():
 			if juice and juice.has_method("flash"):
 				juice.flash(Color(0.85, 0.85, 0.95), 0.05, 0.20)
 		)
+	# Thunder audio with a delay (audio lag = perceived distance)
+	var thunder_t := get_tree().create_timer(randf_range(0.35, 0.55))
+	thunder_t.timeout.connect(func():
+		var ab: Node = get_node_or_null("/root/AudioBus")
+		if ab and ab.has_method("play_cue") and _camera:
+			ab.play_cue(&"thunder", _camera.global_position, -2.0, randf_range(0.85, 1.05))
+	)
 
 # --- Rainbow ---
 
@@ -240,6 +249,17 @@ func _apply_weather_visuals() -> void:
 	if _rain_particles:  _rain_particles.emitting = current == Weather.RAIN
 	if _storm_particles: _storm_particles.emitting = current == Weather.STORM
 	if _mist_particles:  _mist_particles.emitting = current == Weather.MIST
+	# Audio: continuous rain hiss intensity tracks weather state.
+	# AudioBus crossfades volume so transitions feel like the rain is
+	# rolling in or letting up, not on/off switches.
+	var ab: Node = get_node_or_null("/root/AudioBus")
+	if ab and ab.has_method("set_rain_intensity"):
+		var intensity: float = 0.0
+		match current:
+			Weather.RAIN:  intensity = 0.55
+			Weather.STORM: intensity = 1.0
+			Weather.MIST:  intensity = 0.10  # faint hiss for mist atmosphere
+		ab.set_rain_intensity(intensity)
 
 # --- Particle factories ---
 
@@ -358,7 +378,62 @@ func _find_sun_direction() -> Vector3:
 func _pick_next_weather() -> int:
 	var weights: Dictionary = _markov_row_for(current).duplicate()
 	_apply_time_bias(weights, _time_of_day())
+	_apply_zone_bias(weights)
 	return _weighted_pick(weights)
+
+# Per-zone weather palette: each region has its own climate. Black
+# Citadel is permanently cursed (storms common, never sunny). Sunsworn
+# Chapel is holy (mostly clear, no storms). Sword-Vow Ruins keeps the
+# sakura grove pristine (gentle rain, no storms). Wastelands skip rain.
+# Mist Vale lives up to its name. The Cradle is divinely clear.
+#
+# A weight of 0 hard-bans that weather; multipliers scale Markov base.
+func _apply_zone_bias(weights: Dictionary) -> void:
+	var zone: StringName = _detect_zone()
+	match zone:
+		&"sword_vow_ruins":
+			weights[Weather.STORM] = 0.0  # protect the sakura grove
+			weights[Weather.RAIN] = float(weights.get(Weather.RAIN, 0.0)) * 0.4
+			weights[Weather.MIST] = float(weights.get(Weather.MIST, 0.0)) * 1.6
+		&"sunsworn_chapel":
+			weights[Weather.STORM] = 0.0  # holy zone, no torment
+			weights[Weather.CLEAR] = float(weights.get(Weather.CLEAR, 0.0)) * 2.8
+			weights[Weather.RAIN] = float(weights.get(Weather.RAIN, 0.0)) * 0.25
+		&"black_citadel":
+			weights[Weather.CLEAR] = 0.0  # the throne never knows light
+			weights[Weather.OVERCAST] = float(weights.get(Weather.OVERCAST, 0.0)) * 2.0
+			weights[Weather.STORM] = float(weights.get(Weather.STORM, 0.0)) * 3.0
+			weights[Weather.RAIN] = float(weights.get(Weather.RAIN, 0.0)) * 2.0
+		&"ember_steppes", &"the_reed_wastes", &"shrieking_highlands":
+			weights[Weather.RAIN] = float(weights.get(Weather.RAIN, 0.0)) * 0.2
+			weights[Weather.STORM] = float(weights.get(Weather.STORM, 0.0)) * 0.2
+			weights[Weather.MIST] = float(weights.get(Weather.MIST, 0.0)) * 1.4
+		&"mist_vale":
+			weights[Weather.MIST] = float(weights.get(Weather.MIST, 0.0)) * 5.0
+			weights[Weather.CLEAR] = float(weights.get(Weather.CLEAR, 0.0)) * 0.4
+		&"the_cradle":
+			weights[Weather.STORM] = 0.0
+			weights[Weather.CLEAR] = float(weights.get(Weather.CLEAR, 0.0)) * 3.5
+			weights[Weather.RAIN] = float(weights.get(Weather.RAIN, 0.0)) * 0.2
+		&"verdant_wound":
+			weights[Weather.RAIN] = float(weights.get(Weather.RAIN, 0.0)) * 1.8  # rainforest
+			weights[Weather.MIST] = float(weights.get(Weather.MIST, 0.0)) * 1.6
+		&"lapis_bay", &"sundered_coast":
+			weights[Weather.RAIN] = float(weights.get(Weather.RAIN, 0.0)) * 1.5  # coastal
+			weights[Weather.OVERCAST] = float(weights.get(Weather.OVERCAST, 0.0)) * 1.3
+		&"bone_mountains":
+			weights[Weather.STORM] = float(weights.get(Weather.STORM, 0.0)) * 1.5
+			weights[Weather.MIST] = float(weights.get(Weather.MIST, 0.0)) * 1.3
+		&"babilim", &"ashurim":
+			weights[Weather.STORM] = float(weights.get(Weather.STORM, 0.0)) * 0.6  # cities, sheltered
+
+func _detect_zone() -> StringName:
+	if _scene_root == null:
+		return &""
+	var geometry := _scene_root.get_node_or_null("Geometry")
+	if geometry and "style_id" in geometry:
+		return StringName(String(geometry.style_id))
+	return &""
 
 func _time_of_day() -> float:
 	var clock: Node = get_node_or_null("/root/WorldClock")
