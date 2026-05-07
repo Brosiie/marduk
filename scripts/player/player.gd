@@ -698,6 +698,62 @@ func collect_item(item: Item, quantity: int = 1) -> void:
 	# call it (tests, scripted drops, etc.).
 	if has_method("receive_loot"):
 		receive_loot(item)
+	# Auto-equip weapons: if the picked-up item is a weapon and the
+	# main-hand slot is empty (or the new weapon is rarer), swap it in
+	# and update the visible mesh in the KatanaSocket.
+	if item.slot == Item.Slot.WEAPON_MAIN:
+		_auto_equip_weapon(item)
+
+# Refresh the visible weapon mesh in the player's hand socket.
+# Reads inventory.equipped_in(WEAPON_MAIN), looks up the matching
+# KayKit weapon prop mesh, and swaps it in. Falls back to the bound
+# katana mesh when no item is equipped.
+func _auto_equip_weapon(item: Item) -> void:
+	var current: Item = inventory.equipped_in(Item.Slot.WEAPON_MAIN) if inventory and inventory.has_method("equipped_in") else null
+	# Equip the new weapon if no current weapon OR rarity strictly higher
+	if current == null or int(item.rarity) > int(current.rarity):
+		if inventory and inventory.has_method("equip"):
+			inventory.equip(item, Item.Slot.WEAPON_MAIN)
+		_refresh_weapon_mesh()
+
+# Public — call this after manual equip changes too.
+func _refresh_weapon_mesh() -> void:
+	var socket: Node3D = mesh.get_node_or_null("KatanaSocket") if mesh else null
+	if socket == null:
+		return
+	# Remove old mesh under KatanaSocket
+	for c in socket.get_children():
+		c.queue_free()
+	# Pick mesh path by equipped weapon type
+	var equipped: Item = inventory.equipped_in(Item.Slot.WEAPON_MAIN) if inventory and inventory.has_method("equipped_in") else null
+	var path: String = ""
+	if equipped:
+		match equipped.weapon_type:
+			1:  path = "res://assets/characters/kaykit/Assets/gltf/sword_1handed.gltf"
+			2:  path = "res://assets/characters/kaykit/Assets/gltf/sword_2handed.gltf"
+			3:  path = "res://assets/characters/kaykit/Assets/gltf/axe_1handed.gltf"
+			4:  path = "res://assets/characters/kaykit/Assets/gltf/axe_2handed.gltf"
+			7:  path = "res://assets/characters/kaykit/Assets/gltf/staff.gltf"
+			8:  path = "res://assets/characters/kaykit/Assets/gltf/wand.gltf"
+			9:  path = "res://assets/characters/kaykit/Assets/gltf/sword_1handed.gltf"
+			10: path = "res://assets/characters/kaykit/Assets/gltf/sword_2handed.gltf"
+			11: path = "res://assets/characters/kaykit/Assets/gltf/dagger.gltf"
+			12: path = "res://assets/characters/kaykit/Assets/gltf/crossbow_2handed.gltf"
+			13: path = "res://assets/characters/kaykit/Assets/gltf/crossbow_1handed.gltf"
+	if path == "":
+		# No equipped weapon -> use default katana
+		path = "res://assets/characters/kaykit/Assets/gltf/sword_1handed.gltf"
+	if not ResourceLoader.exists(path):
+		return
+	var packed: PackedScene = load(path)
+	if packed == null:
+		return
+	var weapon_mesh: Node3D = packed.instantiate()
+	weapon_mesh.name = "WeaponMesh"
+	# Match the original KatanaMesh transform: rotated to lie flat in
+	# the hand, no translation
+	weapon_mesh.transform = Transform3D(Basis(Vector3(0, 0.7071, 0.7071), Vector3(0, -0.7071, 0.7071), Vector3(1, 0, 0)), Vector3.ZERO)
+	socket.add_child(weapon_mesh)
 
 func _perform_basic_attack() -> void:
 	# Always-available fallback swing. Doesn't require a class_def so a fresh

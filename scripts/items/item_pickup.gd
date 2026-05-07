@@ -121,17 +121,102 @@ func _pickup(player: Node) -> void:
 	queue_free()
 
 func _build_placeholder_mesh() -> Node3D:
+	# Try to load a KayKit weapon/item mesh that matches the item's
+	# weapon_type or slot. Falls back to a tinted box if no match.
+	if item:
+		var mesh_path: String = _path_for_item(item)
+		if mesh_path != "" and ResourceLoader.exists(mesh_path):
+			var packed: PackedScene = load(mesh_path)
+			if packed:
+				var inst: Node3D = packed.instantiate()
+				# Strip any baked-in colliders so the mesh doesn't block
+				# the player from walking near the drop
+				_strip_colliders(inst)
+				# Apply rarity glow as emission tint via a subtle outline
+				# StandardMaterial3D override on first surface
+				_apply_rarity_glow(inst)
+				return inst
+	# Fallback box tinted by rarity
 	var mi := MeshInstance3D.new()
 	var box := BoxMesh.new()
-	box.size = Vector3(0.6, 0.6, 0.6)
+	box.size = Vector3(0.4, 0.4, 0.4)
 	mi.mesh = box
 	var mat := StandardMaterial3D.new()
 	mat.albedo_color = _rarity_glow(item.rarity if item else 2) if item else Color(0.6, 0.6, 0.6)
 	mat.emission_enabled = true
 	mat.emission = mat.albedo_color
-	mat.emission_energy_multiplier = 0.6
+	mat.emission_energy_multiplier = 0.8
 	mi.material_override = mat
 	return mi
+
+# Map an Item to its KayKit prop mesh path.
+const KAYKIT_PROPS := "res://assets/characters/kaykit/Assets/gltf/"
+
+func _path_for_item(it: Item) -> String:
+	# Try by weapon_type first
+	match it.weapon_type:
+		1:  return KAYKIT_PROPS + "sword_1handed.gltf"      # SWORD
+		2:  return KAYKIT_PROPS + "sword_2handed.gltf"      # GREATSWORD
+		3:  return KAYKIT_PROPS + "axe_1handed.gltf"        # AXE
+		4:  return KAYKIT_PROPS + "axe_2handed.gltf"        # GREATAXE
+		7:  return KAYKIT_PROPS + "staff.gltf"              # STAFF
+		8:  return KAYKIT_PROPS + "wand.gltf"               # WAND
+		9:  return KAYKIT_PROPS + "sword_1handed.gltf"      # KATANA -> reuse sword
+		10: return KAYKIT_PROPS + "sword_2handed.gltf"      # NODACHI
+		11: return KAYKIT_PROPS + "dagger.gltf"             # DAGGER
+		12: return KAYKIT_PROPS + "crossbow_2handed.gltf"   # BOW -> crossbow stand-in
+		13: return KAYKIT_PROPS + "crossbow_1handed.gltf"   # CROSSBOW
+	# Off-hands
+	if it.slot == Item.Slot.WEAPON_OFFHAND:
+		return KAYKIT_PROPS + "shield_round.gltf"
+	# Books for caster off-hands / quest items
+	if it.slot == Item.Slot.CHARM:
+		return KAYKIT_PROPS + "spellbook_closed.gltf"
+	# Consumables (potions): use mug as a stand-in
+	if it.stack_size > 1:
+		return KAYKIT_PROPS + "mug_full.gltf"
+	return ""
+
+# Walk the prop tree and disable any colliders the kaykit mesh ships
+# with. ItemPickup has its own trigger Area3D for player contact.
+func _strip_colliders(node: Node) -> void:
+	for c in node.get_children():
+		if c is CollisionShape3D:
+			c.disabled = true
+		elif c is StaticBody3D:
+			(c as StaticBody3D).collision_layer = 0
+			(c as StaticBody3D).collision_mask = 0
+		_strip_colliders(c)
+
+# Apply a colored emission tint to every MeshInstance3D's first surface
+# to signal the item's rarity at a glance.
+func _apply_rarity_glow(root: Node) -> void:
+	if item == null:
+		return
+	var glow_color: Color = _rarity_glow(item.rarity)
+	var meshes: Array[MeshInstance3D] = []
+	_collect_meshes(root, meshes)
+	for mi in meshes:
+		if mi.mesh == null:
+			continue
+		# Take the existing material's albedo if any; layer emission on top
+		var existing := mi.get_active_material(0)
+		var mat := StandardMaterial3D.new()
+		mat.albedo_color = glow_color.lerp(Color.WHITE, 0.6)  # mostly white, rarity-tinted
+		if existing is BaseMaterial3D:
+			mat.albedo_color = (existing as BaseMaterial3D).albedo_color
+		mat.emission_enabled = true
+		mat.emission = glow_color
+		mat.emission_energy_multiplier = 0.4 + 0.15 * float(int(item.rarity))
+		mat.metallic = 0.4
+		mat.roughness = 0.5
+		mi.set_surface_override_material(0, mat)
+
+func _collect_meshes(node: Node, out: Array[MeshInstance3D]) -> void:
+	if node is MeshInstance3D:
+		out.append(node)
+	for c in node.get_children():
+		_collect_meshes(c, out)
 
 func _rarity_glow(rarity: int) -> Color:
 	match rarity:
