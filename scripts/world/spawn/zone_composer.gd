@@ -310,6 +310,21 @@ func _build_sword_vow_ruins() -> void:
 	_spawn("column.gltf.glb", Vector3(-3, 0.4, -size / 2 + 5))
 	_spawn("column.gltf.glb", Vector3(3, 0.4, -size / 2 + 5))
 
+	# --- Ambient world life ---
+	# Birds drifting overhead — gives the sky depth and motion. 4 silhouettes
+	# at varying speeds/headings so the eye always catches one passing.
+	var wl: Node = get_node_or_null("/root/WorldLife")
+	if wl:
+		wl.spawn_bird_flock(self, 4, Vector3(0, 18, 0), size * 0.7)
+		# Smoke wisps from the campfire at south spawn (creates "you came from
+		# somewhere safe" reading) and from each torch.
+		wl.spawn_chimney_smoke(self, Vector3(0, 1.2, size / 2 - 6))
+		wl.spawn_chimney_smoke(self, Vector3(-4, 1.5, -size / 2 + 4))
+		wl.spawn_chimney_smoke(self, Vector3(4, 1.5, -size / 2 + 4))
+		# Sacred motes around the throne — Kazat's iron presence has bent
+		# something cosmically; gold dust hangs in the air at the dais.
+		wl.spawn_intro_motes(self, Vector3(0, 1.2, -size / 2 + 4), 4.0, Color(1.0, 0.65, 0.25, 1.0))
+
 # ----------------------------------------------------------------
 # ASH-STEP CAMP — open steppe, raider tents, spear-rack, fire pit
 # ----------------------------------------------------------------
@@ -911,6 +926,19 @@ func _build_black_citadel() -> void:
 		_torch(Vector3(-11, 0, z_step), true)
 		_torch(Vector3(11, 0, z_step), true)
 
+	# --- Ambient world life: dark fortress vibe ---
+	# Crows circling above (4 silhouettes high overhead). Black smoke from
+	# the four corner braziers (siege fires never extinguished). Crimson
+	# motes drifting near the throne - cursed dust from Tashmu's reign.
+	var wl_bc: Node = get_node_or_null("/root/WorldLife")
+	if wl_bc:
+		wl_bc.spawn_bird_flock(self, 4, Vector3(0, 22, 0), size * 0.6)
+		# Brazier smoke at corner towers
+		for corner in [Vector3(-size / 2 + 2, 12, -size / 2 + 2), Vector3(size / 2 - 2, 12, -size / 2 + 2), Vector3(-size / 2 + 2, 12, size / 2 - 2), Vector3(size / 2 - 2, 12, size / 2 - 2)]:
+			wl_bc.spawn_chimney_smoke(self, corner)
+		# Cursed motes on throne (deep red, low energy)
+		wl_bc.spawn_intro_motes(self, Vector3(0, 1.2, -size / 2 + 4), 5.0, Color(0.85, 0.15, 0.20, 1.0))
+
 # ----------------------------------------------------------------
 # ASHURIM — convergence town hub, market stalls, NPCs dispense quests
 # ----------------------------------------------------------------
@@ -993,6 +1021,18 @@ func _build_ashurim() -> void:
 	# Treasure chest as quest reward stash at the plaza center
 	_spawn("chest_gold.glb", Vector3(0, 0, 0))
 
+	# --- Ambient world life: bustling town vibe ---
+	# Doves over the plaza (peaceful), chimney smoke from each of the 8
+	# houses, and warm hearth motes around the lanterns to feel inhabited.
+	var wl_ash: Node = get_node_or_null("/root/WorldLife")
+	if wl_ash:
+		wl_ash.spawn_bird_flock(self, 6, Vector3(0, 14, 0), size * 0.5)
+		# Chimney smoke at the 4 corner towers (city watchfires) + 4 quadrant houses
+		for corner in [Vector3(-size / 2 + 3, 8, -size / 2 + 3), Vector3(size / 2 - 3, 8, -size / 2 + 3), Vector3(-size / 2 + 3, 8, size / 2 - 3), Vector3(size / 2 - 3, 8, size / 2 - 3)]:
+			wl_ash.spawn_chimney_smoke(self, corner)
+		# Hearth motes - warm gold/amber - around the central plaza
+		wl_ash.spawn_intro_motes(self, Vector3(0, 1.0, 0), 3.0, Color(1.0, 0.78, 0.4, 1.0))
+
 # ----------------------------------------------------------------
 # BABILIM — capital city, grand chapel layout
 # ----------------------------------------------------------------
@@ -1073,3 +1113,20 @@ func _build_babilim() -> void:
 		var tz: float = randf_range(-size / 2 + 6, size / 2 - 6)
 		if abs(tx) < 12 or abs(tz) < 4: continue  # avoid the streets
 		_nat(["tree_detailed.glb", "tree_default.glb"].pick_random(), Vector3(tx, 0, tz), randf() * 360.0, randf_range(2.5, 3.5))
+
+	# --- Ambient world life: ceremonial capital ---
+	# White doves circling the cathedral (sacred reading), incense smoke
+	# rising from the altar candles, and divine motes (white-gold) over
+	# the inner sanctum.
+	var wl_bab: Node = get_node_or_null("/root/WorldLife")
+	if wl_bab:
+		wl_bab.spawn_bird_flock(self, 8, Vector3(0, 16, 0), size * 0.55)
+		# Incense smoke at the altar candles
+		wl_bab.spawn_chimney_smoke(self, Vector3(-2, 2.2, -size / 2 + 4))
+		wl_bab.spawn_chimney_smoke(self, Vector3(2, 2.2, -size / 2 + 4))
+		# Tower-top brazier smoke (8 towers, every other one)
+		for z_step in [-8, 0, 8]:
+			wl_bab.spawn_chimney_smoke(self, Vector3(-16, 11, z_step))
+			wl_bab.spawn_chimney_smoke(self, Vector3(16, 11, z_step))
+		# Divine motes - white-gold - over the inner sanctum
+		wl_bab.spawn_intro_motes(self, Vector3(0, 1.5, -size / 2 + 4), 5.0, Color(1.0, 0.95, 0.75, 1.0))
