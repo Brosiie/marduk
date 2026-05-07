@@ -40,8 +40,15 @@ func _try_damage(target: Node) -> void:
 		return
 	hit_set[target] = true
 	var result: DamageCalc.Result = DamageCalc.calc(attacker_stats, target, ability)
+	# Outgoing damage multiplier: applied AFTER DamageCalc so buffs like
+	# Battle Cry stack on top of the standard formula. The attacker
+	# (Player or any actor with get_outgoing_damage_mult) gets the say.
+	# Duck-typed so mobs/bosses without this method behave normally.
+	var attacker: Node = get_parent()
+	if attacker and attacker.has_method("get_outgoing_damage_mult"):
+		result.damage *= attacker.get_outgoing_damage_mult()
 	if target.has_method("take_damage"):
-		target.take_damage(result.damage, get_parent())
+		target.take_damage(result.damage, attacker)
 	# Optional: emit a signal so VFX/SFX/floating numbers can react
 	if has_node("/root/CombatBus"):
 		get_node("/root/CombatBus").emit_hit(target, result, ability)

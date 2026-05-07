@@ -39,6 +39,13 @@ const ANIM_ALIASES := {
 	"taunt":  ["marduk/taunt", "Mixamo_Taunt"],
 	"stand_up": ["marduk/stand_up", "Mixamo_Stand"],
 	"block":  ["marduk/block_idle", "marduk/katana_blocking", "marduk/shield_block"],
+	# Heavy / iai / power_up: distinct anims for the 4-slot ability kit so
+	# each Q/E/R/F plays a visibly different swing instead of the generic
+	# attack_basic. Falls through to attack if the class hasn't downloaded
+	# the specialised file yet.
+	"heavy":    ["marduk/katana_jump_attack", "marduk/katana_impact", "marduk/attack_heavy", "marduk/attack_basic"],
+	"iai":      ["marduk/katana_impact", "marduk/iai_strike", "marduk/attack_basic"],
+	"power_up": ["marduk/katana_power_up", "marduk/taunt", "marduk/unarmed_idle_looking"],
 	"turn":   ["marduk/turn_right", "marduk/change_direction", "marduk/run_to_turn", "marduk/katana_180"],
 }
 
@@ -95,6 +102,20 @@ const RAGE_MAX_MOVE_SPEED_BONUS := 0.15  # +15% move speed
 const RAGE_DECAY_PER_SEC := 4.0
 var _last_combat_time: float = -INF
 const RAGE_OUT_OF_COMBAT_GRACE := 5.0
+
+# Battle-cry / Power-up damage buff timers. Set by Q/E/R/F abilities
+# whose ID matches a known buff trigger (war_cry, power_up, battle_cry).
+# Checked by get_outgoing_damage_mult() when computing swing damage.
+var _damage_surge_until: float = 0.0
+var _damage_surge_mult: float = 1.0
+const BATTLE_CRY_DURATION := 6.0
+const BATTLE_CRY_DAMAGE_BONUS := 0.35  # +35% outgoing damage for 6s
+
+# Guard / block stance timer. While active, take_damage applies
+# GUARD_DAMAGE_REDUCTION. Set by Guard ability (id &"guard").
+var _guard_until: float = 0.0
+const GUARD_DURATION := 2.0
+const GUARD_DAMAGE_REDUCTION := 0.55  # take 45% damage while guarding
 
 # Surge-potion timers (epoch seconds). Set by use_potion(); checked by _tick_resource.
 var _mana_surge_until: float = 0.0
@@ -553,6 +574,15 @@ func _cast_ability_slot(slot: int) -> void:
 			resource_changed.emit(resource_value, stats.class_def.resource_max, &"stamina")
 	# Cooldown
 	_ability_cooldowns[slot] = now + float(k.get("cooldown", 1.0))
+	# Buff trigger: well-known ability ids grant a temporary damage
+	# surge instead of (or in addition to) hitting an enemy. This is
+	# what makes War Cry / Power Up / Battle Cry feel useful instead
+	# of being a 0-damage taunt with a long cooldown.
+	var ability_id: StringName = StringName(k.get("id", ""))
+	if ability_id in [&"war_cry", &"power_up", &"battle_cry", &"katana_power_up"]:
+		_trigger_battle_cry()
+	elif ability_id in [&"guard", &"parry"]:
+		_trigger_guard()
 	# Animation cue (best-effort)
 	if anim_player:
 		var anim_key: String = String(k.get("anim", "attack"))
@@ -628,19 +658,82 @@ func _play_deny_cue() -> void:
 	if ab and ab.has_method("play_cue"):
 		ab.play_cue(&"deny", global_position, -10.0, 1.0)
 
+# --- Damage surge buffs (Battle Cry / Power Up) ---
+func _trigger_battle_cry() -> void:
+	var now: float = Time.get_ticks_msec() / 1000.0
+	_damage_surge_until = now + BATTLE_CRY_DURATION
+	_damage_surge_mult = 1.0 + BATTLE_CRY_DAMAGE_BONUS
+	# Visual + audio feel:
+	#   gold flash on the screen so the player feels the buff land
+	#   battle-cry sound cue
+	#   toast naming the buff
+	var juice: Node = get_node_or_null("/root/Juice")
+	if juice:
+		if juice.has_method("flash"):
+			juice.flash(Color(1.0, 0.85, 0.45), 0.18, 0.40)
+		if juice.has_method("toast"):
+			juice.toast("BATTLE CRY  +%d%% DMG  %ds" % [int(BATTLE_CRY_DAMAGE_BONUS * 100), int(BATTLE_CRY_DURATION)], Color(1.0, 0.85, 0.45), 1.6)
+	var ab: Node = get_node_or_null("/root/AudioBus")
+	if ab and ab.has_method("play_cue"):
+		ab.play_cue(&"taunt", global_position, -3.0, 0.92)
+
+# Read by combat code (hitbox / ability_runner) to scale outgoing
+# damage. Multiplicative with rage buff so a 100-rage Berserker firing
+# Battle Cry stacks both (1.50 * 1.35 = 2.025x).
+func get_outgoing_damage_mult() -> float:
+	var now: float = Time.get_ticks_msec() / 1000.0
+	if now < _damage_surge_until:
+		return _damage_surge_mult
+	return 1.0
+
+# Returns true while the Guard / Parry ability's stance is active. Read
+# by take_damage to soak incoming damage.
+func is_guarding() -> bool:
+	return Time.get_ticks_msec() / 1000.0 < _guard_until
+
+func _trigger_guard() -> void:
+	var now: float = Time.get_ticks_msec() / 1000.0
+	_guard_until = now + GUARD_DURATION
+	# Camera shake when blocking lands an absorbed hit is handled in
+	# take_damage; here we just brief-flash the screen blueish to show
+	# the stance is up.
+	var juice: Node = get_node_or_null("/root/Juice")
+	if juice and juice.has_method("flash"):
+		juice.flash(Color(0.65, 0.85, 1.00), 0.10, 0.20)
+
 # --- Class kits ---
+# Default kit: 4 standard abilities every class can fall back to. Each
+# uses a distinct anim alias so visually they read differently. Class
+# kits below override this for class-specific flavor.
 func _kit_default() -> Array:
 	return [
-		{"id": &"basic_swing", "name": "Swing", "damage": 25.0, "range": 2.5, "radius": 1.4, "cooldown": 0.6, "anim": "attack"},
-		{}, {}, {}
+		# Q: Light Strike - quick fast slash. Uses attack alias (attack_basic).
+		{"id": &"light_strike", "name": "Light Strike", "damage": 25.0, "range": 2.5, "radius": 1.4, "cooldown": 0.6, "anim": "attack"},
+		# E: Heavy Strike - slow big-damage downward swing. Uses heavy alias
+		# which resolves to katana_jump_attack -> katana_impact -> attack_basic.
+		{"id": &"heavy_strike", "name": "Heavy Strike", "damage": 60.0, "range": 3.2, "radius": 2.0, "cooldown": 2.4, "anim": "heavy", "pitch": 0.78},
+		# R: Battle Cry - 6s self-buff +35% damage. Triggers _trigger_battle_cry.
+		# Uses power_up alias (katana_power_up). 0 damage, big cooldown.
+		{"id": &"battle_cry", "name": "Battle Cry", "damage": 0.0, "range": 1.0, "radius": 1.0, "cooldown": 18.0, "anim": "power_up"},
+		# F: Guard - block stance for 2s soaking damage. Uses block alias.
+		# Combat code reads is_blocking() for damage soak (separate wire).
+		{"id": &"guard", "name": "Guard", "damage": 0.0, "range": 1.0, "radius": 1.0, "cooldown": 4.0, "anim": "block"},
 	]
 
 func _kit_ronin() -> Array:
+	# Each ability uses a different anim alias so Q/E/R/F look distinct
+	# in play. All resolve to Mixamo .glbs Bond has on disk for Kachujin.
 	return [
-		{"id": &"iai_strike", "name": "Iai Strike", "damage": 38.0, "range": 3.2, "radius": 1.0, "cooldown": 0.6, "cost": 8.0, "anim": "attack", "pitch": 1.4},
+		# Q: Iai Strike - sudden draw + slash. Uses iai alias -> katana_impact.
+		{"id": &"iai_strike", "name": "Iai Strike", "damage": 38.0, "range": 3.2, "radius": 1.0, "cooldown": 0.6, "cost": 8.0, "anim": "iai", "pitch": 1.4},
+		# E: Water Breath - quick combo flow. Uses attack alias (attack_basic).
 		{"id": &"water_breath_1", "name": "Water Breath: First Form", "damage": 32.0, "range": 4.5, "radius": 2.0, "cooldown": 1.2, "cost": 12.0, "anim": "attack", "pitch": 0.95},
-		{"id": &"thunder_breath_1", "name": "Thunder Breath: First Form", "damage": 56.0, "range": 6.5, "radius": 1.6, "cooldown": 4.0, "cost": 24.0, "anim": "attack", "pitch": 1.6},
-		{"id": &"parry", "name": "Parry", "damage": 0.0, "range": 2.0, "radius": 1.0, "cooldown": 6.0, "anim": "block"},
+		# R: Thunder Breath - airborne downward slam. Uses heavy alias ->
+		# katana_jump_attack. Big damage, big cooldown, massive readability.
+		{"id": &"thunder_breath_1", "name": "Thunder Breath: First Form", "damage": 56.0, "range": 6.5, "radius": 1.6, "cooldown": 4.0, "cost": 24.0, "anim": "heavy", "pitch": 1.6},
+		# F: Power Up - 6s damage surge. Triggers _trigger_battle_cry via
+		# the &"katana_power_up" id match. Replaces the dead 0-dmg parry.
+		{"id": &"katana_power_up", "name": "Stance Resolve", "damage": 0.0, "range": 1.0, "radius": 1.0, "cooldown": 18.0, "anim": "power_up"},
 	]
 
 func _kit_berserker() -> Array:
@@ -1177,6 +1270,17 @@ func take_damage(amount: float, source: Node = null) -> void:
 	# Dodge i-frames absorb the hit completely
 	if is_invulnerable():
 		return
+	# Guard stance: reduce damage by GUARD_DAMAGE_REDUCTION (e.g., 55%
+	# soaked, 45% taken). Parry-window classes can layer on top.
+	if is_guarding():
+		amount *= (1.0 - GUARD_DAMAGE_REDUCTION)
+		# Audible + visual feedback that the block worked
+		var jc: Node = get_node_or_null("/root/Juice")
+		if jc and jc.has_method("shake"):
+			jc.shake(0.05, 0.10)
+		var ab: Node = get_node_or_null("/root/AudioBus")
+		if ab and ab.has_method("play_cue"):
+			ab.play_cue(&"block", global_position, -8.0, 1.0)
 	stats.hp = max(0.0, stats.hp - amount)
 	hp_changed.emit(stats.hp, stats.max_hp)
 	# Damage floater above the player so the player sees what's hitting them
