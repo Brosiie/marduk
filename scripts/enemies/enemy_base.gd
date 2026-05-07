@@ -172,7 +172,20 @@ func take_damage(amount: float, source: Node = null) -> void:
 	var ab = get_node_or_null("/root/AudioBus")
 	if ab and ab.has_method("play_cue"):
 		ab.play_cue(&"crit" if is_crit else &"hit", global_position, -8.0, randf_range(0.92, 1.08))
+	# Combat juice: hit-stop on every successful hit so the swing
+	# feels like it CONNECTED. Camera shake scales with damage as a
+	# fraction of max HP so big hits feel bigger.
+	var juice = get_node_or_null("/root/Juice")
+	if juice:
+		juice.hit_stop(0.05 if not is_crit else 0.10)
+		var hp_pct: float = clamp(amount / max(max_hp, 1.0), 0.0, 1.0)
+		juice.shake(0.05 + hp_pct * 0.30, 0.20)
+		if is_crit:
+			juice.flash(Color(1.0, 0.95, 0.55), 0.20, 0.18)
 	if hp <= 0.0:
+		# Cinematic death blow on a crit-kill
+		if is_crit and juice:
+			juice.cinematic_kill(global_position, 0.55)
 		_die(source)
 
 func _die(killer: Node) -> void:

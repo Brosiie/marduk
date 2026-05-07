@@ -457,6 +457,11 @@ func unlock(id: StringName) -> bool:
 	var sf = get_node_or_null("/root/SaveFlags")
 	if sf and sf.has_method("set_permanent"):
 		sf.set_permanent(StringName("ach_" + String(id)), true)
+	# Toast banner so achievements actually feel earned
+	var juice = get_node_or_null("/root/Juice")
+	if juice:
+		var ach: Achievement = achievements[id]
+		juice.toast("★  Achievement: %s" % ach.display_name, Color(1.0, 0.65, 0.10), 3.0)
 	return true
 
 func is_unlocked(id: StringName) -> bool:

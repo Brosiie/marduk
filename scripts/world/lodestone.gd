@@ -146,6 +146,13 @@ func _attune() -> void:
 		var ab = get_node_or_null("/root/AudioBus")
 		if ab and ab.has_method("play_cue"):
 			ab.play_cue(&"lodestone", global_position, -3.0, 1.0)
+		# Cinematic discovery: brief slowmo + gold screen flash + toast.
+		# Makes attunement feel like a milestone, not a chore.
+		var juice = get_node_or_null("/root/Juice")
+		if juice:
+			juice.slowmo(0.45, 0.5)
+			juice.flash(Color(1.0, 0.85, 0.45), 0.35, 0.5)
+			juice.toast("✦  Lodestone Attuned: %s  ✦" % display_name, Color(1.0, 0.85, 0.45), 3.5)
 
 # Walks the scene tree to find the HUD's MenuPanel and opens its `map` tab.
 func _open_map_panel() -> void:

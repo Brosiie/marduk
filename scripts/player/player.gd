@@ -1025,6 +1025,14 @@ func _die() -> void:
 	var ar = get_node_or_null("/root/AchievementRegistry")
 	if ar and ar.has_method("unlock"):
 		ar.unlock(&"a_first_death")
+	# Cinematic death sequence: slow-mo, red flash, YOU DIED toast,
+	# then the existing 2.5s respawn timer fires and SoulMarker
+	# drops + travel back to lodestone.
+	var juice = get_node_or_null("/root/Juice")
+	if juice:
+		juice.slowmo(0.10, 1.6)
+		juice.flash(Color(0.7, 0.05, 0.05), 0.55, 1.4)
+		juice.toast("YOU DIED", Color(0.95, 0.20, 0.20), 2.4)
 	# Multiplayer-friendly arena rule: when a player dies, that player's
 	# engagement is dropped but the BOSS keeps its HP. In a party run, the
 	# boss only resets when every player has wiped (handled by checking

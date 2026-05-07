@@ -282,6 +282,10 @@ func accept_quest(id: StringName) -> bool:
 		counters.append(0)
 	_progress[id] = counters
 	quest_accepted.emit(q)
+	# Toast banner so accepting a quest feels like a moment
+	var juice = get_node_or_null("/root/Juice")
+	if juice:
+		juice.toast("Quest: %s" % q.display_name, Color(0.95, 0.85, 0.30), 3.0)
 	return true
 
 func complete_quest(id: StringName) -> bool:
@@ -302,6 +306,11 @@ func complete_quest(id: StringName) -> bool:
 	if ar and ar.has_method("unlock"):
 		ar.unlock(&"a_first_quest")
 	quest_completed.emit(q)
+	# Toast for completion + brief slowmo to mark the moment
+	var juice = get_node_or_null("/root/Juice")
+	if juice:
+		juice.toast("✓  Quest Complete: %s" % q.display_name, Color(0.45, 0.95, 0.55), 3.5)
+		juice.flash(Color(0.45, 0.95, 0.55), 0.20, 0.4)
 	return true
 
 # Public: bump progress on every active quest whose objectives match

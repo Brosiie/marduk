@@ -55,6 +55,22 @@ func _engage(player_node: Node) -> void:
 	# Build invisible cage so the player can't leave
 	if lock_on_engage:
 		_build_gates()
+	# Cinematic engagement: name fade + camera shake (gates closing
+	# slam) + red flash. Music director will pick up the boss theme
+	# next iteration (not yet implemented).
+	var juice = get_node_or_null("/root/Juice")
+	if juice and _boss:
+		var boss_name: String = String(_boss.get("display_name") if _boss.has_method("get") else "")
+		if boss_name == "":
+			boss_name = String(_boss.name)
+		juice.shake(0.40, 0.35)  # gates slamming closed
+		juice.flash(Color(0.95, 0.20, 0.20), 0.35, 0.40)
+		juice.toast("⚔  %s  ⚔" % boss_name.to_upper(), Color(0.95, 0.20, 0.20), 4.0)
+		juice.slowmo(0.50, 0.4)
+		# Audio cue
+		var ab = get_node_or_null("/root/AudioBus")
+		if ab and ab.has_method("play_cue"):
+			ab.play_cue(&"death", global_position, -2.0, 0.55)  # deep low note
 	# Wait for boss death; then unlock
 	if _boss and _boss.has_signal("boss_defeated"):
 		_boss.boss_defeated.connect(_on_boss_defeated)

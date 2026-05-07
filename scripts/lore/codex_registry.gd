@@ -79,6 +79,13 @@ func unlock(id: StringName) -> bool:
 	_unlocked[id] = true
 	_save_flag(id)
 	entry_unlocked.emit(_entries[id])
+	# Soft toast — codex unlocks accumulate fast and shouldn't
+	# interrupt with a screen flash. Just a smaller banner.
+	var juice = get_node_or_null("/root/Juice")
+	if juice:
+		var entry: Dictionary = _entries.get(id, {})
+		var name: String = entry.get("display_name", String(id))
+		juice.toast("Codex: %s" % name, Color(0.55, 0.85, 0.95), 2.0)
 	return true
 
 func is_unlocked(id: StringName) -> bool:
