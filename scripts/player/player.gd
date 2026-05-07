@@ -341,6 +341,25 @@ func _auto_assign_class_from_scene() -> void:
 		stats.hp = stats.max_hp
 		stats.mana = stats.max_mana
 	print("[Player] auto-assigned class %s from zone %s" % [class_id, zone_id])
+	# Auto-accept the matching prologue quest so the player starts with
+	# a real objective in the quest tracker, not 'Visit Ashurim plaza'.
+	# Quest IDs follow the convention &"prologue_<class>".
+	_auto_accept_prologue(class_id)
+
+func _auto_accept_prologue(class_id: StringName) -> void:
+	var qr: Node = get_node_or_null("/root/QuestRegistry")
+	if qr == null or not qr.has_method("accept_quest"):
+		return
+	var quest_id: StringName = StringName("prologue_%s" % String(class_id))
+	# Don't re-accept if already active (player coming back to the
+	# zone after warping out)
+	if qr.has_method("get_active_quests"):
+		for q in qr.get_active_quests():
+			var qid: StringName = q.id if "id" in q else q.get("id", &"")
+			if qid == quest_id:
+				return
+	if qr.accept_quest(quest_id):
+		print("[Player] auto-accepted prologue quest %s" % quest_id)
 
 # Walk the scene to find a Geometry node carrying style_id (the
 # ZoneComposer convention). Returns the StringName style_id or &"".

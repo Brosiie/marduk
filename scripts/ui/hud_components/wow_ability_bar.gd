@@ -132,10 +132,13 @@ func _paint_all() -> void:
 	var kit: Array = []
 	if _player and "_ability_kit" in _player:
 		kit = _player._ability_kit
+	# Class color for the active-ability border. Read once per paint.
+	var class_color: Color = _read_class_color()
 	for i in range(_slot_nodes.size()):
 		var s: Control = _slot_nodes[i]
 		var icon: TextureRect = s.get_node("Icon")
-		if i < kit.size() and not kit[i].is_empty():
+		var has_ability: bool = i < kit.size() and not kit[i].is_empty()
+		if has_ability:
 			var k: Dictionary = kit[i]
 			# Procedural icon: tint a colored square by ability id hash + element
 			icon.texture = _build_ability_icon(k)
@@ -147,6 +150,40 @@ func _paint_all() -> void:
 		else:
 			icon.texture = null
 			s.tooltip_text = "Empty slot"
+		# Update slot border color: active slots glow class-colored
+		# (Berserker red, Mage blue, Ronin gold, etc), inactive stay
+		# subdued gray. The bar instantly tells the player WHICH class
+		# they're playing without checking the menu.
+		_apply_slot_border(s, class_color if has_ability else Color(0.3, 0.3, 0.35))
+
+func _apply_slot_border(slot: Control, color: Color) -> void:
+	var sb: StyleBoxFlat = slot.get_theme_stylebox("panel")
+	if sb == null:
+		return
+	# Mutate in place so we don't re-allocate StyleBoxes every paint
+	sb.border_color = color
+	sb.bg_color = Color(0.10, 0.10, 0.13, 0.95).lerp(color, 0.08)
+
+func _read_class_color() -> Color:
+	if _player == null or not "stats" in _player or _player.stats == null:
+		return Color(0.85, 0.85, 0.50, 1.0)
+	var class_def = _player.stats.class_def if "class_def" in _player.stats else null
+	if class_def == null:
+		return Color(0.85, 0.85, 0.50, 1.0)
+	# Mirror of player.gd CLASS_BUFF_COLOR. Kept here as a duplicate so
+	# the HUD doesn't need to introspect Player consts (avoids tight
+	# coupling). If colors drift, fix both.
+	match class_def.class_id:
+		&"berserker":            return Color(0.95, 0.30, 0.20, 1.0)
+		&"assassin":             return Color(0.55, 0.30, 0.85, 1.0)
+		&"ronin":                return Color(1.00, 0.85, 0.45, 1.0)
+		&"ranger":               return Color(0.40, 0.85, 0.35, 1.0)
+		&"mage":                 return Color(0.40, 0.65, 1.00, 1.0)
+		&"chaos_druid":          return Color(0.55, 0.95, 0.40, 1.0)
+		&"demon":                return Color(0.85, 0.20, 0.30, 1.0)
+		&"paladin_guardian":     return Color(0.95, 0.92, 0.75, 1.0)
+		&"paladin_lightbringer": return Color(1.00, 0.95, 0.55, 1.0)
+	return Color(0.85, 0.85, 0.50, 1.0)
 
 func _update_cooldowns() -> void:
 	if _player == null:
