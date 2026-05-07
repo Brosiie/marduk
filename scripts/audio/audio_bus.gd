@@ -133,6 +133,11 @@ func _fill_buffer(pb: AudioStreamGeneratorPlayback, name: StringName) -> void:
 		&"step_heavy":    _gen_burst(pb, 70.0, 50.0, 0.06, 0.30)
 		# Weather: thunder is a short low rumble + sharp transient
 		&"thunder":       _gen_thunder(pb)
+		# Element-themed cast cues so fire abilities don't sound like swords
+		&"fire_cast":     _gen_burst(pb, 180.0, 60.0, 0.18, 0.45)   # whoosh + low crackle
+		&"frost_cast":    _gen_chirp(pb, 880.0, 1320.0, 0.18)        # high crystalline chirp
+		&"holy_cast":     _gen_arp(pb, [440.0, 660.0, 880.0], 0.05)  # bright triad
+		&"shadow_cast":   _gen_burst(pb, 80.0, 50.0, 0.30, 0.5)     # deep dread tone
 		_:                _gen_burst(pb, 440.0, 100.0, 0.08, 0.3)
 
 # Thunder: a sharp crack (high-freq transient) followed by a low

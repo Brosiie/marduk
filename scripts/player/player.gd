@@ -685,10 +685,13 @@ func _cast_ability_slot(slot: int) -> void:
 	hb.position = global_position + fwd * (swing.range * 0.5)
 	hb.look_at(global_position + fwd * swing.range, Vector3.UP)
 	get_tree().current_scene.add_child(hb)
-	# Audio cue
+	# Audio cue: per-element so fire abilities sound different than holy
+	# than swords. Picks the cue from element type, falls back to swing.
 	var ab = get_node_or_null("/root/AudioBus")
 	if ab and ab.has_method("play_cue"):
-		ab.play_cue(&"swing", global_position, -7.0, float(k.get("pitch", 1.0)))
+		var elem: int = int(k.get("element", Ability.DamageType.PHYSICAL))
+		var cue: StringName = _cue_for_element(elem)
+		ab.play_cue(cue, global_position, -7.0, float(k.get("pitch", 1.0)))
 	# Breath-trail VFX. Picks Demon Slayer style by ability id when available
 	# so Ronin's swings actually look like breathing forms.
 	var trail_style: StringName = _trail_style_for(StringName(k.get("id", "")))
@@ -696,7 +699,78 @@ func _cast_ability_slot(slot: int) -> void:
 		var trail_script: GDScript = load("res://scripts/vfx/breath_trail.gd")
 		if trail_script and trail_script.has_method("spawn"):
 			trail_script.spawn(self, trail_style)
+	# Cast burst: small particle puff at cast point, color-coded to
+	# the ability element. Reads as 'magic happens here'.
+	_spawn_cast_burst(int(k.get("element", Ability.DamageType.PHYSICAL)))
 	on_combat_event(2.0)
+
+# Maps Ability.DamageType to the AudioBus cue name. Each element gets
+# its own procedural sound: fire = low burst, lightning = high crack,
+# frost = chirp, holy = arpeggio, shadow = deep tone, physical = swing.
+func _cue_for_element(element: int) -> StringName:
+	match element:
+		Ability.DamageType.FIRE:      return &"fire_cast"
+		Ability.DamageType.LIGHTNING: return &"thunder"  # reuses storm cue
+		Ability.DamageType.FROST:     return &"frost_cast"
+		Ability.DamageType.HOLY:      return &"holy_cast"
+		Ability.DamageType.SHADOW:    return &"shadow_cast"
+		Ability.DamageType.ARCANE:    return &"frost_cast"  # arcane = high chirp
+	return &"swing"
+
+# Cast burst: short-lived particle pop at the player's hand height,
+# color-themed to ability element. Spawned at the player's forward
+# offset so it reads as the spell launching.
+func _spawn_cast_burst(element: int) -> void:
+	var color: Color = _color_for_element(element)
+	var burst := GPUParticles3D.new()
+	burst.name = "CastBurst"
+	burst.amount = 22
+	burst.lifetime = 0.6
+	burst.one_shot = true
+	burst.explosiveness = 0.95
+	burst.visibility_aabb = AABB(Vector3(-2, -1, -2), Vector3(4, 4, 4))
+	var mat := ParticleProcessMaterial.new()
+	mat.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_SPHERE
+	mat.emission_sphere_radius = 0.18
+	mat.direction = Vector3.UP
+	mat.spread = 60.0
+	mat.initial_velocity_min = 1.2
+	mat.initial_velocity_max = 2.6
+	mat.gravity = Vector3(0, -1.5, 0)
+	mat.scale_min = 0.10
+	mat.scale_max = 0.22
+	mat.color = color
+	burst.process_material = mat
+	var quad := QuadMesh.new()
+	quad.size = Vector2(0.20, 0.20)
+	var smat := StandardMaterial3D.new()
+	smat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	smat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	smat.albedo_color = color
+	smat.emission_enabled = true
+	smat.emission = color
+	smat.emission_energy_multiplier = 1.6
+	smat.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
+	smat.billboard_keep_scale = true
+	quad.material = smat
+	burst.draw_pass_1 = quad
+	get_tree().current_scene.add_child(burst)
+	var fwd := -mesh.global_transform.basis.z if mesh else -global_transform.basis.z
+	fwd.y = 0
+	if fwd.length_squared() > 0.001:
+		fwd = fwd.normalized()
+	burst.global_position = global_position + Vector3(0, 1.2, 0) + fwd * 0.8
+	get_tree().create_timer(1.2).timeout.connect(func(): if is_instance_valid(burst): burst.queue_free())
+
+func _color_for_element(element: int) -> Color:
+	match element:
+		Ability.DamageType.FIRE:      return Color(1.00, 0.45, 0.20)
+		Ability.DamageType.LIGHTNING: return Color(0.95, 0.95, 0.40)
+		Ability.DamageType.FROST:     return Color(0.65, 0.85, 1.00)
+		Ability.DamageType.HOLY:      return Color(1.00, 0.85, 0.45)
+		Ability.DamageType.SHADOW:    return Color(0.55, 0.20, 0.65)
+		Ability.DamageType.ARCANE:    return Color(0.45, 0.40, 0.95)
+	return Color(0.85, 0.85, 0.85)  # physical = pale
 
 # Maps ability ids -> Demon-Slayer-style breathing colors. Non-Ronin classes
 # get a neutral physical / element style based on the ability's element.
@@ -921,123 +995,90 @@ func _kit_default() -> Array:
 	]
 
 func _kit_ronin() -> Array:
-	# Each ability uses a different anim alias so Q/E/R/F look distinct
-	# in play. All resolve to Mixamo .glbs Bond has on disk for Kachujin.
+	# Ronin: physical katana strikes themed by Demon-Slayer breathing
+	# forms. iai/water/thunder anims trigger trail VFX in matching colors.
+	# Thunder Breath is electrically-themed -> LIGHTNING element.
 	return [
-		# Q: Iai Strike - sudden draw + slash. Uses iai alias -> katana_impact.
-		{"id": &"iai_strike", "name": "Iai Strike", "damage": 38.0, "range": 3.2, "radius": 1.0, "cooldown": 0.6, "cost": 8.0, "anim": "iai", "pitch": 1.4},
-		# E: Water Breath - quick combo flow. Uses attack alias (attack_basic).
-		{"id": &"water_breath_1", "name": "Water Breath: First Form", "damage": 32.0, "range": 4.5, "radius": 2.0, "cooldown": 1.2, "cost": 12.0, "anim": "attack", "pitch": 0.95},
-		# R: Thunder Breath - airborne downward slam. Uses heavy alias ->
-		# katana_jump_attack. Big damage, big cooldown, massive readability.
-		{"id": &"thunder_breath_1", "name": "Thunder Breath: First Form", "damage": 56.0, "range": 6.5, "radius": 1.6, "cooldown": 4.0, "cost": 24.0, "anim": "heavy", "pitch": 1.6},
-		# F: Power Up - 6s damage surge. Triggers _trigger_battle_cry via
-		# the &"katana_power_up" id match. Replaces the dead 0-dmg parry.
-		{"id": &"katana_power_up", "name": "Stance Resolve", "damage": 0.0, "range": 1.0, "radius": 1.0, "cooldown": 18.0, "anim": "power_up"},
+		# Q: Iai Strike - sudden draw + slash, water-themed trail.
+		{"id": &"iai_strike", "name": "Iai Strike", "damage": 38.0, "range": 3.2, "radius": 1.0, "cooldown": 0.6, "cost": 8.0, "element": Ability.DamageType.PHYSICAL, "anim": "iai", "pitch": 1.4, "desc": "A sudden draw-cut. Quick, precise, water-flowing."},
+		# E: Water Breath - quick combo flow, water trail
+		{"id": &"water_breath_1", "name": "Water Breath: First Form", "damage": 32.0, "range": 4.5, "radius": 2.0, "cooldown": 1.2, "cost": 12.0, "element": Ability.DamageType.PHYSICAL, "anim": "attack", "pitch": 0.95, "desc": "First form. Slashing arc that flows like water."},
+		# R: Thunder Breath - airborne slam, lightning trail + LIGHTNING dmg
+		{"id": &"thunder_breath_1", "name": "Thunder Breath: First Form", "damage": 56.0, "range": 6.5, "radius": 1.6, "cooldown": 4.0, "cost": 24.0, "element": Ability.DamageType.LIGHTNING, "anim": "heavy", "pitch": 1.6, "desc": "Falling thunder. Strike from above, faster than sight."},
+		# F: Power Up - +35% damage 6s buff (BATTLE_CRY_IDS match)
+		{"id": &"katana_power_up", "name": "Stance Resolve", "damage": 0.0, "range": 1.0, "radius": 1.0, "cooldown": 18.0, "anim": "power_up", "desc": "Center yourself. +35% damage for 6 seconds."},
 	]
 
 func _kit_berserker() -> Array:
 	# Aggression. War Cry triggers Battle Cry buff (red rage flash).
 	return [
-		# Q: Cleave - quick wide swing
-		{"id": &"cleave_1", "name": "Cleave", "damage": 40.0, "range": 3.0, "radius": 2.0, "cooldown": 0.8, "anim": "attack", "pitch": 0.85},
-		# E: Leap Smash - airborne committed attack
-		{"id": &"leap_smash", "name": "Leap Smash", "damage": 60.0, "range": 4.0, "radius": 2.4, "cooldown": 6.0, "anim": "heavy", "pitch": 0.8},
-		# R: War Cry - +35% damage buff for 6s (Battle Cry trigger)
-		{"id": &"war_cry", "name": "War Cry", "damage": 0.0, "range": 6.0, "radius": 6.0, "cooldown": 14.0, "anim": "power_up"},
-		# F: Fury Swing - heaviest strike, gates on long cooldown
-		{"id": &"fury_swing", "name": "Fury Swing", "damage": 80.0, "range": 3.5, "radius": 2.0, "cooldown": 4.0, "anim": "heavy", "pitch": 0.75},
+		{"id": &"cleave_1", "name": "Cleave", "damage": 40.0, "range": 3.0, "radius": 2.0, "cooldown": 0.8, "element": Ability.DamageType.PHYSICAL, "anim": "attack", "pitch": 0.85, "desc": "A wide horizontal swing. Hits everything in front."},
+		{"id": &"leap_smash", "name": "Leap Smash", "damage": 60.0, "range": 4.0, "radius": 2.4, "cooldown": 6.0, "element": Ability.DamageType.PHYSICAL, "anim": "heavy", "pitch": 0.8, "desc": "Leap forward and slam down. Knocks back lighter mobs."},
+		{"id": &"war_cry", "name": "War Cry", "damage": 0.0, "range": 6.0, "radius": 6.0, "cooldown": 14.0, "anim": "power_up", "desc": "Roar of rage. +35% damage for 6 seconds."},
+		{"id": &"fury_swing", "name": "Fury Swing", "damage": 80.0, "range": 3.5, "radius": 2.0, "cooldown": 4.0, "element": Ability.DamageType.PHYSICAL, "anim": "heavy", "pitch": 0.75, "desc": "Two-handed overhead chop. Heaviest strike in the kit."},
 	]
 
 func _kit_assassin() -> Array:
 	# Quick precision; Stealth doubles as a Battle Cry buff trigger.
 	return [
-		# Q: Dagger Combo - quick draw + slash via iai (katana_impact)
-		{"id": &"dagger_1", "name": "Dagger Combo", "damage": 24.0, "range": 2.2, "radius": 1.0, "cooldown": 0.4, "cost": 5.0, "anim": "iai", "pitch": 1.5},
-		# E: Backstab - heavy precision strike
-		{"id": &"backstab", "name": "Backstab", "damage": 70.0, "range": 2.0, "radius": 0.8, "cooldown": 5.0, "cost": 18.0, "anim": "heavy", "pitch": 1.3},
-		# R: Throw Kunai - ranged
-		{"id": &"throw_kunai", "name": "Throw Kunai", "damage": 22.0, "range": 12.0, "radius": 0.6, "cooldown": 1.0, "cost": 8.0, "anim": "attack", "pitch": 1.6},
-		# F: Shadow Veil - 6s damage buff (themed flash violet)
-		{"id": &"stealth_form", "name": "Shadow Veil", "damage": 0.0, "range": 1.0, "radius": 1.0, "cooldown": 18.0, "anim": "power_up"},
+		{"id": &"dagger_1", "name": "Dagger Combo", "damage": 24.0, "range": 2.2, "radius": 1.0, "cooldown": 0.4, "cost": 5.0, "element": Ability.DamageType.PHYSICAL, "anim": "iai", "pitch": 1.5, "desc": "Three-stab combo. Builds combo stacks fast."},
+		{"id": &"backstab", "name": "Backstab", "damage": 70.0, "range": 2.0, "radius": 0.8, "cooldown": 5.0, "cost": 18.0, "element": Ability.DamageType.PHYSICAL, "anim": "heavy", "pitch": 1.3, "desc": "Massive single-target hit. Crit chance bumps from behind."},
+		{"id": &"throw_kunai", "name": "Throw Kunai", "damage": 22.0, "range": 12.0, "radius": 0.6, "cooldown": 1.0, "cost": 8.0, "element": Ability.DamageType.PHYSICAL, "anim": "attack", "pitch": 1.6, "desc": "Ranged thrown blade. Long-range pickoff."},
+		{"id": &"stealth_form", "name": "Shadow Veil", "damage": 0.0, "range": 1.0, "radius": 1.0, "cooldown": 18.0, "element": Ability.DamageType.SHADOW, "anim": "power_up", "desc": "Wrap yourself in shadow. +35% damage for 6 seconds."},
 	]
 
 func _kit_ranger() -> Array:
 	# Bow class: range + Hawk's Eye buff.
 	return [
-		# Q: Arrow Shot - basic ranged
-		{"id": &"arrow_shot", "name": "Arrow Shot", "damage": 30.0, "range": 14.0, "radius": 0.6, "cooldown": 0.5, "cost": 5.0, "anim": "attack", "pitch": 1.3},
-		# E: Snipe - charged precision
-		{"id": &"snipe", "name": "Snipe", "damage": 90.0, "range": 24.0, "radius": 0.5, "cooldown": 6.0, "cost": 22.0, "anim": "heavy", "pitch": 1.0},
-		# R: Hawk's Eye - +35% damage buff (Battle Cry trigger via hawk_command id)
-		{"id": &"hawk_command", "name": "Hawk's Eye", "damage": 0.0, "range": 1.0, "radius": 1.0, "cooldown": 14.0, "anim": "power_up"},
-		# F: Bear Trap - place hostile zone
-		{"id": &"trap_set", "name": "Bear Trap", "damage": 35.0, "range": 4.0, "radius": 1.5, "cooldown": 10.0, "anim": "block"},
+		{"id": &"arrow_shot", "name": "Arrow Shot", "damage": 30.0, "range": 14.0, "radius": 0.6, "cooldown": 0.5, "cost": 5.0, "element": Ability.DamageType.PHYSICAL, "anim": "attack", "pitch": 1.3, "desc": "Quick bow shot. Sustained ranged DPS."},
+		{"id": &"snipe", "name": "Snipe", "damage": 90.0, "range": 24.0, "radius": 0.5, "cooldown": 6.0, "cost": 22.0, "element": Ability.DamageType.PHYSICAL, "anim": "heavy", "pitch": 1.0, "desc": "Charged precision shot from extreme range."},
+		{"id": &"hawk_command", "name": "Hawk's Eye", "damage": 0.0, "range": 1.0, "radius": 1.0, "cooldown": 14.0, "anim": "power_up", "desc": "Focus the hunt. +35% damage for 6 seconds."},
+		{"id": &"trap_set", "name": "Bear Trap", "damage": 35.0, "range": 4.0, "radius": 1.5, "cooldown": 10.0, "element": Ability.DamageType.PHYSICAL, "anim": "block", "desc": "Place a snare in front of you. Triggers on contact."},
 	]
 
 func _kit_mage() -> Array:
 	# Spell-slinger: Mana Shield is Guard, Frost Nova is AOE.
 	return [
-		# Q: Spark - quick ranged lightning
-		{"id": &"spark", "name": "Spark", "damage": 22.0, "range": 12.0, "radius": 1.0, "cooldown": 0.6, "cost": 5.0, "element": Ability.DamageType.LIGHTNING, "anim": "iai", "pitch": 1.5},
-		# E: Fireball - charged AOE
-		{"id": &"fireball", "name": "Fireball", "damage": 65.0, "range": 14.0, "radius": 2.5, "cooldown": 3.0, "cost": 22.0, "element": Ability.DamageType.FIRE, "anim": "heavy", "pitch": 0.85},
-		# R: Frost Nova - point-blank AOE freeze
-		{"id": &"frost_nova", "name": "Frost Nova", "damage": 45.0, "range": 5.0, "radius": 5.0, "cooldown": 8.0, "cost": 28.0, "element": Ability.DamageType.FROST, "anim": "attack", "pitch": 0.7},
-		# F: Mana Shield - 2s damage soak (Guard trigger via mana_shield id)
-		{"id": &"mana_shield", "name": "Mana Shield", "damage": 0.0, "range": 1.0, "radius": 1.0, "cooldown": 6.0, "cost": 15.0, "anim": "block"},
+		{"id": &"spark", "name": "Spark", "damage": 22.0, "range": 12.0, "radius": 1.0, "cooldown": 0.6, "cost": 5.0, "element": Ability.DamageType.LIGHTNING, "anim": "iai", "pitch": 1.5, "desc": "Quick lightning bolt. Sustained ranged DPS."},
+		{"id": &"fireball", "name": "Fireball", "damage": 65.0, "range": 14.0, "radius": 2.5, "cooldown": 3.0, "cost": 22.0, "element": Ability.DamageType.FIRE, "anim": "heavy", "pitch": 0.85, "desc": "Hurl a flaming sphere. AOE on impact."},
+		{"id": &"frost_nova", "name": "Frost Nova", "damage": 45.0, "range": 5.0, "radius": 5.0, "cooldown": 8.0, "cost": 28.0, "element": Ability.DamageType.FROST, "anim": "attack", "pitch": 0.7, "desc": "Burst of ice in all directions. Slows enemies on hit."},
+		{"id": &"mana_shield", "name": "Mana Shield", "damage": 0.0, "range": 1.0, "radius": 1.0, "cooldown": 6.0, "cost": 15.0, "element": Ability.DamageType.ARCANE, "anim": "power_up", "desc": "Soak 55% damage for 2 seconds."},
 	]
 
 func _kit_druid() -> Array:
 	# Shapeshifter; Druid Form triggers Battle Cry-equivalent buff.
 	return [
-		# Q: Vine Lash - quick range
-		{"id": &"vine_lash", "name": "Vine Lash", "damage": 30.0, "range": 5.0, "radius": 1.5, "cooldown": 0.7, "cost": 6.0, "anim": "attack", "pitch": 0.9},
-		# E: Bear Swipe - heavy melee
-		{"id": &"bear_swipe", "name": "Bear Swipe", "damage": 55.0, "range": 3.0, "radius": 2.4, "cooldown": 4.0, "cost": 18.0, "anim": "heavy", "pitch": 0.7},
-		# R: Druid Form - Battle Cry-equivalent buff (lime flash)
-		{"id": &"druid_form", "name": "Primal Form", "damage": 0.0, "range": 1.0, "radius": 1.0, "cooldown": 18.0, "anim": "power_up"},
-		# F: Plant Totem - utility AOE that places a stationary aura
-		{"id": &"totem_plant", "name": "Plant Totem", "damage": 0.0, "range": 3.0, "radius": 4.0, "cooldown": 18.0, "cost": 25.0, "anim": "stand_up"},
+		{"id": &"vine_lash", "name": "Vine Lash", "damage": 30.0, "range": 5.0, "radius": 1.5, "cooldown": 0.7, "cost": 6.0, "element": Ability.DamageType.PHYSICAL, "anim": "attack", "pitch": 0.9, "desc": "Whip out vines from the earth. Mid-range pull."},
+		{"id": &"bear_swipe", "name": "Bear Swipe", "damage": 55.0, "range": 3.0, "radius": 2.4, "cooldown": 4.0, "cost": 18.0, "element": Ability.DamageType.PHYSICAL, "anim": "heavy", "pitch": 0.7, "desc": "Channel the bear. Heavy clawed swipe."},
+		{"id": &"druid_form", "name": "Primal Form", "damage": 0.0, "range": 1.0, "radius": 1.0, "cooldown": 18.0, "anim": "power_up", "desc": "Become the wild. +35% damage for 6 seconds."},
+		{"id": &"totem_plant", "name": "Plant Totem", "damage": 0.0, "range": 3.0, "radius": 4.0, "cooldown": 18.0, "cost": 25.0, "element": Ability.DamageType.PHYSICAL, "anim": "stand_up", "desc": "Plant a healing totem. Allies in the radius regenerate."},
 	]
 
 func _kit_demon() -> Array:
 	# Hellfire + soul magic; Demon Form is the buff cap.
 	return [
-		# Q: Claw Rake - fast melee
-		{"id": &"claw_rake", "name": "Claw Rake", "damage": 38.0, "range": 2.6, "radius": 1.4, "cooldown": 0.5, "anim": "iai", "pitch": 0.95},
-		# E: Hellfire Burst - AOE fire
-		{"id": &"hellfire_burst", "name": "Hellfire Burst", "damage": 70.0, "range": 5.0, "radius": 5.0, "cooldown": 6.0, "element": Ability.DamageType.FIRE, "anim": "heavy", "pitch": 0.7},
-		# R: Soul Drain - shadow lifesteal (range)
-		{"id": &"soul_drain", "name": "Soul Drain", "damage": 55.0, "range": 8.0, "radius": 1.5, "cooldown": 4.0, "element": Ability.DamageType.SHADOW, "anim": "attack", "pitch": 0.85},
-		# F: Demon Form - Battle Cry buff (hellfire-red flash)
-		{"id": &"demon_form", "name": "Demon Unleashed", "damage": 0.0, "range": 1.0, "radius": 1.0, "cooldown": 18.0, "anim": "power_up"},
+		{"id": &"claw_rake", "name": "Claw Rake", "damage": 38.0, "range": 2.6, "radius": 1.4, "cooldown": 0.5, "element": Ability.DamageType.SHADOW, "anim": "iai", "pitch": 0.95, "desc": "Fast clawed rake. Inflicts bleed."},
+		{"id": &"hellfire_burst", "name": "Hellfire Burst", "damage": 70.0, "range": 5.0, "radius": 5.0, "cooldown": 6.0, "element": Ability.DamageType.FIRE, "anim": "heavy", "pitch": 0.7, "desc": "Erupt hellfire around you. AOE inferno."},
+		{"id": &"soul_drain", "name": "Soul Drain", "damage": 55.0, "range": 8.0, "radius": 1.5, "cooldown": 4.0, "element": Ability.DamageType.SHADOW, "anim": "attack", "pitch": 0.85, "desc": "Drain a foe's life-force. Heals you for 25% damage dealt."},
+		{"id": &"demon_form", "name": "Demon Unleashed", "damage": 0.0, "range": 1.0, "radius": 1.0, "cooldown": 18.0, "element": Ability.DamageType.SHADOW, "anim": "power_up", "desc": "Embrace the demon. +35% damage for 6 seconds."},
 	]
 
 func _kit_paladin_guardian() -> Array:
 	# Tank-paladin: Divine Shield is Guard, holy strikes for damage.
 	return [
-		# Q: Sword Smite - holy melee
-		{"id": &"sword_smite", "name": "Sword Smite", "damage": 42.0, "range": 3.0, "radius": 1.6, "cooldown": 0.7, "cost": 6.0, "element": Ability.DamageType.HOLY, "anim": "attack", "pitch": 1.1},
-		# E: Shield Bash - close stagger
-		{"id": &"shield_bash", "name": "Shield Bash", "damage": 28.0, "range": 2.4, "radius": 1.6, "cooldown": 4.0, "cost": 12.0, "anim": "block", "pitch": 0.9},
-		# R: Judgment Strike - heavy holy slam (capstone)
-		{"id": &"judgment", "name": "Judgment Strike", "damage": 110.0, "range": 3.5, "radius": 2.0, "cooldown": 18.0, "cost": 50.0, "element": Ability.DamageType.HOLY, "anim": "heavy", "pitch": 0.9},
-		# F: Divine Shield - 2s damage soak (Guard trigger)
-		{"id": &"divine_shield", "name": "Divine Shield", "damage": 0.0, "range": 1.0, "radius": 1.0, "cooldown": 12.0, "cost": 30.0, "anim": "power_up"},
+		{"id": &"sword_smite", "name": "Sword Smite", "damage": 42.0, "range": 3.0, "radius": 1.6, "cooldown": 0.7, "cost": 6.0, "element": Ability.DamageType.HOLY, "anim": "attack", "pitch": 1.1, "desc": "Holy melee strike. Bonus damage to undead."},
+		{"id": &"shield_bash", "name": "Shield Bash", "damage": 28.0, "range": 2.4, "radius": 1.6, "cooldown": 4.0, "cost": 12.0, "element": Ability.DamageType.PHYSICAL, "anim": "block", "pitch": 0.9, "desc": "Slam your shield. Staggers the target."},
+		{"id": &"judgment", "name": "Judgment Strike", "damage": 110.0, "range": 3.5, "radius": 2.0, "cooldown": 18.0, "cost": 50.0, "element": Ability.DamageType.HOLY, "anim": "heavy", "pitch": 0.9, "desc": "Capstone holy slam. Massive AOE damage."},
+		{"id": &"divine_shield", "name": "Divine Shield", "damage": 0.0, "range": 1.0, "radius": 1.0, "cooldown": 12.0, "cost": 30.0, "element": Ability.DamageType.HOLY, "anim": "power_up", "desc": "Halve incoming damage for 2 seconds."},
 	]
 
 func _kit_paladin_light() -> Array:
 	# Holy support: Sun Beam ranged, Healing Aura HEALS the player.
 	return [
-		# Q: Mace Swing - basic holy melee
-		{"id": &"mace_swing", "name": "Mace Swing", "damage": 30.0, "range": 2.6, "radius": 1.4, "cooldown": 0.6, "cost": 4.0, "element": Ability.DamageType.HOLY, "anim": "attack"},
-		# E: Sun Beam - focused holy beam
-		{"id": &"sun_beam", "name": "Sun Beam", "damage": 60.0, "range": 12.0, "radius": 1.0, "cooldown": 5.0, "cost": 24.0, "element": Ability.DamageType.HOLY, "anim": "iai", "pitch": 1.4},
-		# R: Holy Pillar - heavy AOE
-		{"id": &"holy_pillar", "name": "Holy Pillar", "damage": 80.0, "range": 5.0, "radius": 2.5, "cooldown": 12.0, "cost": 35.0, "element": Ability.DamageType.HOLY, "anim": "heavy", "pitch": 1.0},
-		# F: Healing Aura - heals player 30% max HP (Heal trigger)
-		{"id": &"healing_aura", "name": "Healing Aura", "damage": 0.0, "range": 4.0, "radius": 8.0, "cooldown": 18.0, "cost": 35.0, "anim": "power_up"},
+		{"id": &"mace_swing", "name": "Mace Swing", "damage": 30.0, "range": 2.6, "radius": 1.4, "cooldown": 0.6, "cost": 4.0, "element": Ability.DamageType.HOLY, "anim": "attack", "desc": "Holy mace strike. Sustained holy DPS."},
+		{"id": &"sun_beam", "name": "Sun Beam", "damage": 60.0, "range": 12.0, "radius": 1.0, "cooldown": 5.0, "cost": 24.0, "element": Ability.DamageType.HOLY, "anim": "iai", "pitch": 1.4, "desc": "Focused beam of sunlight. Long-range holy."},
+		{"id": &"holy_pillar", "name": "Holy Pillar", "damage": 80.0, "range": 5.0, "radius": 2.5, "cooldown": 12.0, "cost": 35.0, "element": Ability.DamageType.HOLY, "anim": "heavy", "pitch": 1.0, "desc": "Pillar of light from above. AOE smite."},
+		{"id": &"healing_aura", "name": "Healing Aura", "damage": 0.0, "range": 4.0, "radius": 8.0, "cooldown": 18.0, "cost": 35.0, "element": Ability.DamageType.HOLY, "anim": "power_up", "desc": "Heal yourself for 30% max HP."},
 	]
 
 # Short forward dash with i-frames + dodge animation. Bound to Shift via
