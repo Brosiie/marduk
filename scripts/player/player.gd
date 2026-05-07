@@ -25,6 +25,14 @@ const ANIM_ALIASES := {
 	"run":    ["marduk/run", "marduk/run_left", "Mixamo_Running", "run", "Running_A", "Running_B", "Running_Strafe_Right"],
 	"attack": ["marduk/attack_basic", "marduk/attack_combo_1", "marduk/cleave_1", "marduk/dagger_1", "marduk/iai_strike", "marduk/cast_release", "Mixamo_Sword_Slash", "attack", "1H_Melee_Attack_Slice_Diagonal", "1H_Melee_Attack_Slice_Horizontal", "1H_Melee_Attack_Chop", "Unarmed_Melee_Attack_Punch_A"],
 	"dodge":  ["marduk/dodge_forward", "marduk/dodge_back", "marduk/dodge_corkscrew", "Mixamo_Dodge", "dodge", "Dodge_Forward", "Dodge_Right", "Cheer"],
+	# Directional dodge variants resolved separately so _perform_dodge picks
+	# the right Mixamo file based on input vs facing. Falls through to the
+	# generic "dodge" slot when a direction is missing. Bond's 2026-05-07
+	# anim drop filled all four cardinal slots.
+	"dodge_forward":  ["marduk/dodge_forward", "marduk/dodge_corkscrew", "marduk/dodge_back"],
+	"dodge_back":     ["marduk/dodge_back", "marduk/dodge_corkscrew", "marduk/dodge_forward"],
+	"dodge_left":     ["marduk/dodge_left", "marduk/dodge_corkscrew", "marduk/dodge_back"],
+	"dodge_right":    ["marduk/dodge_right", "marduk/dodge_corkscrew", "marduk/dodge_back"],
 	"die":    ["marduk/death", "marduk/death_forward", "marduk/death_react_forward", "marduk/death_react_right", "marduk/death_back", "Mixamo_Dying", "die", "Death_A", "Death_A_Pose", "Death_B"],
 	"hit":    ["marduk/hit_react", "marduk/hit_react_left", "marduk/hit_react_right", "Mixamo_Hit", "hit", "Hit_A", "Hit_B"],
 	"jump":   ["marduk/jump_up", "marduk/jump_down", "Mixamo_Jump", "jump", "Jump_Full_Long", "Jump_Start"],
@@ -719,12 +727,6 @@ func _perform_dodge() -> void:
 		return
 	if has_stamina:
 		resource_value = max(0.0, resource_value - DODGE_STAMINA_COST)
-	# Animation
-	if anim_player:
-		var dodge_name: String = _resolved_anims.get("dodge", "")
-		if dodge_name != "":
-			anim_player.stop()
-			anim_player.play(dodge_name)
 	# Direction: current input dir if moving, else mesh forward
 	var dir: Vector3 = input_dir
 	if dir.length_squared() < 0.001 and mesh:
@@ -733,6 +735,15 @@ func _perform_dodge() -> void:
 	if dir.length_squared() < 0.001:
 		return
 	dir = dir.normalized()
+	# Directional animation: pick the dodge slot that matches the dodge
+	# vector relative to the player's facing. Forward dot > 0.5 -> forward;
+	# < -0.5 -> back; otherwise classify by sign of right-cross.
+	if anim_player:
+		var slot_key: String = _classify_dodge_dir(dir)
+		var anim_name: String = _resolved_anims.get(slot_key, _resolved_anims.get("dodge", ""))
+		if anim_name != "":
+			anim_player.stop()
+			anim_player.play(anim_name)
 	_dodging = true
 	_dodge_iframes_until = (Time.get_ticks_msec() / 1000.0) + DODGE_IFRAME_DURATION
 	# Tween position over DODGE_DURATION
@@ -740,6 +751,30 @@ func _perform_dodge() -> void:
 	var tw := create_tween()
 	tw.tween_property(self, "global_position", target_pos, DODGE_DURATION).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 	tw.tween_callback(func(): _dodging = false)
+
+# Picks the right ANIM_ALIASES key for a dodge in `world_dir`. Compares
+# the dodge vector to the player's mesh forward (and right via cross
+# product) to decide forward/back/left/right. Returns one of:
+#   "dodge_forward" / "dodge_back" / "dodge_left" / "dodge_right"
+# Generic "dodge" is used as the fallback inside _perform_dodge so this
+# never returns "dodge" directly.
+func _classify_dodge_dir(world_dir: Vector3) -> String:
+	if mesh == null:
+		return "dodge_forward"
+	var forward: Vector3 = -mesh.global_transform.basis.z
+	forward.y = 0.0
+	if forward.length_squared() < 0.001:
+		return "dodge_forward"
+	forward = forward.normalized()
+	var fwd_dot: float = forward.dot(world_dir)
+	if fwd_dot > 0.5:
+		return "dodge_forward"
+	if fwd_dot < -0.5:
+		return "dodge_back"
+	# Sideways: figure left vs right via cross
+	var right: Vector3 = forward.cross(Vector3.UP).normalized()
+	var right_dot: float = right.dot(world_dir)
+	return "dodge_right" if right_dot > 0.0 else "dodge_left"
 
 # Combat damage filter — dodging i-frames make the player invulnerable
 # during the early window. Combat code can call this gate before applying

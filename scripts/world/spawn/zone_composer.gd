@@ -93,11 +93,10 @@ func _sakura(asset: String, pos: Vector3, rot_y_deg: float = 0.0, scale: float =
 	var inst := _nat(asset, pos, rot_y_deg, scale)
 	if inst == null:
 		return null
-	# Light pink for blossoms (foliage); slightly desaturated brown for trunk
-	# so contrast reads. We tint ALL surfaces because we can't easily tell
-	# which ones are foliage vs trunk in the imported .glb hierarchy.
-	# Pink reads dominant against a green/grass floor either way.
-	_tint_tree(inst, Color(1.00, 0.78, 0.85, 1.0))
+	# Light pink + wind sway. anchor=0.4 keeps the trunk planted while
+	# the canopy moves. amplitude=0.18 gives readable canopy bob without
+	# tearing the tree apart visually.
+	_apply_wind_tint(inst, Color(1.00, 0.78, 0.85, 1.0), 0.18, 0.4)
 	return inst
 
 # Walk MeshInstance3Ds under `node` and slap a pink-tinted StandardMaterial3D
@@ -114,6 +113,60 @@ func _tint_tree(node: Node, tint: Color) -> void:
 				mi.set_surface_override_material(i, mat)
 	for c in node.get_children():
 		_tint_tree(c, tint)
+
+# Wind shader: stylized vertex displacement. Reusing one Shader resource
+# across all instances so the GPU compiles it once. Loaded lazily so
+# zones that don't use wind don't pay the cost.
+var _wind_shader: Shader = null
+
+func _get_wind_shader() -> Shader:
+	if _wind_shader == null:
+		_wind_shader = load("res://shaders/wind.gdshader")
+	return _wind_shader
+
+# Replace every MeshInstance3D surface under `node` with a wind
+# ShaderMaterial tinted to `color`. Bigger `amplitude` = more sway;
+# `anchor` (model-Y) is the height below which vertices stay planted.
+#
+# Recommended params:
+#   sakura tree foliage: color=pink   amplitude=0.18 anchor=0.4
+#   banner / flag:       color=red    amplitude=0.40 anchor=0.0
+#   tall grass / bush:   color=green  amplitude=0.06 anchor=0.0
+func _apply_wind_tint(node: Node, color: Color, amplitude: float = 0.15, anchor: float = 0.0) -> void:
+	var shader: Shader = _get_wind_shader()
+	if shader == null:
+		# Fall back to plain tint if shader is missing — never crash a zone
+		_tint_tree(node, color)
+		return
+	_apply_wind_recursive(node, shader, color, amplitude, anchor)
+
+func _apply_wind_recursive(node: Node, shader: Shader, color: Color, amplitude: float, anchor: float) -> void:
+	if node is MeshInstance3D:
+		var mi := node as MeshInstance3D
+		if mi.mesh:
+			for i in range(mi.mesh.get_surface_count()):
+				var sm := ShaderMaterial.new()
+				sm.shader = shader
+				sm.set_shader_parameter("albedo", color)
+				sm.set_shader_parameter("use_texture", false)
+				sm.set_shader_parameter("amplitude", amplitude)
+				sm.set_shader_parameter("anchor", anchor)
+				sm.set_shader_parameter("wind_strength", 1.0)
+				sm.set_shader_parameter("wind_dir", Vector3(1.0, 0.0, 0.3))
+				mi.set_surface_override_material(i, sm)
+	for c in node.get_children():
+		_apply_wind_recursive(c, shader, color, amplitude, anchor)
+
+# Banner with wind: spawns a Kenney castle banner/flag/pennant via _cas
+# then applies the wind shader so the cloth waves. Pass the asset name
+# (flag.glb / flag-banner-long.glb / flag-pennant.glb), color, and
+# amplitude. anchor=0.0 because banners sway from the top down.
+func _banner(asset: String, pos: Vector3, color: Color = Color(0.92, 0.92, 0.92, 1), rot_y_deg: float = 0.0, amplitude: float = 0.40) -> Node3D:
+	var inst := _cas(asset, pos, rot_y_deg)
+	if inst == null:
+		return null
+	_apply_wind_tint(inst, color, amplitude, 0.0)
+	return inst
 
 # Stone lantern (toro) — built from a tall narrow column piece + a tinted
 # torch on top so it reads as a paper lantern atop a stone pedestal. No
@@ -699,10 +752,11 @@ func _build_sunsworn_chapel() -> void:
 	for z_step in [-12, -6, 0, 6, 12]:
 		_spawn("barrier_column.gltf.glb", Vector3(-5, 0, z_step), 0.0)
 		_spawn("barrier_column.gltf.glb", Vector3(5, 0, z_step), 180.0)
-	# White banners flanking the colonnade (paladin holy colors)
+	# White banners flanking the colonnade (paladin holy colors).
+	# _banner adds wind sway so the cloth actually moves.
 	for z_step in [-12, -4, 4, 12]:
-		_cas("flag-banner-long.glb", Vector3(-10, 0.2, z_step))
-		_cas("flag-banner-long.glb", Vector3(10, 0.2, z_step))
+		_banner("flag-banner-long.glb", Vector3(-10, 0.2, z_step), Color(0.96, 0.94, 0.85, 1.0))
+		_banner("flag-banner-long.glb", Vector3(10, 0.2, z_step), Color(0.96, 0.94, 0.85, 1.0))
 	# Many lit torches for holy atmosphere
 	for z_step in range(-16, 17, 4):
 		_torch(Vector3(-12, 0, z_step), true)
@@ -1118,10 +1172,11 @@ func _build_black_citadel() -> void:
 	for z_step in [-12, -4, 4, 12]:
 		_spawn("pillar_decorated.gltf.glb", Vector3(-6, 0, z_step))
 		_spawn("pillar_decorated.gltf.glb", Vector3(6, 0, z_step))
-	# Brown banners every other column (dark Crown colors)
+	# Brown banners every other column (dark Crown colors), waving in
+	# wind via _banner.
 	for z_step in [-12, -4, 4, 12]:
-		_cas("flag-banner-long.glb", Vector3(-6, 0.2, z_step))
-		_cas("flag-banner-long.glb", Vector3(6, 0.2, z_step))
+		_banner("flag-banner-long.glb", Vector3(-6, 0.2, z_step), Color(0.42, 0.30, 0.20, 1.0))
+		_banner("flag-banner-long.glb", Vector3(6, 0.2, z_step), Color(0.42, 0.30, 0.20, 1.0))
 	# Throne dais at north (raised platform)
 	for dx in range(-3, 4):
 		_spawn("floor_tile_large.gltf.glb", Vector3(float(dx), 0.4, -size / 2 + 4))
@@ -1205,15 +1260,16 @@ func _build_ashurim() -> void:
 			_cas("tower-square-base-color.glb", Vector3(offset, 0, z_step))
 			_cas("tower-square-mid-door.glb", Vector3(offset, 4, z_step), 90.0 if offset > 0 else -90.0)
 			_cas("tower-slant-roof.glb", Vector3(offset, 8, z_step))
-	# Four banner flags fluttering over plaza
-	_cas("flag.glb", Vector3(-3, 0, -3), 0.0)
-	_cas("flag.glb", Vector3(3, 0, -3), 0.0)
-	_cas("flag.glb", Vector3(-3, 0, 3), 0.0)
-	_cas("flag.glb", Vector3(3, 0, 3), 0.0)
-	# Long banner over the south gate
-	_cas("flag-banner-long.glb", Vector3(0, 0, size / 2 - 4))
-	_cas("flag-pennant.glb", Vector3(-size / 2 + 2, 8, -size / 2 + 2))
-	_cas("flag-pennant.glb", Vector3(size / 2 - 2, 8, -size / 2 + 2))
+	# Four banner flags fluttering over plaza (Ashurim crimson)
+	var ashurim_red := Color(0.78, 0.18, 0.20, 1.0)
+	_banner("flag.glb", Vector3(-3, 0, -3), ashurim_red, 0.0)
+	_banner("flag.glb", Vector3(3, 0, -3), ashurim_red, 0.0)
+	_banner("flag.glb", Vector3(-3, 0, 3), ashurim_red, 0.0)
+	_banner("flag.glb", Vector3(3, 0, 3), ashurim_red, 0.0)
+	# Long banner over the south gate + corner pennants
+	_banner("flag-banner-long.glb", Vector3(0, 0, size / 2 - 4), ashurim_red)
+	_banner("flag-pennant.glb", Vector3(-size / 2 + 2, 8, -size / 2 + 2), ashurim_red, 0.0, 0.55)
+	_banner("flag-pennant.glb", Vector3(size / 2 - 2, 8, -size / 2 + 2), ashurim_red, 0.0, 0.55)
 	# Market stalls at four plaza corners
 	for offset in [Vector3(-7, 0, -7), Vector3(7, 0, -7), Vector3(-7, 0, 7), Vector3(7, 0, 7)]:
 		_spawn("table_long_tablecloth_decorated_A.gltf.glb", offset)
@@ -1283,10 +1339,12 @@ func _build_babilim() -> void:
 	# Grand south gate (capital approach)
 	_cas("wall-narrow-gate.glb", Vector3(0, 0, size / 2 - 1))
 	_cas("gate.glb", Vector3(0, 0, size / 2 - 1))
-	# Outer flags marking the holy city
+	# Outer flags marking the holy city (white-gold for Babilim's
+	# ceremonial palette)
+	var babilim_gold := Color(0.95, 0.92, 0.78, 1.0)
 	for offset in [-12, 12]:
-		_cas("flag-pennant.glb", Vector3(offset, 0, size / 2 - 4))
-		_cas("flag-pennant.glb", Vector3(offset, 0, -size / 2 + 4))
+		_banner("flag-pennant.glb", Vector3(offset, 0, size / 2 - 4), babilim_gold, 0.0, 0.55)
+		_banner("flag-pennant.glb", Vector3(offset, 0, -size / 2 + 4), babilim_gold, 0.0, 0.55)
 	# Twin colonnades down the spine (grand chapel)
 	for z_step in range(-16, 17, 4):
 		_spawn("pillar_decorated.gltf.glb", Vector3(-10, 0, z_step))
@@ -1317,9 +1375,9 @@ func _build_babilim() -> void:
 	for z_step in range(-16, 17, 4):
 		_torch(Vector3(-11, 0, z_step), true)
 		_torch(Vector3(11, 0, z_step), true)
-	# Long white banners marking the holy capital
-	_cas("flag-banner-long.glb", Vector3(-10, 0, 0))
-	_cas("flag-banner-long.glb", Vector3(10, 0, 0))
+	# Long white banners marking the holy capital, waving in wind.
+	_banner("flag-banner-long.glb", Vector3(-10, 0, 0), babilim_gold)
+	_banner("flag-banner-long.glb", Vector3(10, 0, 0), babilim_gold)
 	# Trees in the outer courtyards (city park)
 	for _i in range(8):
 		var tx: float = randf_range(-size / 2 + 4, size / 2 - 4)
