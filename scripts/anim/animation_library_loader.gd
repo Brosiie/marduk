@@ -30,12 +30,34 @@ const VERBOSE_MISSING := true
 func apply(character_root: Node, role: String, role_id: StringName) -> void:
 	var anim_player: AnimationPlayer = _find_anim_player(character_root)
 	if anim_player == null:
+		# Mixamo character .glb files ship as T-pose only (no AnimationPlayer).
+		# We create one so the merged library has a home. Parent it under the
+		# character root so anim playback finds the skeleton via NodePath
+		# resolution. Without this, characters like Kachujin would T-pose
+		# despite having animations on disk.
+		anim_player = AnimationPlayer.new()
+		anim_player.name = "AnimationPlayer"
+		# Anim tracks reference bones via NodePath like
+		# "Skeleton3D:mixamorig:Hips". The player needs to be at a sibling
+		# level of the imported scene's RootNode/Skeleton3D for those paths
+		# to resolve. Adding under the first imported scene root works for
+		# Mixamo's standard hierarchy: Root Scene > RootNode > Skeleton3D.
+		var glb_root := _find_glb_root(character_root)
+		if glb_root != null:
+			glb_root.add_child(anim_player)
+		else:
+			character_root.add_child(anim_player)
 		if VERBOSE_MISSING:
-			push_warning("[AnimLoader] No AnimationPlayer under %s; skipping %s/%s" % [character_root.name, role, role_id])
-		return
+			print("[AnimLoader] Created AnimationPlayer for %s (Mixamo T-pose .glb)" % character_root.name)
 
 	var lib := AnimationLibrary.new()
 	var slot_map: Dictionary = _build_slot_map(role, role_id)
+
+	# Track binding outcomes so we can print one summary line per character
+	# instead of N missing-slot warnings. This makes "did Kachujin's anims
+	# bind correctly?" answerable from a single console line.
+	var bound: Array[String] = []
+	var missing: Array[String] = []
 
 	for slot in slot_map.keys():
 		var rel_path: String = slot_map[slot]
@@ -43,14 +65,27 @@ func apply(character_root: Node, role: String, role_id: StringName) -> void:
 		var anim := _load_animation_from_fbx(abs_path)
 		if anim != null:
 			lib.add_animation(slot, anim)
-		elif VERBOSE_MISSING:
-			# downgrade to one-line print so missing slots don't spam
-			print_verbose("[AnimLoader] missing slot %s -> %s" % [slot, rel_path])
+			bound.append(String(slot))
+		else:
+			missing.append(String(slot))
 
 	# Merge / replace the named library on the player.
 	if anim_player.has_animation_library(ANIM_LIB_NAME):
 		anim_player.remove_animation_library(ANIM_LIB_NAME)
 	anim_player.add_animation_library(ANIM_LIB_NAME, lib)
+
+	# One-line diagnostic so we can see at a glance how a character bound up.
+	# Format: [AnimLoader] ronin: 22 bound, 12 missing | embedded: 1
+	# Followed by the missing list for quick "what should I download next" view.
+	var embedded_count: int = 0
+	for embedded_lib_name in anim_player.get_animation_library_list():
+		if embedded_lib_name == ANIM_LIB_NAME:
+			continue
+		var elib := anim_player.get_animation_library(embedded_lib_name)
+		embedded_count += elib.get_animation_list().size()
+	print("[AnimLoader] %s/%s: %d bound, %d missing | embedded: %d" % [role, role_id, bound.size(), missing.size(), embedded_count])
+	if VERBOSE_MISSING and missing.size() > 0:
+		print("  missing slots: %s" % ", ".join(missing))
 
 # Returns shared_slots merged with role-specific slots; role-specific wins.
 # AnimationRegistry is registered as an autoload in project.godot, so it
@@ -81,6 +116,46 @@ func _find_anim_player(node: Node) -> AnimationPlayer:
 		return node
 	for child in node.get_children():
 		var found := _find_anim_player(child)
+		if found != null:
+			return found
+	return null
+
+# Find the parent we should add the AnimationPlayer under so anim track
+# NodePaths resolve correctly.
+#
+# Mixamo animation .fbx files reference bones via NodePath like
+#   "RootNode/Skeleton3D:mixamorig_Hips"
+# That path is relative to the AnimationPlayer's parent. So for the path
+# to resolve, AnimationPlayer must sit at the SAME level as "RootNode" --
+# i.e. as a sibling of RootNode, child of the imported scene's outer root.
+#
+# Mixamo .glb structure after fbx2gltf conversion:
+#   Root Scene  (the imported scene root - PackedScene root)
+#     RootNode             <- the path "RootNode/..." starts here
+#       Skeleton3D
+#         <mesh>
+#     AnimationPlayer      <- this needs to live HERE (Root Scene's child)
+#
+# So we walk: Skeleton3D -> parent (RootNode) -> parent (Root Scene), and
+# parent the AnimationPlayer to "Root Scene".
+func _find_glb_root(node: Node) -> Node:
+	var skel := _find_skeleton(node)
+	if skel == null:
+		return null
+	var rootnode := skel.get_parent()       # RootNode
+	if rootnode == null:
+		return null
+	var scene_root := rootnode.get_parent() # Root Scene
+	if scene_root == null:
+		# Skeleton3D is at the very top of the instance; fall back to it.
+		return rootnode
+	return scene_root
+
+func _find_skeleton(node: Node) -> Skeleton3D:
+	if node is Skeleton3D:
+		return node
+	for child in node.get_children():
+		var found := _find_skeleton(child)
 		if found != null:
 			return found
 	return null

@@ -131,7 +131,12 @@ func _ready() -> void:
 	_install_visibility_fallback()
 	# Merge shared + class-specific Mixamo anims onto the AnimationPlayer (silent if .fbx
 	# files are missing on disk; gameplay falls through to whatever the mesh ships with).
+	# NOTE: Mixamo character .glbs ship without an AnimationPlayer, so the loader
+	# creates one if missing. After the loader runs, re-find anim_player so we
+	# pick up the newly-created node.
 	_load_marduk_animation_library()
+	if anim_player == null:
+		anim_player = _find_animation_player(self)
 	# Resolve our generic animation aliases to whatever names the imported character uses.
 	_resolve_anim_alias_map()
 	# Loop the idle animation by default
@@ -234,16 +239,27 @@ func _spawn_fallback_capsule() -> void:
 # Player's AnimationPlayer under the canonical "marduk/<slot>" namespace.
 # Keeps gameplay decoupled from filenames; ANIM_ALIASES picks up the merged
 # names automatically. No-op if the autoloads or AnimationPlayer aren't ready.
+#
+# If class is unpicked we still merge SHARED anims so Kachujin / any character
+# gets idle/walk/run/dodge/hit/death from day 1. Once class is picked
+# (PlayerStats.class_def assigned), call this again to overlay the class
+# slot map (e.g. ronin/katana_idle overrides shared idle).
 func _load_marduk_animation_library() -> void:
-	if anim_player == null:
-		return
-	if not stats or not stats.class_def:
-		return
+	# Don't early-return on anim_player == null. Mixamo character .glbs ship
+	# without an AnimationPlayer; the loader creates one if missing so this
+	# function MUST run even when anim_player is null at this point.
 	var loader_script: GDScript = load("res://scripts/anim/animation_library_loader.gd")
 	if loader_script == null:
 		return
 	var loader = loader_script.new()
-	loader.apply(self, "class", StringName(stats.class_def.class_id))
+	if stats and stats.class_def:
+		# Class picked: shared + class-specific overrides
+		loader.apply(self, "class", StringName(stats.class_def.class_id))
+	else:
+		# No class yet: shared-only library so the character isn't a T-pose.
+		# Pass an empty StringName -> get_class_slot_map() returns {} -> only
+		# SHARED_SLOTS get merged. Once class is picked, this re-runs.
+		loader.apply(self, "class", &"")
 
 func _find_animation_player(node: Node) -> AnimationPlayer:
 	if node is AnimationPlayer:

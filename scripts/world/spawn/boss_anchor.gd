@@ -22,13 +22,18 @@ func spawn_boss() -> void:
 	if not boss_scene:
 		return
 	var inst := boss_scene.instantiate() as BossBase
+	# Stamp boss_id BEFORE add_child so BossBase._ready() and its
+	# AnimationLibraryLoader.apply() see the correct id. Without this, the
+	# loader runs with the default empty StringName and the boss-specific
+	# anim slot map is empty (only shared anims merge).
+	inst.boss_id = boss_id
 	get_tree().current_scene.add_child(inst)
 	inst.global_position = global_position
 
-	# Apply registry data
+	# Apply registry data (boss_id was already stamped above; rest of fields
+	# are stat overrides that can be applied post-add safely).
 	var rec = BossRegistry.get_boss(boss_id) if has_node("/root/BossRegistry") else null
 	if rec:
-		inst.boss_id = rec.id
 		inst.display_name = rec.display_name
 		inst.encounter_level = rec.encounter_level
 		inst.is_main_boss = rec.is_main_boss
