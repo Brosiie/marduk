@@ -54,6 +54,11 @@ func _ready() -> void:
 		lit.omni_range = 3.0
 		add_child(lit)
 		lit.position = Vector3(0, 0.4, 0)
+		# Rarity sparkle column: rising particle pillar tinted to rarity
+		# color so the player can spot drops at distance. Higher rarities
+		# get bigger/brighter columns. Common items get nothing, just the
+		# OmniLight; epics+ get unmistakable beacons.
+		_spawn_rarity_column(item.rarity)
 	# Pickup hookups
 	body_entered.connect(_on_body_entered)
 	_initial_y = position.y
@@ -228,3 +233,50 @@ func _rarity_glow(rarity: int) -> Color:
 		5: return Color(1.00, 0.65, 0.10)  # LEGENDARY
 		6: return Color(1.00, 0.95, 0.55)  # HEAVEN
 	return Color.WHITE
+
+# Particle pillar rising from the drop. Higher rarity = taller, brighter
+# column so the player spots loot from across the courtyard. Common
+# tier and below skip the column (just the OmniLight halo). Epics+
+# light up like a beacon.
+func _spawn_rarity_column(rarity: int) -> void:
+	if rarity < 3:
+		return  # Common and below: no column
+	var color := _rarity_glow(rarity)
+	var p := GPUParticles3D.new()
+	p.name = "RarityColumn"
+	# Higher rarity = bigger column. Heaven gets a 6m pillar.
+	var height: float = lerp(2.5, 6.5, float(rarity - 3) / 4.0)
+	var amount: int = int(lerp(40.0, 140.0, float(rarity - 3) / 4.0))
+	p.amount = amount
+	p.lifetime = 2.0
+	p.preprocess = 1.0
+	p.visibility_aabb = AABB(Vector3(-1, 0, -1), Vector3(2, height + 1, 2))
+	var mat := ParticleProcessMaterial.new()
+	mat.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_SPHERE
+	mat.emission_sphere_radius = 0.25
+	mat.direction = Vector3.UP
+	mat.spread = 8.0
+	mat.initial_velocity_min = height * 0.8
+	mat.initial_velocity_max = height * 1.0
+	mat.gravity = Vector3.ZERO
+	mat.scale_min = 0.06
+	mat.scale_max = 0.14
+	mat.color = color
+	# Slight horizontal swirl gives the column a magical curl
+	mat.tangential_accel_min = -0.5
+	mat.tangential_accel_max = 0.5
+	p.process_material = mat
+	var quad := QuadMesh.new()
+	quad.size = Vector2(0.12, 0.12)
+	var smat := StandardMaterial3D.new()
+	smat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	smat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	smat.albedo_color = color
+	smat.emission_enabled = true
+	smat.emission = color
+	smat.emission_energy_multiplier = 1.6
+	smat.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
+	smat.billboard_keep_scale = true
+	quad.material = smat
+	p.draw_pass_1 = quad
+	add_child(p)

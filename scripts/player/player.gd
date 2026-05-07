@@ -184,6 +184,10 @@ func _ready() -> void:
 	# frame zero, instead of moving like an unarmed peasant.
 	if stats and not stats.class_def:
 		_auto_assign_class_from_scene()
+	# Class aura: subtle particle ring at the player's feet, color
+	# matching the class buff palette (Ronin gold, Mage blue, etc).
+	# Spawned once class is set; reads as 'this character is powered'.
+	_spawn_class_aura()
 	# Force-fresh HP/mana so HUD doesn't show stale values from the ProgressBar defaults
 	stats.hp = stats.max_hp
 	stats.mana = stats.max_mana
@@ -739,6 +743,58 @@ func _trigger_battle_cry() -> void:
 	var ab: Node = get_node_or_null("/root/AudioBus")
 	if ab and ab.has_method("play_cue"):
 		ab.play_cue(&"taunt", global_position, -3.0, 0.92)
+
+# Class aura: a soft particle ring at the player's feet that subtly
+# tells the world 'this character is a Ronin' (gold motes) or 'this
+# is a Mage' (blue arcane wisps). Spawned once class is known.
+var _class_aura: GPUParticles3D = null
+
+func _spawn_class_aura() -> void:
+	if _class_aura and is_instance_valid(_class_aura):
+		_class_aura.queue_free()
+	if not stats or not stats.class_def:
+		return
+	var color: Color = _class_buff_color()
+	var p := GPUParticles3D.new()
+	p.name = "ClassAura"
+	p.amount = 28
+	p.lifetime = 1.6
+	p.preprocess = 0.8
+	p.visibility_aabb = AABB(Vector3(-1.5, 0, -1.5), Vector3(3, 1.5, 3))
+	var mat := ParticleProcessMaterial.new()
+	# Emit from a thin ring at the feet so the aura halos the player
+	mat.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_RING
+	mat.emission_ring_radius = 0.55
+	mat.emission_ring_inner_radius = 0.40
+	mat.emission_ring_axis = Vector3.UP
+	mat.emission_ring_height = 0.05
+	mat.direction = Vector3.UP
+	mat.spread = 8.0
+	mat.initial_velocity_min = 0.10
+	mat.initial_velocity_max = 0.30
+	mat.gravity = Vector3.ZERO
+	mat.scale_min = 0.04
+	mat.scale_max = 0.10
+	mat.color = color
+	mat.tangential_accel_min = 0.5  # orbital swirl
+	mat.tangential_accel_max = 1.0
+	p.process_material = mat
+	var quad := QuadMesh.new()
+	quad.size = Vector2(0.10, 0.10)
+	var smat := StandardMaterial3D.new()
+	smat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	smat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	smat.albedo_color = color
+	smat.emission_enabled = true
+	smat.emission = color
+	smat.emission_energy_multiplier = 1.4
+	smat.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
+	smat.billboard_keep_scale = true
+	quad.material = smat
+	p.draw_pass_1 = quad
+	add_child(p)
+	p.position = Vector3(0, 0.1, 0)
+	_class_aura = p
 
 # Returns the class-themed buff flash color, or default gold if no class
 # is picked / class is unknown.

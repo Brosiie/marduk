@@ -61,6 +61,10 @@ func _ready() -> void:
 	# Average mob HP at L1 is ~50; we scale up to give bosses real heft.
 	max_hp = max(max_hp, 600.0 * lvl_mult)
 	hp = max_hp
+	# Boss aura: dark crimson particle ring at the boss's feet so they
+	# read as a serious threat the moment the player sees them, even
+	# from far across the arena. Bigger than the player's class aura.
+	_spawn_boss_aura()
 
 	# Inflate phase data
 	for d in phases_data:
@@ -373,6 +377,51 @@ func _award_guaranteed_drops(killer: Node) -> void:
 			if not SaveFlags.has_permanent(&"heaven_obtained"):
 				killer.receive_loot(LegendaryRegistry.get_heaven())
 				SaveFlags.set_permanent(&"heaven_obtained", true)
+
+# --- Boss aura ---
+# Crimson particle ring + ominous mote column at the boss's feet so
+# they read as a 'serious threat' from far across the arena. Stays
+# parented to the boss so it follows movement.
+func _spawn_boss_aura() -> void:
+	var aura := GPUParticles3D.new()
+	aura.name = "BossAura"
+	aura.amount = 60
+	aura.lifetime = 2.2
+	aura.preprocess = 1.5
+	aura.visibility_aabb = AABB(Vector3(-3, 0, -3), Vector3(6, 4, 6))
+	var mat := ParticleProcessMaterial.new()
+	mat.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_RING
+	mat.emission_ring_radius = 1.40
+	mat.emission_ring_inner_radius = 1.00
+	mat.emission_ring_axis = Vector3.UP
+	mat.emission_ring_height = 0.10
+	mat.direction = Vector3.UP
+	mat.spread = 12.0
+	mat.initial_velocity_min = 0.4
+	mat.initial_velocity_max = 0.8
+	mat.gravity = Vector3.ZERO
+	mat.scale_min = 0.10
+	mat.scale_max = 0.20
+	# Crimson with slight orange to read as 'iron / blood / heat'
+	mat.color = Color(0.85, 0.15, 0.20, 0.95)
+	mat.tangential_accel_min = 0.6  # whirl effect
+	mat.tangential_accel_max = 1.2
+	aura.process_material = mat
+	var quad := QuadMesh.new()
+	quad.size = Vector2(0.18, 0.18)
+	var smat := StandardMaterial3D.new()
+	smat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	smat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	smat.albedo_color = Color(0.85, 0.15, 0.20, 0.95)
+	smat.emission_enabled = true
+	smat.emission = Color(0.85, 0.15, 0.20)
+	smat.emission_energy_multiplier = 1.5
+	smat.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
+	smat.billboard_keep_scale = true
+	quad.material = smat
+	aura.draw_pass_1 = quad
+	add_child(aura)
+	aura.position = Vector3(0, 0.05, 0)
 
 # --- Telegraph decals ---
 

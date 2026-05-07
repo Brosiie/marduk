@@ -65,10 +65,54 @@ func _ready() -> void:
 
 	body_entered.connect(_on_body_entered)
 	body_exited.connect(_on_body_exited)
+	# Tall beacon beam: a vertical particle column that's visible from
+	# across the zone. Color tracks discovery state (blue undiscovered,
+	# warm gold discovered).
+	_spawn_beacon_beam()
 	# Recolor if already discovered on scene load
 	var registry := get_node_or_null("/root/LodestoneRegistry")
 	if registry and registry.is_discovered(lodestone_id):
 		_apply_discovered_visual()
+
+var _beacon_particles: GPUParticles3D = null
+
+func _spawn_beacon_beam() -> void:
+	var p := GPUParticles3D.new()
+	p.name = "BeaconBeam"
+	p.amount = 90
+	p.lifetime = 3.0
+	p.preprocess = 1.5
+	p.visibility_aabb = AABB(Vector3(-1, 0, -1), Vector3(2, 14, 2))
+	var mat := ParticleProcessMaterial.new()
+	mat.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_SPHERE
+	mat.emission_sphere_radius = 0.20
+	mat.direction = Vector3.UP
+	mat.spread = 4.0
+	mat.initial_velocity_min = 3.5
+	mat.initial_velocity_max = 4.5
+	mat.gravity = Vector3.ZERO
+	mat.scale_min = 0.10
+	mat.scale_max = 0.18
+	mat.color = Color(0.55, 0.78, 1.0, 0.95)  # blue (undiscovered default)
+	mat.tangential_accel_min = -0.3
+	mat.tangential_accel_max = 0.3
+	p.process_material = mat
+	var quad := QuadMesh.new()
+	quad.size = Vector2(0.18, 0.18)
+	var smat := StandardMaterial3D.new()
+	smat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	smat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	smat.albedo_color = Color(0.55, 0.78, 1.0, 0.95)
+	smat.emission_enabled = true
+	smat.emission = Color(0.55, 0.78, 1.0)
+	smat.emission_energy_multiplier = 1.8
+	smat.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
+	smat.billboard_keep_scale = true
+	quad.material = smat
+	p.draw_pass_1 = quad
+	p.position = Vector3(0, 1.9, 0)
+	add_child(p)
+	_beacon_particles = p
 
 func _build_crystal_mat(discovered: bool) -> StandardMaterial3D:
 	var m := StandardMaterial3D.new()
@@ -92,6 +136,17 @@ func _apply_discovered_visual() -> void:
 	if _label3d:
 		_label3d.text = display_name
 		_label3d.modulate = Color(1.0, 0.85, 0.55)
+	# Beacon beam: warm gold once discovered (was blue)
+	if _beacon_particles:
+		var mat := _beacon_particles.process_material as ParticleProcessMaterial
+		if mat:
+			mat.color = Color(1.0, 0.75, 0.35, 0.95)
+		var quad := _beacon_particles.draw_pass_1 as QuadMesh
+		if quad and quad.material:
+			var smat := quad.material as StandardMaterial3D
+			if smat:
+				smat.albedo_color = Color(1.0, 0.75, 0.35, 0.95)
+				smat.emission = Color(1.0, 0.65, 0.25)
 
 func _process(delta: float) -> void:
 	# Slow rotate the crystal so it feels alive

@@ -226,6 +226,51 @@ func _clear_attack_telegraph() -> void:
 		_windup_decal.queue_free()
 	_windup_decal = null
 
+# Death puff: short-lived particle burst spawned at the mob's last
+# position. Parented to current_scene (not self) so it lives past
+# queue_free. Dark embers expand and fade for that satisfying 'soul
+# leaving the body' read.
+func _spawn_death_puff() -> void:
+	var puff := GPUParticles3D.new()
+	puff.name = "DeathPuff"
+	puff.amount = 50
+	puff.lifetime = 1.4
+	puff.one_shot = true
+	puff.explosiveness = 0.95  # fire all at once
+	puff.visibility_aabb = AABB(Vector3(-2, -1, -2), Vector3(4, 4, 4))
+	var mat := ParticleProcessMaterial.new()
+	mat.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_SPHERE
+	mat.emission_sphere_radius = 0.3
+	mat.direction = Vector3.UP
+	mat.spread = 70.0
+	mat.initial_velocity_min = 1.5
+	mat.initial_velocity_max = 4.0
+	mat.gravity = Vector3(0, -2.0, 0)
+	mat.scale_min = 0.20
+	mat.scale_max = 0.45
+	# Dark crimson with slight orange glow — souls + spent blood
+	mat.color = Color(0.45, 0.10, 0.10, 0.95)
+	mat.angular_velocity_min = -180.0
+	mat.angular_velocity_max = 180.0
+	puff.process_material = mat
+	var quad := QuadMesh.new()
+	quad.size = Vector2(0.40, 0.40)
+	var smat := StandardMaterial3D.new()
+	smat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	smat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	smat.albedo_color = Color(0.45, 0.10, 0.10, 0.85)
+	smat.emission_enabled = true
+	smat.emission = Color(0.95, 0.30, 0.10)
+	smat.emission_energy_multiplier = 0.8
+	smat.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
+	smat.billboard_keep_scale = true
+	quad.material = smat
+	puff.draw_pass_1 = quad
+	get_tree().current_scene.add_child(puff)
+	puff.global_position = global_position + Vector3(0, 0.8, 0)
+	# Auto-cleanup after the burst dies down
+	get_tree().create_timer(2.0).timeout.connect(func(): if is_instance_valid(puff): puff.queue_free())
+
 func _tick_telegraph_progress() -> void:
 	if _windup_decal == null or not is_instance_valid(_windup_decal):
 		return
@@ -271,6 +316,13 @@ func take_damage(amount: float, source: Node = null) -> void:
 func _die(killer: Node) -> void:
 	state = State.DEAD
 	died.emit()
+	# Death VFX: puff of dark dust + bright transient flash so the
+	# kill feels SATISFYING. Spawned at the world position so it
+	# persists past the queue_free of the mob.
+	_spawn_death_puff()
+	# Telegraph cleanup: if mob died mid-windup, kill the decal so it
+	# doesn't linger after the mob is gone.
+	_clear_attack_telegraph()
 	# Death SFX
 	var ab = get_node_or_null("/root/AudioBus")
 	if ab and ab.has_method("play_cue"):
