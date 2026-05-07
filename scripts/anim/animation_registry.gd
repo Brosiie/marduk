@@ -70,6 +70,14 @@ const SLOT_KATANA_IDLE     := &"katana_idle"
 const SLOT_KATANA_BLOCKING := &"katana_blocking"
 const SLOT_KATANA_180      := &"katana_180"
 const SLOT_KATANA_IMPACT   := &"katana_impact"
+const SLOT_KATANA_TURN     := &"katana_turn"
+const SLOT_KATANA_STRAFE   := &"katana_strafe"
+const SLOT_KATANA_POWER_UP := &"katana_power_up"
+const SLOT_KATANA_JUMP_ATTACK := &"katana_jump_attack"
+# Aerial / dive / 2H death slots (shared but expressive enough to deserve names)
+const SLOT_AERIAL_EVADE    := &"aerial_evade"
+const SLOT_DIVE_FORWARD    := &"dive_forward"
+const SLOT_DEATH_2H        := &"death_2h"
 
 const SLOT_ATTACK_BASIC := &"attack_basic"
 const SLOT_ATTACK_HEAVY := &"attack_heavy"
@@ -122,14 +130,19 @@ const SHARED_SLOTS := {
 	SLOT_UNARMED_IDLE:       "shared/utility/unarmed_idle.glb",           # Unarmed Idle
 	SLOT_UNARMED_IDLE_LOOK:  "shared/utility/unarmed_idle_looking.glb",   # Unarmed Idle Looking Ver. 2
 
+	# --- Bond's 2026-05-07 drop ---
+	SLOT_DODGE_FWD:    "shared/locomotion/dodge_forward.glb",   # Standing Dodge Forward
+	SLOT_DODGE_LEFT:   "shared/locomotion/dodge_left.glb",      # Standing Dodge Left
+	SLOT_DODGE_RIGHT:  "shared/locomotion/dodge_right.glb",     # Standing Dodge Right
+	SLOT_JUMP_DOWN:    "shared/locomotion/jump_land.glb",       # Falling -> Landing
+	SLOT_AERIAL_EVADE: "shared/locomotion/aerial_evade.glb",    # Aerial Evade (jump-dodge)
+	SLOT_DIVE_FORWARD: "shared/locomotion/dive_forward.glb",    # Standing Dive Forward
+	SLOT_DEATH_2H:     "shared/reactions/death_2h.glb",         # Two Handed Sword Death
+
 	# --- Not yet on disk; declared so Mixamo download targets are obvious ---
 	SLOT_WALK:        "shared/locomotion/walk.glb",            # Walking
 	SLOT_SPRINT:      "shared/locomotion/sprint.glb",          # Sprint
 	SLOT_JUMP_UP:     "shared/locomotion/jump_up.glb",         # Jump
-	SLOT_JUMP_DOWN:   "shared/locomotion/jump_land.glb",       # Falling To Landing
-	SLOT_DODGE_FWD:   "shared/locomotion/dodge_forward.glb",   # Standing Dodge Forward
-	SLOT_DODGE_LEFT:  "shared/locomotion/dodge_left.glb",      # Standing Dodge Left
-	SLOT_DODGE_RIGHT: "shared/locomotion/dodge_right.glb",     # Standing Dodge Right
 	SLOT_HIT_REACT:   "shared/reactions/hit_react.glb",        # Hit Reaction (generic)
 	SLOT_STAGGER:     "shared/reactions/stagger.glb",          # Heavy Hit Reaction
 	SLOT_KNOCKDOWN:   "shared/reactions/knockdown.glb",        # Falling Back Death (mid-loop)
@@ -166,13 +179,23 @@ const CLASS_SLOTS := {
 		&"blink_dash":        "assassin/blink_dash.glb",
 	},
 	&"ronin": {
-		# Greatsword stance — landed: katana_idle, katana_blocking, katana_180, katana_impact
-		SLOT_KATANA_IDLE:      "ronin/katana_idle.glb",       # Great Sword Idle
-		SLOT_KATANA_BLOCKING:  "ronin/katana_blocking.glb",   # Great Sword Blocking
-		SLOT_KATANA_180:       "ronin/katana_180.glb",        # Great Sword 180 Turn
-		SLOT_KATANA_IMPACT:    "ronin/katana_impact.glb",     # Great Sword Impact
-		# Override the shared idle so Ronin holds katana stance, not unarmed
-		SLOT_IDLE:             "ronin/katana_idle.glb",
+		# Greatsword stance set - on disk:
+		#   katana_idle, katana_blocking, katana_180, katana_impact (initial drop)
+		#   katana_walk, katana_run, katana_turn, katana_strafe         (2026-05-07 drop)
+		#   katana_power_up, katana_jump_attack                          (2026-05-07 drop)
+		SLOT_KATANA_IDLE:        "ronin/katana_idle.glb",       # Great Sword Idle
+		SLOT_KATANA_BLOCKING:    "ronin/katana_blocking.glb",   # Great Sword Blocking
+		SLOT_KATANA_180:         "ronin/katana_180.glb",        # Great Sword 180 Turn
+		SLOT_KATANA_IMPACT:      "ronin/katana_impact.glb",     # Great Sword Impact
+		SLOT_KATANA_TURN:        "ronin/katana_turn.glb",       # Great Sword Turn (smooth pivot)
+		SLOT_KATANA_STRAFE:      "ronin/katana_strafe.glb",     # Great Sword Strafe
+		SLOT_KATANA_POWER_UP:    "ronin/katana_power_up.glb",   # Great Sword Power Up (buff/cast)
+		SLOT_KATANA_JUMP_ATTACK: "ronin/katana_jump_attack.glb",# Great Sword Jump Attack (downward slam)
+		# Override shared locomotion so Ronin moves in katana stance,
+		# not unarmed run/walk. Visible in any Ronin scene.
+		SLOT_IDLE:               "ronin/katana_idle.glb",
+		SLOT_WALK:               "ronin/katana_walk.glb",       # Great Sword Walk
+		SLOT_RUN:                "ronin/katana_run.glb",        # Great Sword Run
 		# 7 representative breathing forms (full 49 unlock progressively)
 		&"breath_form_1":     "ronin/breath_water.glb",
 		&"breath_form_2":     "ronin/breath_thunder.glb",
