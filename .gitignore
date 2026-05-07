@@ -48,3 +48,13 @@ secrets/
 
 # Mixamo bulk-download thumbnail turntables (generated alongside .fbx, not used by Godot)
 assets/characters/mixamo/**/*.png
+
+# Animation source bloat — Mixamo downloads ship with full character mesh
+# AND duplicate texture PNGs alongside each animation. We only need the
+# .glb (animation track data); strip everything else.
+assets/animations/**/*.fbx
+assets/animations/**/*Kachujin*.png
+assets/animations/**/*Paladin*.png
+assets/animations/**/*_diffuse*.png
+assets/animations/**/*_normal*.png
+assets/animations/**/*_diffuse_body*.png
