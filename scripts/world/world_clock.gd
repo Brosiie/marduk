@@ -11,7 +11,11 @@ const DAY_START := 0.20  # post-dawn
 const DAY_END := 0.80    # pre-dusk
 
 @export var time_of_day: float = 0.4
-@export var cycle_minutes: float = 24.0  # full cycle in real-time minutes
+@export var cycle_minutes: float = 8.0  # full cycle in real-time minutes
+# 8 minutes per full day = sunrise visible at start of play session,
+# noon by minute 4, dusk by 6, full night by 7. Override per-zone if a
+# specific scene wants a frozen time of day (set paused = true and
+# manually set time_of_day).
 @export var paused: bool = false
 
 signal time_changed(new_value: float)

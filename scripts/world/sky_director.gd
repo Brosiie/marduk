@@ -109,20 +109,28 @@ func _on_time_changed(t: float) -> void:
 	_apply(t)
 
 func _apply(t: float) -> void:
+	# Storm/rain/mist multiplier from WeatherDirector (1.0 if no weather
+	# autoload). Darkens sky + sun energy so storms read visually.
+	var wd: Node = get_node_or_null("/root/WeatherDirector")
+	var dark: float = 1.0
+	if wd and wd.has_method("storm_darkness"):
+		dark = wd.storm_darkness()
 	if _world_env and _world_env.environment:
 		var env: Environment = _world_env.environment
 		var sky_mat: ProceduralSkyMaterial = env.sky.sky_material if env.sky else null
 		if sky_mat:
-			sky_mat.sky_top_color = _sample(SKY_TOP, t)
-			sky_mat.sky_horizon_color = _sample(SKY_HORIZON, t)
-			sky_mat.ground_horizon_color = _sample(SKY_HORIZON, t).darkened(0.4)
-			sky_mat.ground_bottom_color = _sample(SKY_TOP, t).darkened(0.5)
+			sky_mat.sky_top_color = _sample(SKY_TOP, t).darkened(1.0 - dark)
+			sky_mat.sky_horizon_color = _sample(SKY_HORIZON, t).darkened((1.0 - dark) * 0.7)
+			sky_mat.ground_horizon_color = _sample(SKY_HORIZON, t).darkened(0.4 + (1.0 - dark) * 0.3)
+			sky_mat.ground_bottom_color = _sample(SKY_TOP, t).darkened(0.5 + (1.0 - dark) * 0.3)
 		# Ambient color tracks the horizon so shadows feel right
-		env.ambient_light_color = _sample(SKY_HORIZON, t).lightened(0.2)
-		env.ambient_light_energy = lerp(0.45, 1.0, _sun_brightness(t))
+		env.ambient_light_color = _sample(SKY_HORIZON, t).lightened(0.2).darkened((1.0 - dark) * 0.5)
+		env.ambient_light_energy = lerp(0.45, 1.0, _sun_brightness(t)) * dark
+		# Storm fog: bump density when overcast / raining / storming
+		env.fog_density = lerp(0.005, 0.035, 1.0 - dark)
 	if _sun:
 		_sun.light_color = _sample(SUN_COLOR, t)
-		_sun.light_energy = _sample_float(SUN_ENERGY, t)
+		_sun.light_energy = _sample_float(SUN_ENERGY, t) * dark
 		# Rotate the sun around the X axis: 0.0 = bottom, 0.5 = top, 1.0 = bottom.
 		# Use sine for smooth rise/set arc.
 		var sun_pitch_deg: float = sin(t * TAU - PI * 0.5) * 75.0
