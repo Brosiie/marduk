@@ -37,6 +37,25 @@ enum Style {
 
 const KIT := "res://assets/environments/kaykit_dungeon/Assets/gltf/"
 const NATURE := "res://assets/environments/kenney_nature/"
+const CASTLE := "res://assets/environments/kenney_castle/"
+
+# Spawn from the castle kit (walls, towers, gates, bridges, siege).
+# Castle assets are larger than nature (~2-4m tall walls, ~6-12m towers)
+# so default scale is 1.0; pass a multiplier if needed.
+func _cas(asset: String, pos: Vector3, rot_y_deg: float = 0.0, scale: float = 1.0) -> Node3D:
+	var path: String = CASTLE + asset
+	if not ResourceLoader.exists(path):
+		return null
+	var packed: PackedScene = load(path)
+	if not packed:
+		return null
+	var inst: Node3D = packed.instantiate()
+	add_child(inst)
+	inst.position = pos
+	inst.rotation.y = deg_to_rad(rot_y_deg)
+	inst.scale = Vector3.ONE * scale
+	_strip_colliders(inst)
+	return inst
 
 # Spawn from the nature kit (trees, grass, flowers, cliffs).
 func _nat(asset: String, pos: Vector3, rot_y_deg: float = 0.0, scale: float = 1.0) -> Node3D:
@@ -222,17 +241,27 @@ func _build_sword_vow_ruins() -> void:
 		elif roll < 0.95:
 			var bpick: String = ["plant_bush.glb", "mushroom_red.glb", "mushroom_tan.glb"].pick_random()
 			_nat(bpick, Vector3(ox, 0, oz), randf() * 360.0, randf_range(0.8, 1.2))
-	# Tree perimeter — frames the arena and breaks the empty horizon
-	for i in range(28):
-		var angle: float = i * TAU / 28.0
-		var r: float = size / 2 + 1.0 + randf_range(-1, 2)
+	# Tree perimeter — frames the arena. Trees scaled 2.6-4x so they
+	# read as proper canopy size (~5-8m tall) instead of chibi-tiny.
+	# 56 trees in two staggered rings to fill the horizon density.
+	for i in range(56):
+		var ring: int = i / 28
+		var angle: float = (i % 28) * TAU / 28.0 + (PI / 28.0 if ring == 1 else 0.0)
+		var r: float = size / 2 + (1.5 + ring * 4.0) + randf_range(-1, 2)
 		var tx: float = cos(angle) * r
 		var tz: float = sin(angle) * r
 		# Skip the south entry corridor so player can see the spawn point
-		if abs(tx) < 4 and tz > 0:
+		if abs(tx) < 4 and tz > size / 2 - 2:
 			continue
 		var tree_pick: String = ["tree_default.glb", "tree_default_dark.glb", "tree_detailed.glb", "tree_fat.glb", "tree_blocks.glb"].pick_random()
-		_nat(tree_pick, Vector3(tx, 0, tz), randf() * 360.0, randf_range(0.9, 1.4))
+		_nat(tree_pick, Vector3(tx, 0, tz), randf() * 360.0, randf_range(2.6, 4.0))
+	# Inner-arena scattered trees (denser foliage)
+	for _i in range(15):
+		var ix: float = randf_range(-size / 2 + 6, size / 2 - 6)
+		var iz: float = randf_range(-size / 2 + 8, size / 2 - 6)
+		# Keep central path clear
+		if abs(ix) < 5: continue
+		_nat(["tree_thin.glb", "tree_thin_dark.glb", "tree_cone.glb"].pick_random(), Vector3(ix, 0, iz), randf() * 360.0, randf_range(2.0, 3.2))
 	# Throne dais at north — three rising stone tiers
 	for tier in range(3):
 		var w: int = 5 - tier
@@ -412,7 +441,7 @@ func _build_coven_glen() -> void:
 	for i in range(20):
 		var angle: float = i * TAU / 20.0
 		var r: float = size / 2 + 1.0
-		_nat("tree_detailed_dark.glb", Vector3(cos(angle) * r, 0, sin(angle) * r), randf() * 360.0, randf_range(1.1, 1.5))
+		_nat("tree_detailed_dark.glb", Vector3(cos(angle) * r, 0, sin(angle) * r), randf() * 360.0, randf_range(2.86, 3.90))
 	# Standing-stone circle (7 stones, lore: one per breathing style)
 	for i in range(7):
 		var angle: float = i * TAU / 7.0
@@ -577,7 +606,7 @@ func _build_lapis_bay() -> void:
 	# Tree line at the south edge (where beach meets forest)
 	for i in range(12):
 		var tx: float = randf_range(-size / 2 + 2, size / 2 - 2)
-		_nat("tree_thin.glb", Vector3(tx, 0, -size / 2 + 1), randf() * 360.0, randf_range(0.9, 1.2))
+		_nat("tree_thin.glb", Vector3(tx, 0, -size / 2 + 1), randf() * 360.0, randf_range(2.34, 3.12))
 	# Cattails / bushes near water edge
 	for _i in range(20):
 		var ox: float = randf_range(-size / 2 + 2, size / 2 - 2)
@@ -672,7 +701,7 @@ func _build_verdant_wound() -> void:
 		var ox: float = randf_range(-size / 2 + 2, size / 2 - 2)
 		var oz: float = randf_range(-size / 2 + 2, size / 2 - 2)
 		if abs(ox) < 5 and abs(oz) < 5: continue
-		var tp: Node3D = _nat(["tree_default_dark.glb", "tree_detailed_dark.glb", "tree_thin_dark.glb", "tree_fat_darkh.glb", "tree_blocks_dark.glb"].pick_random(), Vector3(ox, 0, oz), randf() * 360.0, randf_range(0.9, 1.4))
+		var tp: Node3D = _nat(["tree_default_dark.glb", "tree_detailed_dark.glb", "tree_thin_dark.glb", "tree_fat_darkh.glb", "tree_blocks_dark.glb"].pick_random(), Vector3(ox, 0, oz), randf() * 360.0, randf_range(2.34, 3.64))
 		# 30% of trees tilted to read as corrupted/withered
 		if tp and randf() < 0.30:
 			tp.rotation.x = deg_to_rad(randf_range(-15, 15))
@@ -826,30 +855,58 @@ func _build_sundered_coast() -> void:
 # BLACK CITADEL — interior fortress, throne, banners
 # ----------------------------------------------------------------
 func _build_black_citadel() -> void:
+	# DARK FORTRESS: Kenney castle towers + walls scaled up for
+	# fortress feel. Throne hall down the spine, hexagon corner
+	# towers, drawbridge gate at south, siege weapons (broken)
+	# scattered to suggest a long siege has happened here.
 	var tile := 4.0
 	var grid := int(size / tile)
 	for x in range(-grid, grid + 1):
 		for z in range(-grid, grid + 1):
 			_spawn("floor_tile_large.gltf.glb", Vector3(x * tile, 0, z * tile))
-	# Long throne hall walls
-	for z_step in range(-int(size / 2) + 4, int(size / 2), 4):
+	# Outer fortress walls (Kenney castle)
+	for x_step in range(-int(size / 2) + 4, int(size / 2) - 3, 4):
+		_cas("wall.glb", Vector3(x_step, 0, -size / 2 + 1))
+	for x_step in range(-int(size / 2) + 4, int(size / 2) - 3, 4):
+		_cas("wall.glb", Vector3(x_step, 0, size / 2 - 1))
+	for z_step in range(-int(size / 2) + 4, int(size / 2) - 3, 4):
+		_cas("wall.glb", Vector3(-size / 2 + 1, 0, z_step), 90.0)
+		_cas("wall.glb", Vector3(size / 2 - 1, 0, z_step), 90.0)
+	# Hexagon towers at the four corners (more imposing than square)
+	for corner in [Vector3(-size / 2 + 2, 0, -size / 2 + 2), Vector3(size / 2 - 2, 0, -size / 2 + 2), Vector3(-size / 2 + 2, 0, size / 2 - 2), Vector3(size / 2 - 2, 0, size / 2 - 2)]:
+		_cas("tower-hexagon-base.glb", corner)
+		_cas("tower-hexagon-mid.glb", corner + Vector3(0, 4, 0))
+		_cas("tower-hexagon-top.glb", corner + Vector3(0, 8, 0))
+		_cas("tower-hexagon-roof.glb", corner + Vector3(0, 11, 0))
+	# Drawbridge south gate
+	_cas("wall-narrow-gate.glb", Vector3(0, 0, size / 2 - 1))
+	_cas("metal-gate.glb", Vector3(0, 0, size / 2 - 1))
+	_cas("bridge-draw.glb", Vector3(0, 0, size / 2 + 4))
+	# Long throne hall down the spine — interior walls
+	for z_step in range(-int(size / 2) + 4, int(size / 2) - 4, 4):
 		_spawn("wall.gltf.glb", Vector3(-12, 0, z_step), 90.0)
 		_spawn("wall.gltf.glb", Vector3(12, 0, z_step), -90.0)
 	# Decorated columns flanking the throne path
 	for z_step in [-12, -4, 4, 12]:
 		_spawn("pillar_decorated.gltf.glb", Vector3(-6, 0, z_step))
 		_spawn("pillar_decorated.gltf.glb", Vector3(6, 0, z_step))
-	# Banners every other column
+	# Brown banners every other column (dark Crown colors)
 	for z_step in [-12, -4, 4, 12]:
-		_spawn("banner_brown.gltf.glb", Vector3(-6, 0.2, z_step))
-		_spawn("banner_brown.gltf.glb", Vector3(6, 0.2, z_step))
-	# Throne dais at north
+		_cas("flag-banner-long.glb", Vector3(-6, 0.2, z_step))
+		_cas("flag-banner-long.glb", Vector3(6, 0.2, z_step))
+	# Throne dais at north (raised platform)
 	for dx in range(-3, 4):
 		_spawn("floor_tile_large.gltf.glb", Vector3(float(dx), 0.4, -size / 2 + 4))
 	_spawn("chair.gltf.glb", Vector3(0, 0.4, -size / 2 + 4))
 	_spawn("column.gltf.glb", Vector3(-4, 0.4, -size / 2 + 4))
 	_spawn("column.gltf.glb", Vector3(4, 0.4, -size / 2 + 4))
-	# Torches everywhere — dim, oppressive
+	# Broken siege weapons in the courtyard (long-finished assault)
+	_cas("siege-catapult-demolished.glb", Vector3(-8, 0, 8), 30.0)
+	_cas("siege-tower-demolished.glb", Vector3(8, 0, 12), -25.0)
+	_cas("siege-ram-demolished.glb", Vector3(0, 0, 16), 90.0)
+	_cas("rocks-large.glb", Vector3(-10, 0, 4))
+	_cas("rocks-small.glb", Vector3(7, 0, 0))
+	# Dim torches — oppressive lighting
 	for z_step in [-16, -8, 0, 8, 16]:
 		_torch(Vector3(-11, 0, z_step), true)
 		_torch(Vector3(11, 0, z_step), true)
@@ -858,29 +915,81 @@ func _build_black_citadel() -> void:
 # ASHURIM — convergence town hub, market stalls, NPCs dispense quests
 # ----------------------------------------------------------------
 func _build_ashurim() -> void:
+	# CONVERGENCE TOWN: walled medieval city with central plaza, market
+	# stalls, square towers at corners, gates, banner-flagged streets,
+	# and houses (Kenney castle kit). Player walks in through south gate.
 	var tile := 4.0
 	var grid := int(size / tile)
 	for x in range(-grid, grid + 1):
 		for z in range(-grid, grid + 1):
-			var asset := "floor_dirt_small_A.gltf.glb"
+			var asset: String
 			if abs(x) < 3 and abs(z) < 3:
 				asset = "floor_tile_small_decorated.gltf.glb"  # central plaza
+			elif abs(x) < 5 or abs(z) < 5:
+				asset = "floor_tile_large.gltf.glb"  # main streets
+			else:
+				asset = "floor_dirt_large.gltf.glb"  # outer dirt
 			_spawn(asset, Vector3(x * tile, 0, z * tile))
-	# Four market stall corners (tables with food and barrels)
-	for offset in [Vector3(-10, 0, -10), Vector3(10, 0, -10), Vector3(-10, 0, 10), Vector3(10, 0, 10)]:
+	# Outer wall ring (Kenney castle) -- 4 sides with gates on N + S
+	# North wall
+	for x_step in range(-int(size / 2) + 4, int(size / 2) - 3, 4):
+		_cas("wall.glb", Vector3(x_step, 0, -size / 2 + 1))
+	for x_step in range(-int(size / 2) + 4, int(size / 2) - 3, 4):
+		_cas("wall.glb", Vector3(x_step, 0, size / 2 - 1))
+	# East + West walls (rotated 90)
+	for z_step in range(-int(size / 2) + 4, int(size / 2) - 3, 4):
+		_cas("wall.glb", Vector3(-size / 2 + 1, 0, z_step), 90.0)
+		_cas("wall.glb", Vector3(size / 2 - 1, 0, z_step), 90.0)
+	# Main south gate (player entry from outside)
+	_cas("wall-narrow-gate.glb", Vector3(0, 0, size / 2 - 1))
+	_cas("gate.glb", Vector3(0, 0, size / 2 - 1))
+	# North gate (to deeper regions)
+	_cas("wall-narrow-gate.glb", Vector3(0, 0, -size / 2 + 1))
+	# Four corner towers
+	_cas("tower-square-base.glb", Vector3(-size / 2 + 2, 0, -size / 2 + 2))
+	_cas("tower-square-mid-windows.glb", Vector3(-size / 2 + 2, 4, -size / 2 + 2))
+	_cas("tower-square-arch.glb", Vector3(-size / 2 + 2, 8, -size / 2 + 2))
+	_cas("tower-square-base.glb", Vector3(size / 2 - 2, 0, -size / 2 + 2))
+	_cas("tower-square-mid-windows.glb", Vector3(size / 2 - 2, 4, -size / 2 + 2))
+	_cas("tower-square-arch.glb", Vector3(size / 2 - 2, 8, -size / 2 + 2))
+	_cas("tower-square-base.glb", Vector3(-size / 2 + 2, 0, size / 2 - 2))
+	_cas("tower-square-mid-windows.glb", Vector3(-size / 2 + 2, 4, size / 2 - 2))
+	_cas("tower-square-base.glb", Vector3(size / 2 - 2, 0, size / 2 - 2))
+	_cas("tower-square-mid-windows.glb", Vector3(size / 2 - 2, 4, size / 2 - 2))
+	# Houses arranged around the plaza (4 along each side)
+	# Each "house" = square tower base with a roof
+	for offset in [-12, 12]:
+		# West & East row of houses
+		for z_step in [-12, -4, 4, 12]:
+			_cas("tower-square-base-color.glb", Vector3(offset, 0, z_step))
+			_cas("tower-square-mid-door.glb", Vector3(offset, 4, z_step), 90.0 if offset > 0 else -90.0)
+			_cas("tower-slant-roof.glb", Vector3(offset, 8, z_step))
+	# Four banner flags fluttering over plaza
+	_cas("flag.glb", Vector3(-3, 0, -3), 0.0)
+	_cas("flag.glb", Vector3(3, 0, -3), 0.0)
+	_cas("flag.glb", Vector3(-3, 0, 3), 0.0)
+	_cas("flag.glb", Vector3(3, 0, 3), 0.0)
+	# Long banner over the south gate
+	_cas("flag-banner-long.glb", Vector3(0, 0, size / 2 - 4))
+	_cas("flag-pennant.glb", Vector3(-size / 2 + 2, 8, -size / 2 + 2))
+	_cas("flag-pennant.glb", Vector3(size / 2 - 2, 8, -size / 2 + 2))
+	# Market stalls at four plaza corners
+	for offset in [Vector3(-7, 0, -7), Vector3(7, 0, -7), Vector3(-7, 0, 7), Vector3(7, 0, 7)]:
 		_spawn("table_long_tablecloth_decorated_A.gltf.glb", offset)
 		_spawn("plate_food_A.gltf.glb", offset + Vector3(0, 0.85, 0))
 		_spawn("barrel_small.gltf.glb", offset + Vector3(2.5, 0, 0))
 		_spawn("crates_stacked.gltf.glb", offset + Vector3(-2.5, 0, 0))
-	# Banners on poles around the plaza
-	for offset in [-8, 8]:
-		_spawn("pillar.gltf.glb", Vector3(offset, 0, -8))
-		_spawn("banner_green.gltf.glb", Vector3(offset, 1.6, -8))
-		_spawn("pillar.gltf.glb", Vector3(offset, 0, 8))
-		_spawn("banner_yellow.gltf.glb", Vector3(offset, 1.6, 8))
-	# Lit torches around plaza for atmosphere
+	# Lit lanterns around plaza for atmosphere
 	for offset in [Vector3(-3, 0, -3), Vector3(3, 0, -3), Vector3(-3, 0, 3), Vector3(3, 0, 3)]:
 		_torch(offset, true)
+	# Trees inside the city walls (small park)
+	for _i in range(6):
+		var tx: float = randf_range(-size / 2 + 4, size / 2 - 4)
+		var tz: float = randf_range(-size / 2 + 6, size / 2 - 6)
+		# Skip walking corridors
+		if abs(tx) < 6 and abs(tz) < 6: continue
+		if abs(tx) > 9 or abs(tz) > 9: continue  # only inside the park area
+		_nat(["tree_default.glb", "tree_detailed.glb"].pick_random(), Vector3(tx, 0, tz), randf() * 360.0, randf_range(2.5, 3.5))
 	# Treasure chest as quest reward stash at the plaza center
 	_spawn("chest_gold.glb", Vector3(0, 0, 0))
 
@@ -888,18 +997,57 @@ func _build_ashurim() -> void:
 # BABILIM — capital city, grand chapel layout
 # ----------------------------------------------------------------
 func _build_babilim() -> void:
+	# CAPITAL CITY: Iron Crown's seat. Grand chapel down the spine,
+	# city walls with hexagon towers, white-banner-flagged streets,
+	# bridges crossing into the central cathedral. Wider, more ceremonial
+	# than Ashurim. Multiple buildings around the chapel.
 	var tile := 4.0
 	var grid := int(size / tile)
 	for x in range(-grid, grid + 1):
 		for z in range(-grid, grid + 1):
-			var asset := "floor_tile_small.gltf.glb"
-			if (x + z) % 4 == 0:
-				asset = "floor_tile_small_decorated.gltf.glb"
+			var asset: String
+			if abs(x) <= 4 and z >= -16 and z <= 16:
+				asset = "floor_tile_small_decorated.gltf.glb"  # holy nave
+			elif abs(x) < 8 or abs(z) < 8:
+				asset = "floor_tile_small.gltf.glb"  # courtyards
+			else:
+				asset = "floor_tile_large.gltf.glb"  # outer streets
 			_spawn(asset, Vector3(x * tile, 0, z * tile))
+	# City wall ring (bigger than ashurim)
+	for x_step in range(-int(size / 2) + 4, int(size / 2) - 3, 4):
+		_cas("wall.glb", Vector3(x_step, 0, -size / 2 + 1))
+	for x_step in range(-int(size / 2) + 4, int(size / 2) - 3, 4):
+		_cas("wall.glb", Vector3(x_step, 0, size / 2 - 1))
+	for z_step in range(-int(size / 2) + 4, int(size / 2) - 3, 4):
+		_cas("wall.glb", Vector3(-size / 2 + 1, 0, z_step), 90.0)
+		_cas("wall.glb", Vector3(size / 2 - 1, 0, z_step), 90.0)
+	# Hexagon main tower at the cardinal corners
+	for corner in [Vector3(-size / 2 + 2, 0, -size / 2 + 2), Vector3(size / 2 - 2, 0, -size / 2 + 2), Vector3(-size / 2 + 2, 0, size / 2 - 2), Vector3(size / 2 - 2, 0, size / 2 - 2)]:
+		_cas("tower-hexagon-base.glb", corner)
+		_cas("tower-hexagon-mid.glb", corner + Vector3(0, 4, 0))
+		_cas("tower-hexagon-top.glb", corner + Vector3(0, 8, 0))
+		_cas("tower-hexagon-roof-secondary.glb", corner + Vector3(0, 11, 0))
+	# Grand south gate (capital approach)
+	_cas("wall-narrow-gate.glb", Vector3(0, 0, size / 2 - 1))
+	_cas("gate.glb", Vector3(0, 0, size / 2 - 1))
+	# Outer flags marking the holy city
+	for offset in [-12, 12]:
+		_cas("flag-pennant.glb", Vector3(offset, 0, size / 2 - 4))
+		_cas("flag-pennant.glb", Vector3(offset, 0, -size / 2 + 4))
 	# Twin colonnades down the spine (grand chapel)
 	for z_step in range(-16, 17, 4):
 		_spawn("pillar_decorated.gltf.glb", Vector3(-10, 0, z_step))
 		_spawn("pillar_decorated.gltf.glb", Vector3(10, 0, z_step))
+	# Houses lined up east + west of the chapel
+	for z_step in [-12, -4, 4, 12]:
+		# East side houses
+		_cas("tower-square-base-color.glb", Vector3(-16, 0, z_step))
+		_cas("tower-square-mid-windows.glb", Vector3(-16, 4, z_step))
+		_cas("tower-slant-roof.glb", Vector3(-16, 8, z_step))
+		# West side houses
+		_cas("tower-square-base-color.glb", Vector3(16, 0, z_step))
+		_cas("tower-square-mid-windows.glb", Vector3(16, 4, z_step))
+		_cas("tower-slant-roof.glb", Vector3(16, 8, z_step))
 	# Grand altar at north
 	_spawn("table_long_decorated_A.gltf.glb", Vector3(0, 0.4, -size / 2 + 4))
 	_spawn("candle_triple.gltf.glb", Vector3(-2, 1.3, -size / 2 + 4))
@@ -910,10 +1058,18 @@ func _build_babilim() -> void:
 	for z_step in [-8, -4, 0, 4, 8]:
 		_spawn("barrier_column.gltf.glb", Vector3(-5, 0, z_step), 0.0)
 		_spawn("barrier_column.gltf.glb", Vector3(5, 0, z_step), 180.0)
+	# Bridges crossing into the inner sanctum (north end)
+	_cas("bridge-straight.glb", Vector3(0, 0, -16), 90.0)
 	# Many lit torches for grand illumination
 	for z_step in range(-16, 17, 4):
 		_torch(Vector3(-11, 0, z_step), true)
 		_torch(Vector3(11, 0, z_step), true)
-	# Banners marking the holy city
-	_spawn("banner_white.gltf.glb", Vector3(-10, 1.6, 0))
-	_spawn("banner_white.gltf.glb", Vector3(10, 1.6, 0))
+	# Long white banners marking the holy capital
+	_cas("flag-banner-long.glb", Vector3(-10, 0, 0))
+	_cas("flag-banner-long.glb", Vector3(10, 0, 0))
+	# Trees in the outer courtyards (city park)
+	for _i in range(8):
+		var tx: float = randf_range(-size / 2 + 4, size / 2 - 4)
+		var tz: float = randf_range(-size / 2 + 6, size / 2 - 6)
+		if abs(tx) < 12 or abs(tz) < 4: continue  # avoid the streets
+		_nat(["tree_detailed.glb", "tree_default.glb"].pick_random(), Vector3(tx, 0, tz), randf() * 360.0, randf_range(2.5, 3.5))

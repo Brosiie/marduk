@@ -114,7 +114,7 @@ func _swap_mesh_for_mob(enemy_inst: Node, requested_mob_id: StringName) -> void:
 		old_mesh.queue_free()
 	var new_mesh := packed.instantiate()
 	new_mesh.name = "MobMesh"
-	new_mesh.transform = Transform3D(Basis().scaled(Vector3(0.01, 0.01, 0.01)), Vector3.ZERO)
+	new_mesh.transform = Transform3D(Basis().scaled(Vector3(1, 1, 1)), Vector3.ZERO)
 	enemy_inst.add_child(new_mesh)
 
 func _on_mob_died() -> void:

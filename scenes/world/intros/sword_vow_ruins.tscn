@@ -133,7 +133,7 @@ shape = SubResource("player_shape")
 [node name="MeshRoot" type="Node3D" parent="Player"]
 
 [node name="RoninMesh" parent="Player/MeshRoot" instance=ExtResource("7_ronin")]
-transform = Transform3D(0.01, 0, 0, 0, 0.01, 0, 0, 0, 0.01, 0, 0, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
 
 [node name="KatanaSocket" type="Node3D" parent="Player/MeshRoot"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.45, 1.0, 0.2)
