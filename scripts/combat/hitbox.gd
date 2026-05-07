@@ -49,6 +49,10 @@ func _try_damage(target: Node) -> void:
 		result.damage *= attacker.get_outgoing_damage_mult()
 	if target.has_method("take_damage"):
 		target.take_damage(result.damage, attacker)
+	# Combo: tell the attacker their hit landed so they can stack.
+	# Players hold the combo state; mobs/bosses ignore.
+	if attacker and attacker.has_method("on_hit_landed"):
+		attacker.on_hit_landed()
 	# Optional: emit a signal so VFX/SFX/floating numbers can react
 	if has_node("/root/CombatBus"):
 		get_node("/root/CombatBus").emit_hit(target, result, ability)

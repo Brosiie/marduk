@@ -55,22 +55,38 @@ func _engage(player_node: Node) -> void:
 	# Build invisible cage so the player can't leave
 	if lock_on_engage:
 		_build_gates()
-	# Cinematic engagement: name fade + camera shake (gates closing
-	# slam) + red flash. Music director will pick up the boss theme
-	# next iteration (not yet implemented).
+	# Cinematic engagement (full pipe): camera zoom-in, slowmo, red
+	# flash, name banner, audio sting, AND auto-lock the player onto
+	# the boss so the duel posture starts immediately.
 	var juice = get_node_or_null("/root/Juice")
 	if juice and _boss:
 		var boss_name: String = String(_boss.get("display_name") if _boss.has_method("get") else "")
 		if boss_name == "":
 			boss_name = String(_boss.name)
-		juice.shake(0.40, 0.35)  # gates slamming closed
-		juice.flash(Color(0.95, 0.20, 0.20), 0.35, 0.40)
+		juice.shake(0.55, 0.45)  # gates slamming closed (heavier than before)
+		juice.flash(Color(0.95, 0.20, 0.20), 0.40, 0.50)
 		juice.toast("⚔  %s  ⚔" % boss_name.to_upper(), Color(0.95, 0.20, 0.20), 4.0)
-		juice.slowmo(0.50, 0.4)
-		# Audio cue
+		juice.slowmo(0.30, 1.1)  # longer + deeper slowmo for cinematic weight
+		# Camera zoom-in: pull the SpringArm length down for ~1.5s, then
+		# release back to the player's chosen distance. Reads as 'the
+		# camera is leaning in to watch this fight'.
+		var cam_rig: Node3D = get_tree().get_first_node_in_group("camera_rig")
+		if cam_rig and "distance" in cam_rig:
+			var saved_distance: float = cam_rig.distance
+			cam_rig.distance = max(5.0, saved_distance * 0.65)
+			get_tree().create_timer(1.6).timeout.connect(func():
+				if is_instance_valid(cam_rig):
+					cam_rig.distance = saved_distance
+			)
+		# Auto-lock the player onto this boss so the duel begins framed.
+		# Player's _set_lock handles reticle + camera tracking.
+		if player_node and player_node.has_method("_set_lock"):
+			player_node._set_lock(_boss)
+		# Audio: deep low boom
 		var ab = get_node_or_null("/root/AudioBus")
 		if ab and ab.has_method("play_cue"):
-			ab.play_cue(&"death", global_position, -2.0, 0.55)  # deep low note
+			ab.play_cue(&"death", global_position, -2.0, 0.55)
+			ab.play_cue(&"thunder", global_position, -4.0, 0.6)  # second layer
 	# Wait for boss death; then unlock
 	if _boss and _boss.has_signal("boss_defeated"):
 		_boss.boss_defeated.connect(_on_boss_defeated)
@@ -101,19 +117,41 @@ func _release_gates() -> void:
 	_gates.clear()
 
 func _on_boss_defeated(_id: StringName, _killer: Node) -> void:
+	_play_defeat_cinematic()
 	_release_gates()
-	# Hide the boss bar via HUD
 	for hud in get_tree().get_nodes_in_group("hud"):
 		if hud.has_method("unbind_boss"):
 			hud.unbind_boss()
 			break
 
 func _on_boss_died() -> void:
+	_play_defeat_cinematic()
 	_release_gates()
 	for hud in get_tree().get_nodes_in_group("hud"):
 		if hud.has_method("unbind_boss"):
 			hud.unbind_boss()
 			break
+
+func _play_defeat_cinematic() -> void:
+	# Big finish: cinematic_kill (slowmo + flash) + golden victory toast
+	# with the boss name + audio sting. The player has earned this moment.
+	var juice = get_node_or_null("/root/Juice")
+	if juice == null:
+		return
+	var boss_name: String = ""
+	if _boss and _boss.has_method("get"):
+		boss_name = String(_boss.get("display_name"))
+	if boss_name == "":
+		boss_name = "FOE"
+	if juice.has_method("cinematic_kill"):
+		var pos: Vector3 = (_boss as Node3D).global_position if _boss else global_position
+		juice.cinematic_kill(pos, 0.85)
+	if juice.has_method("toast"):
+		juice.toast("%s  FALLEN" % boss_name.to_upper(), Color(1.00, 0.88, 0.50), 4.5)
+	# Audio: triumph chord
+	var ab = get_node_or_null("/root/AudioBus")
+	if ab and ab.has_method("play_cue"):
+		ab.play_cue(&"level_up", global_position, -3.0, 0.8)
 
 # Manual release (player wipes -> respawn elsewhere -> arena should re-arm
 # but the BOSS keeps its current HP until killed). In a multiplayer build

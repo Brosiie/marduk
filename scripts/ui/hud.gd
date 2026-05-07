@@ -33,6 +33,9 @@ var boss_bar: Control = null
 # shader. Alpha lerps in based on how low HP is, so the screen turns
 # bloodier as the player edges toward death. Common ARPG juice.
 var _low_hp_vignette: ColorRect = null
+# Combo counter: small label that pops on the right-center showing
+# 'x12 COMBO!' as hits stack. Fades when combo resets.
+var _combo_label: Label = null
 
 func _ready() -> void:
 	add_to_group("hud")
@@ -41,9 +44,12 @@ func _ready() -> void:
 		push_warning("HUD: no player found")
 		return
 	_install_low_hp_vignette()
+	_install_combo_label()
 	player.hp_changed.connect(_on_hp)
 	player.mana_changed.connect(_on_mana)
 	player.resource_changed.connect(_on_resource)
+	if player.has_signal("combo_changed"):
+		player.combo_changed.connect(_on_combo_changed)
 	if player.stats:
 		player.stats.leveled_up.connect(_on_level_up)
 		player.stats.max_level_reached.connect(_on_max_level)
@@ -201,6 +207,52 @@ void fragment() {
 	# bars/menus so they stay readable through the vignette.
 	add_child(_low_hp_vignette)
 	move_child(_low_hp_vignette, 0)  # behind UI children
+
+# Combo HUD widget: anchored right-center, font scales with stack count.
+# Color crossfades from white -> yellow -> orange -> red as the combo
+# climbs, so the player feels the climb visually.
+func _install_combo_label() -> void:
+	_combo_label = Label.new()
+	_combo_label.name = "ComboLabel"
+	_combo_label.anchor_left = 1.0
+	_combo_label.anchor_top = 0.5
+	_combo_label.anchor_right = 1.0
+	_combo_label.anchor_bottom = 0.5
+	_combo_label.offset_left = -260.0
+	_combo_label.offset_top = -36.0
+	_combo_label.offset_right = -20.0
+	_combo_label.offset_bottom = 36.0
+	_combo_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	_combo_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_combo_label.add_theme_font_size_override("font_size", 28)
+	_combo_label.modulate = Color(1, 1, 1, 0)
+	$Root.add_child(_combo_label)
+
+func _on_combo_changed(stacks: int, max_stacks: int) -> void:
+	if _combo_label == null:
+		return
+	if stacks <= 1:
+		# Fade out
+		var tw_out := _combo_label.create_tween()
+		tw_out.tween_property(_combo_label, "modulate:a", 0.0, 0.35)
+		return
+	# Color climb: white -> yellow -> orange -> red as stacks rise
+	var t: float = clamp(float(stacks) / float(max_stacks), 0.0, 1.0)
+	var col: Color
+	if t < 0.33:
+		col = Color(1.0, 1.0, 1.0).lerp(Color(1.0, 0.92, 0.45), t / 0.33)
+	elif t < 0.66:
+		col = Color(1.0, 0.92, 0.45).lerp(Color(1.0, 0.55, 0.20), (t - 0.33) / 0.33)
+	else:
+		col = Color(1.0, 0.55, 0.20).lerp(Color(1.0, 0.20, 0.20), (t - 0.66) / 0.34)
+	col.a = 1.0
+	_combo_label.text = "x%d  COMBO" % stacks
+	_combo_label.add_theme_font_size_override("font_size", 24 + int(t * 28))  # 24..52 pt
+	_combo_label.modulate = col
+	# Pop scale: brief 1.2x then back to 1.0
+	_combo_label.scale = Vector2(1.2, 1.2)
+	var tw := _combo_label.create_tween()
+	tw.tween_property(_combo_label, "scale", Vector2.ONE, 0.18)
 
 func _on_mana(cur: float, mx: float) -> void:
 	mana_bar.max_value = mx

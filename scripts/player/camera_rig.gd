@@ -21,6 +21,12 @@ var target: Node3D
 var yaw: float = 0.0
 var distance: float = 11.0
 
+# Lock-on target. While set, the rig auto-yaws to keep the lock_target
+# centered behind the player so the player + lock_target always read
+# in-frame. Set/cleared by Player on Tab press.
+var lock_target: Node3D = null
+const LOCK_YAW_SPEED: float = 4.0  # rad/sec
+
 func _ready() -> void:
 	add_to_group("camera_rig")
 	if follow_target_path:
@@ -38,6 +44,19 @@ func _process(delta: float) -> void:
 		yaw += rotate_speed * delta
 	if Input.is_action_pressed("cam_rotate_right"):
 		yaw -= rotate_speed * delta
+	# Lock-on: smoothly auto-yaw so the lock target sits opposite the
+	# camera (player between camera and target = standard soulslike
+	# framing). Manual rotation still applies on top so the player can
+	# nudge the angle while locked.
+	if lock_target and is_instance_valid(lock_target) and target:
+		var to_target: Vector3 = lock_target.global_position - target.global_position
+		to_target.y = 0
+		if to_target.length_squared() > 0.001:
+			# Camera should sit on the OPPOSITE side of player from
+			# target. Desired yaw = atan2 of -to_target so camera looks
+			# from behind player toward target.
+			var desired_yaw: float = atan2(-to_target.x, -to_target.z)
+			yaw = lerp_angle(yaw, desired_yaw, LOCK_YAW_SPEED * delta)
 	rotation.y = yaw
 
 	if Input.is_action_just_released("zoom_in"):

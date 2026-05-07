@@ -117,6 +117,17 @@ var _guard_until: float = 0.0
 const GUARD_DURATION := 2.0
 const GUARD_DAMAGE_REDUCTION := 0.55  # take 45% damage while guarding
 
+# Combo system: consecutive hits without taking damage build up a
+# combo counter. Each stack adds COMBO_DMG_PER_STACK damage. Resets
+# when player takes damage OR when no hit lands for COMBO_DECAY_TIME.
+# Visible via combo_changed signal that the HUD listens to.
+var _combo_count: int = 0
+var _combo_decays_at: float = 0.0
+const COMBO_DECAY_TIME := 4.5  # seconds before combo resets if no hit
+const COMBO_MAX_STACKS := 30
+const COMBO_DMG_PER_STACK := 0.05  # +5% damage per stack
+signal combo_changed(stacks: int, max_stacks: int)
+
 # Per-class buff color: tints the screen flash so each class's buff
 # feels signature-y (Berserker red rage, Mage blue arcane, Demon
 # hellfire, Paladin holy gold, etc.). Default gold for unknown.
@@ -446,6 +457,8 @@ func _input(event: InputEvent) -> void:
 		toggle_mount()
 	elif event.is_action_pressed("toggle_pet"):
 		toggle_pet()
+	elif event.is_action_pressed("lock_on"):
+		_toggle_lock_on()
 
 # --- Mount + Pet (WoW-style summon system) ---
 # Mount: H key. While mounted, +60% movement speed and a visual mount mesh
@@ -752,13 +765,35 @@ func _battle_cry_label() -> String:
 	return "BATTLE CRY"
 
 # Read by combat code (hitbox / ability_runner) to scale outgoing
-# damage. Multiplicative with rage buff so a 100-rage Berserker firing
-# Battle Cry stacks both (1.50 * 1.35 = 2.025x).
+# damage. Stacks Battle Cry surge + combo bonus multiplicatively so
+# a 12-stack combo + active Battle Cry deals 1.35 * (1 + 12*0.05) =
+# 2.16x normal damage.
 func get_outgoing_damage_mult() -> float:
 	var now: float = Time.get_ticks_msec() / 1000.0
+	var mult: float = 1.0
 	if now < _damage_surge_until:
-		return _damage_surge_mult
-	return 1.0
+		mult *= _damage_surge_mult
+	# Combo bonus
+	mult *= (1.0 + float(_combo_count) * COMBO_DMG_PER_STACK)
+	return mult
+
+# Called from hitbox when this player lands a hit. Adds a combo stack
+# and refreshes the decay timer. Caps at COMBO_MAX_STACKS so the
+# multiplier doesn't run unbounded.
+func on_hit_landed() -> void:
+	_combo_count = min(_combo_count + 1, COMBO_MAX_STACKS)
+	_combo_decays_at = (Time.get_ticks_msec() / 1000.0) + COMBO_DECAY_TIME
+	combo_changed.emit(_combo_count, COMBO_MAX_STACKS)
+
+func _tick_combo(_delta: float) -> void:
+	if _combo_count == 0:
+		return
+	if Time.get_ticks_msec() / 1000.0 >= _combo_decays_at:
+		_combo_count = 0
+		combo_changed.emit(0, COMBO_MAX_STACKS)
+
+func get_combo_count() -> int:
+	return _combo_count
 
 # Returns true while the Guard / Parry ability's stance is active. Read
 # by take_damage to soak incoming damage.
@@ -1024,6 +1059,117 @@ func _classify_dodge_dir(world_dir: Vector3) -> String:
 func is_invulnerable() -> bool:
 	return Time.get_ticks_msec() / 1000.0 < _dodge_iframes_until
 
+# --- Lock-on targeting ---
+# Tab toggles a target lock. While locked: camera auto-yaws to keep the
+# target framed; player faces the target every frame; dodge becomes
+# strafe-relative instead of input-relative; nameplate gets a reticle.
+var _lock_target: Node = null
+var _lock_reticle: Node3D = null
+const LOCK_RANGE: float = 22.0
+const LOCK_FOV_DOT: float = 0.30  # cosine of half-angle the candidate must be within (camera-forward)
+
+func _toggle_lock_on() -> void:
+	if _lock_target and is_instance_valid(_lock_target):
+		_clear_lock()
+		return
+	var cam_rig: Node3D = get_tree().get_first_node_in_group("camera_rig")
+	if cam_rig == null:
+		return
+	# Candidate enemies: anything in the 'enemy' group within LOCK_RANGE,
+	# preferring those most centered in the camera's view.
+	var cam_pos: Vector3 = cam_rig.global_position
+	var cam_fwd: Vector3 = -cam_rig.global_transform.basis.z
+	cam_fwd.y = 0
+	if cam_fwd.length_squared() < 0.001:
+		return
+	cam_fwd = cam_fwd.normalized()
+	var best: Node = null
+	var best_score: float = -INF
+	for e in get_tree().get_nodes_in_group("enemy"):
+		if not is_instance_valid(e) or not (e is Node3D):
+			continue
+		var to_e: Vector3 = (e as Node3D).global_position - global_position
+		var dist: float = to_e.length()
+		if dist > LOCK_RANGE:
+			continue
+		to_e.y = 0
+		var dir_e: Vector3 = to_e.normalized() if to_e.length_squared() > 0.001 else cam_fwd
+		var dot: float = cam_fwd.dot(dir_e)
+		if dot < LOCK_FOV_DOT:
+			continue
+		# Score prefers tight FOV alignment over raw distance:
+		# centered-far beats off-axis-near.
+		var score: float = dot - (dist / LOCK_RANGE) * 0.4
+		if score > best_score:
+			best_score = score
+			best = e
+	if best == null:
+		_play_deny_cue()
+		return
+	_set_lock(best)
+
+func _set_lock(target_node: Node) -> void:
+	_lock_target = target_node
+	# Tell the camera rig
+	var cam_rig: Node3D = get_tree().get_first_node_in_group("camera_rig")
+	if cam_rig and "lock_target" in cam_rig:
+		cam_rig.lock_target = target_node
+	# Spawn a small reticle ring above the target so the player sees
+	# what's locked. Removed on _clear_lock or target death.
+	_spawn_lock_reticle(target_node)
+	# Audio cue + brief flash
+	var ab: Node = get_node_or_null("/root/AudioBus")
+	if ab and ab.has_method("play_cue"):
+		ab.play_cue(&"button", global_position, -10.0, 1.4)
+	# Listen for target death so we auto-unlock
+	if target_node.has_signal("died"):
+		var cb := Callable(self, "_on_lock_target_died")
+		if not target_node.died.is_connected(cb):
+			target_node.died.connect(cb, CONNECT_ONE_SHOT)
+
+func _on_lock_target_died() -> void:
+	_clear_lock()
+
+func _clear_lock() -> void:
+	_lock_target = null
+	var cam_rig: Node3D = get_tree().get_first_node_in_group("camera_rig")
+	if cam_rig and "lock_target" in cam_rig:
+		cam_rig.lock_target = null
+	if _lock_reticle and is_instance_valid(_lock_reticle):
+		_lock_reticle.queue_free()
+	_lock_reticle = null
+
+func _spawn_lock_reticle(at: Node) -> void:
+	if _lock_reticle and is_instance_valid(_lock_reticle):
+		_lock_reticle.queue_free()
+	if not (at is Node3D):
+		return
+	var reticle := MeshInstance3D.new()
+	reticle.name = "LockReticle"
+	# Use the telegraph shader's ring shape for instant visual reuse
+	var quad := PlaneMesh.new()
+	quad.size = Vector2(2.4, 2.4)
+	reticle.mesh = quad
+	var mat := ShaderMaterial.new()
+	mat.shader = load("res://shaders/telegraph.gdshader")
+	mat.set_shader_parameter("shape_id", 6)  # ring
+	mat.set_shader_parameter("telegraph_color", Color(1.0, 0.85, 0.45, 1.0))
+	mat.set_shader_parameter("progress", 1.0)  # full intensity
+	mat.set_shader_parameter("pulse_speed", 4.0)
+	reticle.material_override = mat
+	# Parent under the locked target so it follows movement
+	(at as Node3D).add_child(reticle)
+	# Position above the target's head
+	reticle.position = Vector3(0, 2.6, 0)
+	# Rotate so the ring lies horizontal
+	reticle.rotation = Vector3(PI * 0.5, 0, 0)
+	_lock_reticle = reticle
+
+# Returns true if the player is locked onto a still-valid target.
+# Combat code can use this to bias swing direction toward the lock.
+func is_locked() -> bool:
+	return _lock_target != null and is_instance_valid(_lock_target)
+
 # Walks every ItemPickup in the scene and tries to loot the nearest one
 # inside its own pickup radius. Bound to the F key via the InputMap action
 # `interact`. Auto-loot (when enabled in settings) bypasses this entirely.
@@ -1269,6 +1415,7 @@ func _physics_process(delta: float) -> void:
 	_try_step_up()
 	_update_animation()
 	_tick_footsteps(delta)
+	_tick_combo(delta)
 	_tick_resource(delta)
 	_tick_form(delta)
 	_tick_heaven_aura(delta)
@@ -1419,7 +1566,16 @@ func _apply_horizontal(delta: float) -> void:
 	var target := input_dir * move_speed
 	velocity.x = target.x
 	velocity.z = target.z
-	if input_dir.length() > 0.1:
+	# Lock-on overrides input-relative facing: while locked, the player
+	# always faces the target. Movement is still input-relative (so you
+	# strafe-circle around the target). This matches Souls-style lock-on.
+	if is_locked():
+		var to_target: Vector3 = (_lock_target as Node3D).global_position - global_position
+		to_target.y = 0
+		if to_target.length_squared() > 0.001:
+			var target_yaw := atan2(to_target.x, to_target.z)
+			mesh.rotation.y = lerp_angle(mesh.rotation.y, target_yaw, rotation_speed * 1.5 * delta)
+	elif input_dir.length() > 0.1:
 		var target_yaw := atan2(input_dir.x, input_dir.z)
 		mesh.rotation.y = lerp_angle(mesh.rotation.y, target_yaw, rotation_speed * delta)
 
@@ -1461,6 +1617,11 @@ func take_damage(amount: float, source: Node = null) -> void:
 			ab.play_cue(&"block", global_position, -8.0, 1.0)
 	stats.hp = max(0.0, stats.hp - amount)
 	hp_changed.emit(stats.hp, stats.max_hp)
+	# Combo broken: any time the player takes a non-i-frame, non-guard-
+	# absorbed hit the combo resets. Encourages aggressive but safe play.
+	if _combo_count > 0:
+		_combo_count = 0
+		combo_changed.emit(0, COMBO_MAX_STACKS)
 	# Damage floater above the player so the player sees what's hitting them
 	var floater_script: GDScript = load("res://scripts/combat/damage_floater.gd")
 	if floater_script and floater_script.has_method("spawn"):
