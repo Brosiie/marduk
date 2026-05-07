@@ -884,6 +884,70 @@ func _perform_basic_attack() -> void:
 
 var _debug_tick: float = 0.0
 
+# How tall a step can be and still get auto-climbed. The dojo platform
+# tiers are ~35cm so 50cm gives slack. Any wall taller than this stays
+# a wall (you can't climb the chapel watch towers, only their steps).
+const STEP_UP_HEIGHT: float = 0.5
+const STEP_UP_FORWARD: float = 0.45  # slightly larger than capsule radius
+
+# After move_and_slide, check if we hit a near-vertical wall. If we did,
+# raycast forward+up to see if there's a horizontal surface within
+# STEP_UP_HEIGHT we can snap onto. Snap if so. This makes any short
+# stepped platform (dojo tiers, broken walls, low rocks) climbable
+# without per-asset authoring.
+#
+# Cheap: only runs when there's a wall collision AND horizontal velocity.
+# Most frames this is a no-op.
+func _try_step_up() -> void:
+	if velocity.y > 0.1:
+		return  # already going up; falling/jumping path handles itself
+	var horizontal := Vector3(velocity.x, 0.0, velocity.z)
+	if horizontal.length() < 0.1:
+		return  # not actively moving forward
+	# Look for a wall collision in this frame
+	var hit_wall: bool = false
+	var move_dir := horizontal.normalized()
+	for i in range(get_slide_collision_count()):
+		var coll := get_slide_collision(i)
+		var n: Vector3 = coll.get_normal()
+		# Wall if the normal is mostly horizontal AND it's facing back
+		# toward us (i.e., we're walking INTO it)
+		if abs(n.y) > 0.5:
+			continue  # ground / ceiling
+		if n.dot(-move_dir) < 0.3:
+			continue  # wall but not in our direction
+		hit_wall = true
+		break
+	if not hit_wall:
+		return
+	# Probe: cast a ray downward from a position above-and-ahead. If it
+	# hits a horizontal-ish surface within STEP_UP_HEIGHT below the
+	# probe, snap player up to that height.
+	var space := get_world_3d().direct_space_state
+	var probe_top := global_position + move_dir * STEP_UP_FORWARD + Vector3.UP * STEP_UP_HEIGHT * 1.05
+	var probe_bottom := probe_top - Vector3.UP * (STEP_UP_HEIGHT * 1.5)
+	var query := PhysicsRayQueryParameters3D.create(probe_top, probe_bottom)
+	query.exclude = [get_rid()]
+	query.collision_mask = collision_mask
+	var result := space.intersect_ray(query)
+	if result.is_empty():
+		return
+	var hit_pos: Vector3 = result.get("position", Vector3.ZERO)
+	var hit_norm: Vector3 = result.get("normal", Vector3.ZERO)
+	if hit_norm.y < 0.7:
+		return  # not flat enough; refuse to climb steep slopes via step-up
+	# Step height = how much we'd need to lift the player. Refuse if the
+	# step is below us (already on it) or too tall.
+	var lift: float = hit_pos.y - global_position.y
+	if lift < 0.05 or lift > STEP_UP_HEIGHT:
+		return
+	# Snap up. We add a tiny epsilon so we don't get stuck inside the new
+	# floor surface.
+	global_position = global_position + Vector3.UP * (lift + 0.02)
+	# Keep horizontal velocity; zero vertical so the next frame doesn't
+	# fight us with gravity.
+	velocity.y = 0.0
+
 func _physics_process(delta: float) -> void:
 	if locked:
 		velocity.x = 0
@@ -893,6 +957,11 @@ func _physics_process(delta: float) -> void:
 		_apply_horizontal(delta)
 	_apply_vertical(delta)
 	move_and_slide()
+	# Step-up safety: after slide, if we're stuck against a low wall and
+	# moving into it, snap onto the surface above so steps + lantern bases
+	# + tier transitions don't block us. Cap at STEP_UP_HEIGHT to avoid
+	# climbing actual walls.
+	_try_step_up()
 	_update_animation()
 	_tick_resource(delta)
 	_tick_form(delta)
