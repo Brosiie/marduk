@@ -1142,6 +1142,12 @@ func _perform_basic_attack() -> void:
 
 var _debug_tick: float = 0.0
 
+# Footstep cadence: every FOOTSTEP_INTERVAL seconds while moving on
+# floor, fire a step audio cue. Pitch slightly randomized for variety.
+var _footstep_clock: float = 0.0
+const FOOTSTEP_INTERVAL: float = 0.42  # seconds per step at jogging speed
+const FOOTSTEP_RUN_INTERVAL: float = 0.30  # faster during sprints / dashes
+
 # How tall a step can be and still get auto-climbed. The dojo platform
 # tiers are ~35cm so 50cm gives slack. Any wall taller than this stays
 # a wall (you can't climb the chapel watch towers, only their steps).
@@ -1206,6 +1212,28 @@ func _try_step_up() -> void:
 	# fight us with gravity.
 	velocity.y = 0.0
 
+# Cadenced footstep audio: cue fires every FOOTSTEP_INTERVAL seconds
+# while the player is on the floor AND has horizontal velocity. Skips
+# when locked, dodging, or in air. Procedural &"step" cue from AudioBus
+# so we don't need .ogg files.
+func _tick_footsteps(delta: float) -> void:
+	if locked or _dodging or not is_on_floor():
+		_footstep_clock = 0.0
+		return
+	var speed: float = Vector3(velocity.x, 0, velocity.z).length()
+	if speed < 0.5:
+		_footstep_clock = 0.0
+		return
+	# Faster cadence at higher speeds (running > walking)
+	var interval: float = lerp(FOOTSTEP_INTERVAL, FOOTSTEP_RUN_INTERVAL, clamp(speed / 6.0, 0.0, 1.0))
+	_footstep_clock += delta
+	if _footstep_clock >= interval:
+		_footstep_clock = 0.0
+		var ab: Node = get_node_or_null("/root/AudioBus")
+		if ab and ab.has_method("play_cue"):
+			# Slight pitch jitter so steps don't drone
+			ab.play_cue(&"step", global_position, -14.0, randf_range(0.92, 1.08))
+
 func _physics_process(delta: float) -> void:
 	if locked:
 		velocity.x = 0
@@ -1221,6 +1249,7 @@ func _physics_process(delta: float) -> void:
 	# climbing actual walls.
 	_try_step_up()
 	_update_animation()
+	_tick_footsteps(delta)
 	_tick_resource(delta)
 	_tick_form(delta)
 	_tick_heaven_aura(delta)

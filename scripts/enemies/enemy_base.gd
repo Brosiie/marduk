@@ -4,7 +4,7 @@ class_name EnemyBase
 # Tiamat's spawn. Generic base for all enemies.
 # State machine: idle -> chase -> attack -> recover -> idle. Death is terminal.
 
-enum State { IDLE, CHASE, ATTACK, RECOVER, DEAD }
+enum State { IDLE, CHASE, WINDUP, ATTACK, RECOVER, DEAD }
 
 @export var max_hp: float = 60.0
 @export var hp: float = 60.0
@@ -16,6 +16,14 @@ enum State { IDLE, CHASE, ATTACK, RECOVER, DEAD }
 @export var attack_cooldown: float = 1.6
 @export var contact_damage: float = 12.0
 @export var xp_reward: int = 25
+
+# WINDUP: how long the mob telegraphs its attack before the strike
+# lands. Player can dodge during this window. Set to 0 to skip the
+# telegraph entirely (instant attacks). Default ~0.7s for grunts so
+# new players have time to read; archers/casters override longer.
+@export var attack_windup: float = 0.7
+@export var attack_radius: float = 1.6  # AOE radius for telegraph circle
+@export var telegraph_color: Color = Color(0.85, 0.25, 0.15, 0.9)
 
 @export var crit_chance: float = 0.0
 @export var crit_multiplier: float = 1.5
@@ -96,6 +104,12 @@ func _physics_process(delta: float) -> void:
 			_idle()
 		State.CHASE:
 			_chase(delta)
+		State.WINDUP:
+			# Hold position during windup so the player can read the
+			# telegraph without the mob walking past them.
+			velocity.x = 0
+			velocity.z = 0
+			_tick_telegraph_progress()
 		State.ATTACK:
 			_attack()
 		State.RECOVER:
@@ -138,7 +152,12 @@ func _chase(_delta: float) -> void:
 	to.y = 0
 	var dist := to.length()
 	if dist <= attack_range:
-		state = State.ATTACK
+		# Enter WINDUP if mob has a non-zero windup, else attack
+		# immediately. Windup gives the player a dodge window.
+		if attack_windup > 0.0 and _attack_timer <= 0.0:
+			_begin_windup()
+		else:
+			state = State.ATTACK
 		velocity.x = 0; velocity.z = 0
 		return
 	var dir := to.normalized()
@@ -146,15 +165,76 @@ func _chase(_delta: float) -> void:
 	velocity.z = dir.z * move_speed
 	look_at(global_position + dir, Vector3.UP)
 
+# Windup: spawns the telegraph decal, holds for attack_windup seconds,
+# then commits to ATTACK regardless of player position. If the player
+# dodged out of the danger zone the swing whiffs (handled in _attack).
+var _windup_started_at: float = 0.0
+var _windup_decal: MeshInstance3D = null
+
+func _begin_windup() -> void:
+	state = State.WINDUP
+	_windup_started_at = Time.get_ticks_msec() / 1000.0
+	_spawn_attack_telegraph()
+	# Schedule the strike commit at the end of the windup window
+	var windup := attack_windup
+	get_tree().create_timer(windup).timeout.connect(func():
+		if state == State.WINDUP:
+			_clear_attack_telegraph()
+			state = State.ATTACK
+	)
+
 func _attack() -> void:
 	if _attack_timer > 0.0:
 		state = State.CHASE
 		return
-	if target and target.has_method("take_damage"):
-		target.take_damage(contact_damage, self)
+	# Whiff check: target must still be inside attack_range when the
+	# strike commits. If the player dodged out, no damage. This is
+	# what makes mob telegraphs MEAN something.
+	if target and is_instance_valid(target):
+		var d := global_position.distance_to(target.global_position)
+		if d <= attack_range + 0.5 and target.has_method("take_damage"):
+			target.take_damage(contact_damage, self)
 	_attack_timer = attack_cooldown
 	state = State.RECOVER
 	get_tree().create_timer(0.3).timeout.connect(func(): if state != State.DEAD: state = State.CHASE)
+
+# --- Mob telegraph (mirror of boss telegraph but circle-only) ---
+
+func _spawn_attack_telegraph() -> void:
+	_clear_attack_telegraph()
+	var decal := MeshInstance3D.new()
+	decal.name = "MobTelegraph"
+	var quad := PlaneMesh.new()
+	quad.size = Vector2(attack_radius * 2.0, attack_radius * 2.0)
+	decal.mesh = quad
+	var mat := ShaderMaterial.new()
+	mat.shader = load("res://shaders/telegraph.gdshader")
+	# shape_id 2 = AOE_AROUND_BOSS (filled circle) - matches the visual
+	# the boss system uses for ground AOEs.
+	mat.set_shader_parameter("shape_id", 2)
+	mat.set_shader_parameter("telegraph_color", telegraph_color)
+	mat.set_shader_parameter("progress", 0.0)
+	mat.set_shader_parameter("pulse_speed", 6.0)  # slightly slower than boss for tier reading
+	decal.material_override = mat
+	# Add to scene root so the decal stays put if the mob jiggles
+	get_tree().current_scene.add_child(decal)
+	decal.global_position = global_position + Vector3(0, 0.05, 0)
+	_windup_decal = decal
+
+func _clear_attack_telegraph() -> void:
+	if _windup_decal and is_instance_valid(_windup_decal):
+		_windup_decal.queue_free()
+	_windup_decal = null
+
+func _tick_telegraph_progress() -> void:
+	if _windup_decal == null or not is_instance_valid(_windup_decal):
+		return
+	var now: float = Time.get_ticks_msec() / 1000.0
+	var elapsed: float = now - _windup_started_at
+	var prog: float = clamp(elapsed / max(0.001, attack_windup), 0.0, 1.0)
+	var mat: ShaderMaterial = _windup_decal.material_override
+	if mat:
+		mat.set_shader_parameter("progress", prog)
 
 func take_damage(amount: float, source: Node = null) -> void:
 	if state == State.DEAD:
