@@ -291,8 +291,43 @@ func _enter_phase(idx: int) -> void:
 	contact_damage *= p.damage_mult
 	move_speed *= p.move_speed_mult
 	phase_changed.emit(idx, p.name)
+	# Phase-shift cinematic: each cross of an HP gate is a moment.
+	# Slowmo punch + sky-color flash + boss roar audio + music
+	# intensity bump. Reads as 'the boss got harder, take notice'.
+	_play_phase_transition_cinematic(idx, p)
 	# Brief invulnerability so the cinematic transition lands cleanly
 	get_tree().create_timer(p.transition_iframes).timeout.connect(func(): _in_transition = false)
+
+func _play_phase_transition_cinematic(idx: int, p: Phase) -> void:
+	var juice: Node = get_node_or_null("/root/Juice")
+	# Color palette per phase: 0->normal, 1->amber, 2->crimson, 3->void
+	var phase_colors := [
+		Color(0.95, 0.55, 0.20, 1.0),  # phase 1 amber
+		Color(0.95, 0.20, 0.20, 1.0),  # phase 2 crimson
+		Color(0.55, 0.20, 0.85, 1.0),  # phase 3 void
+		Color(1.00, 0.85, 0.30, 1.0),  # phase 4+ gold
+	]
+	var color: Color = phase_colors[min(idx - 1, phase_colors.size() - 1)] if idx > 0 else phase_colors[0]
+	if juice:
+		if juice.has_method("slowmo"):
+			juice.slowmo(0.25, 0.6)  # punch
+		if juice.has_method("flash"):
+			juice.flash(color, 0.30, 0.45)
+		if juice.has_method("shake"):
+			juice.shake(0.50, 0.35)
+		if juice.has_method("toast"):
+			juice.toast("PHASE %d  %s" % [idx + 1, p.name.to_upper()], color, 3.0)
+	# Boss roar audio (lower pitch on later phases)
+	var ab: Node = get_node_or_null("/root/AudioBus")
+	if ab and ab.has_method("play_cue"):
+		var pitch: float = max(0.4, 0.7 - 0.1 * float(idx))
+		ab.play_cue(&"death", global_position, -1.0, pitch)
+		ab.play_cue(&"thunder", global_position, -3.0, 0.7)
+	# Music: bump combat intensity for the phase. Phase 0=1.0,
+	# 1=1.15, 2=1.3, 3=1.45 — saturating push as the boss escalates.
+	var md: Node = get_node_or_null("/root/MusicDirector")
+	if md and md.has_method("set_combat_intensity"):
+		md.set_combat_intensity(1.0 + 0.15 * float(idx))
 
 func _die(killer: Node) -> void:
 	state = State.DEAD

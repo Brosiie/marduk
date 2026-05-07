@@ -1598,12 +1598,17 @@ func _update_animation() -> void:
 		anim_player.play(resolved)
 
 # Combat hooks
+var _last_damage_source: Node = null  # tracked for death-replay camera focus
+
 func take_damage(amount: float, source: Node = null) -> void:
 	if stats.hp <= 0:
 		return
 	# Dodge i-frames absorb the hit completely
 	if is_invulnerable():
 		return
+	# Remember who hit us last so the death replay can pan to them
+	if source and is_instance_valid(source):
+		_last_damage_source = source
 	# Guard stance: reduce damage by GUARD_DAMAGE_REDUCTION (e.g., 55%
 	# soaked, 45% taken). Parry-window classes can layer on top.
 	if is_guarding():
@@ -1664,14 +1669,23 @@ func _die() -> void:
 	var ar = get_node_or_null("/root/AchievementRegistry")
 	if ar and ar.has_method("unlock"):
 		ar.unlock(&"a_first_death")
-	# Cinematic death sequence: slow-mo, red flash, YOU DIED toast,
-	# then the existing 2.5s respawn timer fires and SoulMarker
-	# drops + travel back to lodestone.
+	# DEATH REPLAY: before the YOU DIED toast, pan the camera to the
+	# killer for 1.0s of deep slowmo so the player sees what got them.
+	# Then drop the toast. Souls-style 'this is the bullshit that
+	# killed you' framing.
+	if _last_damage_source and is_instance_valid(_last_damage_source) and _last_damage_source is Node3D:
+		_set_lock(_last_damage_source)  # camera tracks killer
 	var juice = get_node_or_null("/root/Juice")
 	if juice:
-		juice.slowmo(0.10, 1.6)
+		# Deep slowmo (5% speed) for the replay window
+		juice.slowmo(0.05, 1.0)
 		juice.flash(Color(0.7, 0.05, 0.05), 0.55, 1.4)
-		juice.toast("YOU DIED", Color(0.95, 0.20, 0.20), 2.4)
+		# Delay the YOU DIED toast slightly so the replay plays first
+		var t := get_tree().create_timer(0.6)
+		t.timeout.connect(func():
+			if juice and juice.has_method("toast"):
+				juice.toast("YOU DIED", Color(0.95, 0.20, 0.20), 2.4)
+		)
 	# Multiplayer-friendly arena rule: when a player dies, that player's
 	# engagement is dropped but the BOSS keeps its HP. In a party run, the
 	# boss only resets when every player has wiped (handled by checking

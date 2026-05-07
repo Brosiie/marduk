@@ -191,19 +191,34 @@ func _update_cooldowns() -> void:
 	if not "_ability_cooldowns" in _player:
 		return
 	var cooldowns: Array = _player._ability_cooldowns
+	var kit: Array = []
+	if "_ability_kit" in _player:
+		kit = _player._ability_kit
 	var now: float = Time.get_ticks_msec() / 1000.0
 	for i in range(min(_slot_nodes.size(), cooldowns.size())):
 		var s: Control = _slot_nodes[i]
 		var cd: ColorRect = s.get_node("CD")
 		var cd_lbl: Label = s.get_node("CDLabel")
 		var remaining: float = cooldowns[i] - now
+		# Swirl: read this slot's total cooldown from the kit so the mask
+		# can shrink from full to empty as the ability comes back. We
+		# compute progress = remaining / total.
+		var total: float = 1.0
+		if i < kit.size() and not kit[i].is_empty():
+			total = max(0.05, float(kit[i].get("cooldown", 1.0)))
 		if remaining > 0.05:
 			cd.visible = true
 			cd_lbl.visible = true
 			cd_lbl.text = ("%.1f" % remaining) if remaining < 10.0 else ("%d" % int(remaining))
+			# Shrink the mask vertically as the cooldown progresses.
+			# At remaining=total: mask covers full slot. At remaining=0:
+			# mask covers nothing. Standard fill-up MOBA UI.
+			var pct: float = clamp(remaining / total, 0.0, 1.0)
+			cd.anchor_top = 1.0 - pct  # mask top edge climbs as ability returns
 		else:
 			cd.visible = false
 			cd_lbl.visible = false
+			cd.anchor_top = 0.0  # reset for next use
 
 # Quick procedural icon: square colored by ability element with the first
 # letter of the ability name overlaid. Replaceable later when art lands.

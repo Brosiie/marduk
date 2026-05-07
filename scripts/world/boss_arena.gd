@@ -82,11 +82,15 @@ func _engage(player_node: Node) -> void:
 		# Player's _set_lock handles reticle + camera tracking.
 		if player_node and player_node.has_method("_set_lock"):
 			player_node._set_lock(_boss)
-		# Audio: deep low boom
+		# Audio: deep low boom + thunder
 		var ab = get_node_or_null("/root/AudioBus")
 		if ab and ab.has_method("play_cue"):
 			ab.play_cue(&"death", global_position, -2.0, 0.55)
 			ab.play_cue(&"thunder", global_position, -4.0, 0.6)  # second layer
+		# Music: crossfade in the combat tension layer.
+		var md = get_node_or_null("/root/MusicDirector")
+		if md and md.has_method("set_combat_intensity"):
+			md.set_combat_intensity(1.0)
 	# Wait for boss death; then unlock
 	if _boss and _boss.has_signal("boss_defeated"):
 		_boss.boss_defeated.connect(_on_boss_defeated)
@@ -132,7 +136,13 @@ func _on_boss_died() -> void:
 			hud.unbind_boss()
 			break
 
+func _drop_combat_music() -> void:
+	var md = get_node_or_null("/root/MusicDirector")
+	if md and md.has_method("set_combat_intensity"):
+		md.set_combat_intensity(0.0)
+
 func _play_defeat_cinematic() -> void:
+	_drop_combat_music()
 	# Big finish: cinematic_kill (slowmo + flash) + golden victory toast
 	# with the boss name + audio sting. The player has earned this moment.
 	var juice = get_node_or_null("/root/Juice")

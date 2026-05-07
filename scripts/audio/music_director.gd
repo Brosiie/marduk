@@ -35,14 +35,83 @@ const REGION_CHORDS := {
 var _player: AudioStreamPlayer
 var _current_region: StringName = &""
 
+# Combat tension layer: a second pad that crossfades in during boss
+# fights. Uses a tritone interval (root + tritone + minor third) for
+# dissonance against the smooth region pad. Volume target driven by
+# set_combat_intensity (0..1). Smoothly lerped.
+var _combat_player: AudioStreamPlayer = null
+var _combat_intensity: float = 0.0
+var _combat_target_intensity: float = 0.0
+const COMBAT_VOLUME_DB_PEAK: float = -14.0
+const COMBAT_VOLUME_DB_SILENT: float = -80.0
+
 func _ready() -> void:
 	_player = AudioStreamPlayer.new()
 	_player.bus = "Music"
 	_player.volume_db = PAD_VOLUME_DB
 	add_child(_player)
+	# Combat tension layer
+	_combat_player = AudioStreamPlayer.new()
+	_combat_player.bus = "Music"
+	_combat_player.volume_db = COMBAT_VOLUME_DB_SILENT
+	add_child(_combat_player)
 	# Re-evaluate on tree change (scene transitions)
 	get_tree().tree_changed.connect(_on_tree_changed)
 	call_deferred("_refresh")
+
+func _process(delta: float) -> void:
+	# Smooth combat volume toward target; below 0.05 we let the player
+	# stop entirely so we don't spend cycles on silence.
+	if _combat_player == null:
+		return
+	_combat_intensity = lerp(_combat_intensity, _combat_target_intensity, clamp(delta * 0.6, 0.0, 1.0))
+	if _combat_intensity < 0.02 and _combat_player.playing:
+		_combat_player.stop()
+	elif _combat_intensity >= 0.05 and not _combat_player.playing:
+		_play_combat_pad()
+	_combat_player.volume_db = lerp(COMBAT_VOLUME_DB_SILENT, COMBAT_VOLUME_DB_PEAK, _combat_intensity)
+
+# Public API. BossArena calls this on engagement (1.0) and release
+# (0.0). Phase transitions can bump it higher (1.2 = saturated push).
+func set_combat_intensity(target: float) -> void:
+	_combat_target_intensity = clamp(target, 0.0, 1.5)
+
+func _play_combat_pad() -> void:
+	var stream := AudioStreamGenerator.new()
+	stream.mix_rate = SAMPLE_RATE
+	stream.buffer_length = PAD_DURATION
+	_combat_player.stream = stream
+	_combat_player.play()
+	var pb: AudioStreamGeneratorPlayback = _combat_player.get_stream_playback()
+	if pb == null:
+		return
+	# Tritone-rich ostinato: root + tritone + minor third + fifth, low
+	# octave so it sits under the region pad without fighting for
+	# attention. Same loop length so it phases smoothly.
+	var freqs := [55.0, 77.78, 65.41, 82.41]
+	_fill_combat_pad(pb, freqs)
+
+func _fill_combat_pad(pb: AudioStreamGeneratorPlayback, freqs: Array) -> void:
+	var total_samples: int = int(PAD_DURATION * SAMPLE_RATE)
+	var phases: Array[float] = []
+	for _f in freqs:
+		phases.append(0.0)
+	# Square-ish wave for grain instead of pure sine
+	for i in range(total_samples):
+		var t: float = float(i) / SAMPLE_RATE
+		# Faster heartbeat amplitude than the region pad (0.8 Hz)
+		var amp_env: float = 0.55 + 0.45 * abs(sin(t * TAU * 0.8))
+		var loop_env: float = 0.5 - 0.5 * cos(float(i) / float(total_samples) * TAU)
+		var sample: float = 0.0
+		for j in range(freqs.size()):
+			var freq: float = float(freqs[j])
+			phases[j] += freq / SAMPLE_RATE
+			# Soft square: sin clipped to give a faint grit
+			var raw: float = sin(phases[j] * TAU)
+			var voice: float = (1.0 if raw > 0.0 else -1.0) * 0.3 + raw * 0.7
+			sample += voice / float(freqs.size())
+		sample *= amp_env * loop_env * 0.50
+		pb.push_frame(Vector2(sample, sample))
 
 func _on_tree_changed() -> void:
 	# Debounce — only check once per frame
