@@ -9,6 +9,9 @@ class_name TrainerNPC
 @export var trains_class_id: StringName = &"ronin"
 
 func _ready() -> void:
+	# Trainers stand fixed at their training spot. Override before super so
+	# the wander state machine in npc.gd respects this from frame 0.
+	wander_radius = 0.0
 	super._ready()
 	# Override default name color to make trainers visually distinct
 	if _label3d:

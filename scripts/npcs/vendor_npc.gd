@@ -10,6 +10,10 @@ class_name VendorNPC
 @export var slot_affinity: int = -1               # filter pool when no shop_id; -1 = any
 
 func _ready() -> void:
+	# Vendors are anchored at their stalls -- override wander_radius BEFORE
+	# super._ready() locks _home and starts the state machine. Otherwise
+	# the merchant strolls away from his shop.
+	wander_radius = 0.0
 	super._ready()
 	if _label3d:
 		_label3d.modulate = Color(1.00, 0.85, 0.45)  # gold for vendors

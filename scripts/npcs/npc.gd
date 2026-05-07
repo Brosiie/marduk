@@ -15,6 +15,22 @@ class_name NPC
 @export var has_quest: bool = false
 @export var quest_id: StringName = &""
 @export_multiline var greeting: String = "Stranger. The air is heavy today."
+# Wander behavior: NPC paces around its spawn point. Set wander_radius=0
+# for static NPCs (vendors anchored at counters). Default 5m gives a
+# pleasant "townsfolk going about their day" feel without anyone
+# wandering off the map.
+@export var wander_radius: float = 5.0
+@export var wander_speed: float = 1.4         # m/s - slow stroll
+@export var wander_pause_min: float = 2.0     # seconds standing idle between strolls
+@export var wander_pause_max: float = 5.5
+@export var wander_arrive_dist: float = 0.6   # how close to target counts as "arrived"
+
+# Wander state
+enum WanderState { PAUSING, WALKING }
+var _home: Vector3 = Vector3.ZERO
+var _wander_target: Vector3 = Vector3.ZERO
+var _wander_state: int = WanderState.PAUSING
+var _wander_state_ends_at: float = 0.0
 
 var _player_inside: bool = false
 var _label3d: Label3D
@@ -82,6 +98,78 @@ func _ready() -> void:
 
 	_load_idle_animation()
 
+	# Wander setup: lock in home position so wander_target picks stay nearby
+	# even after being moved by other systems.
+	_home = global_position
+	_wander_state = WanderState.PAUSING
+	_wander_state_ends_at = _now() + randf_range(wander_pause_min, wander_pause_max)
+
+func _physics_process(_delta: float) -> void:
+	# Static NPCs (wander_radius == 0): nothing to do, idle anim already playing.
+	if wander_radius <= 0.0:
+		return
+	# Don't wander while in dialogue (player just walked up to talk)
+	if _player_inside:
+		velocity = Vector3.ZERO
+		_play_anim_for_state(WanderState.PAUSING)
+		return
+	var t := _now()
+	match _wander_state:
+		WanderState.PAUSING:
+			velocity = Vector3.ZERO
+			move_and_slide()
+			if t >= _wander_state_ends_at:
+				_pick_new_wander_target()
+		WanderState.WALKING:
+			var to_target: Vector3 = _wander_target - global_position
+			to_target.y = 0.0
+			var dist := to_target.length()
+			if dist < wander_arrive_dist or t >= _wander_state_ends_at:
+				_wander_state = WanderState.PAUSING
+				_wander_state_ends_at = t + randf_range(wander_pause_min, wander_pause_max)
+				_play_anim_for_state(WanderState.PAUSING)
+				return
+			velocity = to_target.normalized() * wander_speed
+			# Face the direction of travel (yaw only)
+			rotation.y = atan2(velocity.x, velocity.z)
+			move_and_slide()
+
+func _pick_new_wander_target() -> void:
+	# Pick a random point within wander_radius of home. Repeat up to a few
+	# times if the random pick lands too close (avoid micro-shuffles).
+	for _i in range(4):
+		var angle := randf() * TAU
+		var dist := randf_range(wander_radius * 0.4, wander_radius)
+		var candidate := _home + Vector3(cos(angle) * dist, 0, sin(angle) * dist)
+		if candidate.distance_to(global_position) > wander_arrive_dist * 2.0:
+			_wander_target = candidate
+			break
+	_wander_state = WanderState.WALKING
+	# Time-out after generous travel budget so a stuck NPC doesn't get
+	# pinned forever against geometry. Distance / speed + slack.
+	var travel_budget: float = (_wander_target.distance_to(global_position) / max(wander_speed, 0.1)) * 1.6
+	_wander_state_ends_at = _now() + travel_budget
+	_play_anim_for_state(WanderState.WALKING)
+
+func _play_anim_for_state(s: int) -> void:
+	var ap: AnimationPlayer = _find_anim_player(self)
+	if ap == null:
+		return
+	# Walk anim candidates - peasant_female has its own walk override; fall
+	# through to shared. PAUSING uses the same idle resolution as _ready did.
+	var candidates: Array
+	if s == WanderState.WALKING:
+		candidates = ["marduk/walk", "marduk/walk_back", "marduk/walk_left", "Walking", "walk", "Mixamo_Walking"]
+	else:
+		candidates = ["marduk/idle", "marduk/unarmed_idle", "Mixamo_Idle", "idle", "Idle"]
+	for cand in candidates:
+		if ap.has_animation(cand) and ap.current_animation != cand:
+			ap.play(cand)
+			return
+
+func _now() -> float:
+	return Time.get_ticks_msec() / 1000.0
+
 func _attach_npc_mesh() -> void:
 	# If a MeshRoot already exists with a child, leave it. Otherwise
 	# instantiate the Mixamo mesh by id.
@@ -102,7 +190,10 @@ func _attach_npc_mesh() -> void:
 	add_child(mesh_root)
 	var mesh := packed.instantiate()
 	mesh.name = "NpcMesh"
-	mesh.transform = Transform3D(Basis().scaled(Vector3(0.01, 0.01, 0.01)), Vector3.ZERO)
+	# .glb pipeline (FBX2glTF) outputs at meter scale, so identity scale.
+	# The old 0.01 (cm->m) was for raw Mixamo .fbx imports and made NPCs
+	# 1.7cm tall (invisible). Same fix as enemy_base.tscn / boss_base.tscn.
+	mesh.transform = Transform3D.IDENTITY
 	mesh_root.add_child(mesh)
 
 func _load_idle_animation() -> void:
