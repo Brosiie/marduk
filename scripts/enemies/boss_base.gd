@@ -36,6 +36,11 @@ var _pattern_cooldowns: Dictionary = {}  # pattern_id -> available_at_unix
 var _current_pattern: BossAttackPattern = null
 var _pattern_state: StringName = &""  # &"windup" | &"execute" | &"recovery"
 var _pattern_state_until: float = 0.0
+# Telegraph decal: a flat MeshInstance3D parented under the boss showing
+# where the next attack will land. Spawned on _begin_pattern, cleared on
+# _execute_pattern so it disappears the instant the strike connects.
+var _telegraph_decal: MeshInstance3D = null
+const _TELEGRAPH_HEIGHT: float = 0.05  # decal hovers just above floor
 
 var phases: Array = []
 var current_phase_index: int = 0
@@ -95,6 +100,16 @@ func _tick_attack_pattern_ai(_delta: float) -> void:
 	var now := Time.get_ticks_msec() / 1000.0
 
 	if _current_pattern:
+		# During windup, push 0..1 progress to the telegraph shader so
+		# the pulse intensifies as the strike approaches. This is the
+		# 'urgency' channel — the player sees the decal getting harsher.
+		if _pattern_state == &"windup" and _telegraph_decal and is_instance_valid(_telegraph_decal):
+			var windup_total: float = max(0.001, _current_pattern.windup_seconds)
+			var elapsed: float = windup_total - max(0.0, _pattern_state_until - now)
+			var prog: float = clamp(elapsed / windup_total, 0.0, 1.0)
+			var mat: ShaderMaterial = _telegraph_decal.material_override
+			if mat:
+				mat.set_shader_parameter("progress", prog)
 		if now >= _pattern_state_until:
 			match _pattern_state:
 				&"windup":
@@ -179,8 +194,14 @@ func _begin_pattern(p: BossAttackPattern, now: float) -> void:
 	_current_pattern = p
 	_pattern_state = &"windup"
 	_pattern_state_until = now + p.windup_seconds
+	# Spawn the danger-zone telegraph decal so the player can read the
+	# attack BEFORE it lands. Removed when execute begins.
+	_spawn_telegraph(p)
 
 func _execute_pattern(p: BossAttackPattern) -> void:
+	# Telegraph served its purpose: the strike has begun. Hitbox now
+	# handles the actual damage; the decal is no longer informative.
+	_clear_telegraph()
 	# Spawn a Hitbox shaped by the pattern. Hitbox handles damage resolution.
 	var hb := preload("res://scripts/combat/hitbox.gd").new()
 	var ab := Ability.new()
@@ -317,3 +338,85 @@ func _award_guaranteed_drops(killer: Node) -> void:
 			if not SaveFlags.has_permanent(&"heaven_obtained"):
 				killer.receive_loot(LegendaryRegistry.get_heaven())
 				SaveFlags.set_permanent(&"heaven_obtained", true)
+
+# --- Telegraph decals ---
+
+# Build a flat MeshInstance3D + telegraph shader and place it on the
+# ground where the attack will land. Called from _begin_pattern.
+#
+# Position rules per shape:
+#   FORWARD_CONE / LINE     -> centered at boss feet, oriented toward target
+#   AOE_AROUND_BOSS         -> centered at boss feet
+#   AOE_GROUND / SINGLE_TARGET / PROJECTILE -> centered at target's position
+#   ARENA_WIDE              -> centered at boss feet, large ring
+func _spawn_telegraph(p: BossAttackPattern) -> void:
+	_clear_telegraph()
+	var decal := MeshInstance3D.new()
+	decal.name = "Telegraph"
+	var quad := PlaneMesh.new()
+	# Quad is laid flat on the ground (default PlaneMesh is XZ plane). Size
+	# the quad to the danger area so the shader's UV-based shape fills it.
+	var size: Vector2 = _telegraph_size_for(p)
+	quad.size = size
+	decal.mesh = quad
+	# Shader material with shape_id and color from the pattern
+	var mat := ShaderMaterial.new()
+	mat.shader = load("res://shaders/telegraph.gdshader")
+	mat.set_shader_parameter("shape_id", int(p.shape))
+	mat.set_shader_parameter("telegraph_color", p.telegraph_color)
+	mat.set_shader_parameter("progress", 0.0)
+	# Cone arc -- shader uses half-arc in radians
+	mat.set_shader_parameter("arc_radians", deg_to_rad(p.arc_degrees) * 0.5)
+	mat.set_shader_parameter("pulse_speed", 8.0)
+	decal.material_override = mat
+	# Place + orient
+	var origin: Vector3 = _telegraph_origin_for(p)
+	# Add as child of the world (current_scene) NOT the boss, so the
+	# decal doesn't move when the boss does. Player needs a stable
+	# danger zone they can dodge out of.
+	get_tree().current_scene.add_child(decal)
+	decal.global_position = origin + Vector3(0, _TELEGRAPH_HEIGHT, 0)
+	# For shapes that have a forward direction (CONE, LINE), rotate the
+	# decal so its +X axis aligns with the boss-to-target direction.
+	if p.shape == BossAttackPattern.Shape.FORWARD_CONE or p.shape == BossAttackPattern.Shape.LINE:
+		var dir: Vector3 = (target.global_position - global_position) if target else -global_transform.basis.z
+		dir.y = 0
+		if dir.length_squared() > 0.001:
+			decal.rotation.y = atan2(dir.x, dir.z) - PI * 0.5
+	_telegraph_decal = decal
+
+func _clear_telegraph() -> void:
+	if _telegraph_decal and is_instance_valid(_telegraph_decal):
+		_telegraph_decal.queue_free()
+	_telegraph_decal = null
+
+# Size the decal quad to match the attack's footprint. The quad's UVs
+# are 0..1 across the full surface, and the shader assumes the danger
+# zone fills the quad.
+func _telegraph_size_for(p: BossAttackPattern) -> Vector2:
+	match p.shape:
+		BossAttackPattern.Shape.SINGLE_TARGET, BossAttackPattern.Shape.PROJECTILE:
+			# Small marker
+			return Vector2(2.0, 2.0)
+		BossAttackPattern.Shape.FORWARD_CONE:
+			# Quad covers full cone reach, double the range for visual heft
+			return Vector2(p.range * 2.0, p.range * 2.0)
+		BossAttackPattern.Shape.AOE_AROUND_BOSS, BossAttackPattern.Shape.AOE_GROUND:
+			return Vector2(p.radius * 2.0, p.radius * 2.0)
+		BossAttackPattern.Shape.LINE:
+			# Long thin strip; width = 2 (matches shader's 0.16 height band)
+			return Vector2(p.range * 2.0, 2.0)
+		BossAttackPattern.Shape.ARENA_WIDE:
+			return Vector2(36.0, 36.0)
+	return Vector2(2.0, 2.0)
+
+# Where to PLACE the decal in world space.
+func _telegraph_origin_for(p: BossAttackPattern) -> Vector3:
+	match p.shape:
+		BossAttackPattern.Shape.AOE_GROUND, BossAttackPattern.Shape.SINGLE_TARGET, BossAttackPattern.Shape.PROJECTILE:
+			# Decal lands at the player's current location (where the
+			# attack will resolve)
+			return target.global_position if target else global_position
+		_:
+			# Centered on the boss
+			return global_position
