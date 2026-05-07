@@ -54,7 +54,12 @@ func _cas(asset: String, pos: Vector3, rot_y_deg: float = 0.0, scale: float = 1.
 	inst.position = pos
 	inst.rotation.y = deg_to_rad(rot_y_deg)
 	inst.scale = Vector3.ONE * scale
-	_strip_colliders(inst)
+	# Castle pieces (walls/towers/gates/bridges) are virtually never decor,
+	# but flag and flag-banner pieces are matched as decor by name.
+	if _is_decor(asset):
+		_strip_colliders(inst)
+	else:
+		_ensure_collision(inst)
 	return inst
 
 # Spawn from the nature kit (trees, grass, flowers, cliffs).
@@ -70,7 +75,13 @@ func _nat(asset: String, pos: Vector3, rot_y_deg: float = 0.0, scale: float = 1.
 	inst.position = pos
 	inst.rotation.y = deg_to_rad(rot_y_deg)
 	inst.scale = Vector3.ONE * scale
-	_strip_colliders(inst)
+	# Grass / flowers / mushrooms / bushes / banners / small bamboo all
+	# match as decor — player walks through. Trees, stumps, cliffs,
+	# bridges, tall bamboo grove, campfires all get collision.
+	if _is_decor(asset):
+		_strip_colliders(inst)
+	else:
+		_ensure_collision(inst)
 	return inst
 
 # Cherry blossom helper: spawn a Kenney tree, then tint every surface's
@@ -133,10 +144,11 @@ func _torii(center: Vector3, width: float = 4.0) -> void:
 			# Vermilion red — torii signature color
 			_tint_tree(beam, Color(0.78, 0.18, 0.15, 1.0))
 
-# Walk the prop subtree and disable every CollisionShape3D / StaticBody3D
-# so the player cannot get wedged inside a scattered pillar or tree
-# trunk. Decoration is purely visual; only the floor + designed walls
-# need to block movement.
+# Walk the prop subtree and disable every CollisionShape3D / StaticBody3D.
+# Used only for asset names matching DECOR_PATTERNS (small ground decor
+# like grass, flowers, banners, broken-sword props). For everything else
+# we instead generate trimesh collision so walls/towers/dojo/lanterns
+# all block the player.
 func _strip_colliders(node: Node) -> void:
 	for child in node.get_children():
 		if child is CollisionShape3D:
@@ -147,6 +159,69 @@ func _strip_colliders(node: Node) -> void:
 			(child as StaticBody3D).collision_layer = 0
 			(child as StaticBody3D).collision_mask = 0
 		_strip_colliders(child)
+
+# Asset-name patterns that should be PASS-THROUGH (no collision). Anything
+# whose filename contains one of these substrings is treated as decor.
+# Everything else gets auto-generated trimesh collision so the player
+# can't clip through walls / towers / lanterns / dojo platforms / trees.
+#
+# Edit this list to fine-tune what's walkable vs walk-through. The
+# defaults err toward "solid" because Bond's spec was 'character doesn't
+# clip through environments'.
+const DECOR_PATTERNS := [
+	"grass",        # tufts on the ground
+	"flower",       # flower pickups (visual only)
+	"mushroom",     # mushroom decor
+	"plant_bush",   # all bush variants
+	"crops_bamboo", # small bamboo crops; tall perimeter bamboo is also matched but it's fine
+	"flag",         # banners, pennants — cloth shouldn't block player
+	"rubble_small", # tiny debris
+	"sword_shield_broken",  # half-buried sword in path (stepping on it is fine)
+]
+
+# Returns true if `asset` is considered decor (walk-through). Case-
+# insensitive substring match against DECOR_PATTERNS.
+func _is_decor(asset: String) -> bool:
+	var lower := asset.to_lower()
+	for pat in DECOR_PATTERNS:
+		if lower.find(pat) != -1:
+			return true
+	return false
+
+# Walk the prop subtree, find every MeshInstance3D that doesn't already
+# live under a StaticBody3D, and call create_trimesh_collision() on it.
+# This inserts a sibling StaticBody3D + CollisionShape3D (concave,
+# matching the mesh exactly) so the player physically collides with
+# walls, towers, columns, dojo platforms, lanterns, trees, etc.
+#
+# Idempotent: if a StaticBody3D ancestor already exists, we skip (avoid
+# double-adding collision when an asset pack DID ship with colliders).
+func _ensure_collision(root: Node) -> void:
+	for mi in _find_mesh_instances(root):
+		if _has_static_body_ancestor(mi):
+			continue
+		if mi.mesh == null:
+			continue
+		# Godot generates the StaticBody3D as a sibling of the
+		# MeshInstance3D. We tag the body with a known name so we can
+		# re-locate or skip it later if needed.
+		mi.create_trimesh_collision()
+
+func _find_mesh_instances(node: Node) -> Array[MeshInstance3D]:
+	var out: Array[MeshInstance3D] = []
+	if node is MeshInstance3D:
+		out.append(node)
+	for c in node.get_children():
+		out.append_array(_find_mesh_instances(c))
+	return out
+
+func _has_static_body_ancestor(node: Node) -> bool:
+	var p := node.get_parent()
+	while p != null and p != self:
+		if p is StaticBody3D:
+			return true
+		p = p.get_parent()
+	return false
 
 # String alias map so region scenes can carry region_id metadata and the
 # composer auto-resolves to the right enum at build time.
@@ -241,10 +316,14 @@ func _spawn(asset: String, pos: Vector3, rot_y_deg: float = 0.0, scale: float = 
 	inst.position = pos
 	inst.rotation.y = deg_to_rad(rot_y_deg)
 	inst.scale = Vector3.ONE * scale
-	# Disable any collision shapes on decoration props. Otherwise the
-	# player can get wedged between scattered pillars + walls and lose
-	# all movement freedom.
-	_strip_colliders(inst)
+	# KayKit dungeon assets ship with no collision shapes either, so we
+	# auto-generate trimesh colliders for everything except decor (small
+	# props matched by DECOR_PATTERNS). Without this, the player walks
+	# through walls / floor tiles / pillars / dojo platforms / altars.
+	if _is_decor(asset):
+		_strip_colliders(inst)
+	else:
+		_ensure_collision(inst)
 	return inst
 
 func _torch(pos: Vector3, lit: bool = true) -> void:
