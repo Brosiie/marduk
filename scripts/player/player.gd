@@ -117,6 +117,36 @@ var _guard_until: float = 0.0
 const GUARD_DURATION := 2.0
 const GUARD_DAMAGE_REDUCTION := 0.55  # take 45% damage while guarding
 
+# Per-class buff color: tints the screen flash so each class's buff
+# feels signature-y (Berserker red rage, Mage blue arcane, Demon
+# hellfire, Paladin holy gold, etc.). Default gold for unknown.
+const CLASS_BUFF_COLOR := {
+	&"berserker":            Color(0.95, 0.30, 0.20, 1.0),  # rage red
+	&"assassin":             Color(0.55, 0.30, 0.85, 1.0),  # shadow violet
+	&"ronin":                Color(1.00, 0.85, 0.45, 1.0),  # gold (Kachujin)
+	&"ranger":               Color(0.40, 0.85, 0.35, 1.0),  # forest green
+	&"mage":                 Color(0.40, 0.65, 1.00, 1.0),  # arcane blue
+	&"chaos_druid":          Color(0.55, 0.95, 0.40, 1.0),  # nature lime
+	&"demon":                Color(0.85, 0.20, 0.30, 1.0),  # hellfire red
+	&"paladin_guardian":     Color(0.95, 0.92, 0.75, 1.0),  # holy white-gold
+	&"paladin_lightbringer": Color(1.00, 0.95, 0.55, 1.0),  # sun bright gold
+}
+
+# Buff trigger registries — abilities whose IDs match these get the
+# corresponding effect. Adding new abilities to a class kit just needs
+# the right ID pattern; no per-class plumbing.
+const BATTLE_CRY_IDS := [
+	&"war_cry", &"battle_cry", &"power_up", &"katana_power_up",
+	&"bear_form", &"druid_form", &"demon_form",
+	&"hawk_command", &"stealth_form",
+]
+const GUARD_IDS := [
+	&"guard", &"parry",
+	&"divine_shield", &"mana_shield",
+]
+const HEAL_IDS := [&"healing_aura", &"holy_blessing", &"healing_word"]
+const HEAL_PCT_OF_MAX := 0.30  # 30% max HP per heal cast
+
 # Surge-potion timers (epoch seconds). Set by use_potion(); checked by _tick_resource.
 var _mana_surge_until: float = 0.0
 var _stamina_surge_until: float = 0.0
@@ -579,10 +609,12 @@ func _cast_ability_slot(slot: int) -> void:
 	# what makes War Cry / Power Up / Battle Cry feel useful instead
 	# of being a 0-damage taunt with a long cooldown.
 	var ability_id: StringName = StringName(k.get("id", ""))
-	if ability_id in [&"war_cry", &"power_up", &"battle_cry", &"katana_power_up"]:
+	if ability_id in BATTLE_CRY_IDS:
 		_trigger_battle_cry()
-	elif ability_id in [&"guard", &"parry"]:
+	elif ability_id in GUARD_IDS:
 		_trigger_guard()
+	elif ability_id in HEAL_IDS:
+		_trigger_heal()
 	# Animation cue (best-effort)
 	if anim_player:
 		var anim_key: String = String(k.get("anim", "attack"))
@@ -663,19 +695,42 @@ func _trigger_battle_cry() -> void:
 	var now: float = Time.get_ticks_msec() / 1000.0
 	_damage_surge_until = now + BATTLE_CRY_DURATION
 	_damage_surge_mult = 1.0 + BATTLE_CRY_DAMAGE_BONUS
-	# Visual + audio feel:
-	#   gold flash on the screen so the player feels the buff land
-	#   battle-cry sound cue
-	#   toast naming the buff
+	var color: Color = _class_buff_color()
+	var label: String = _battle_cry_label()
+	# Visual + audio feel: class-themed flash, named toast, audio cue.
 	var juice: Node = get_node_or_null("/root/Juice")
 	if juice:
 		if juice.has_method("flash"):
-			juice.flash(Color(1.0, 0.85, 0.45), 0.18, 0.40)
+			juice.flash(color, 0.18, 0.40)
 		if juice.has_method("toast"):
-			juice.toast("BATTLE CRY  +%d%% DMG  %ds" % [int(BATTLE_CRY_DAMAGE_BONUS * 100), int(BATTLE_CRY_DURATION)], Color(1.0, 0.85, 0.45), 1.6)
+			juice.toast("%s  +%d%% DMG  %ds" % [label, int(BATTLE_CRY_DAMAGE_BONUS * 100), int(BATTLE_CRY_DURATION)], color, 1.6)
 	var ab: Node = get_node_or_null("/root/AudioBus")
 	if ab and ab.has_method("play_cue"):
 		ab.play_cue(&"taunt", global_position, -3.0, 0.92)
+
+# Returns the class-themed buff flash color, or default gold if no class
+# is picked / class is unknown.
+func _class_buff_color() -> Color:
+	if not stats or not stats.class_def:
+		return Color(1.00, 0.85, 0.45, 1.0)
+	return CLASS_BUFF_COLOR.get(stats.class_def.class_id, Color(1.00, 0.85, 0.45, 1.0))
+
+# Class-flavored toast label so the buff feels themed instead of every
+# class shouting "BATTLE CRY". Falls back to BATTLE CRY for unknowns.
+func _battle_cry_label() -> String:
+	if not stats or not stats.class_def:
+		return "BATTLE CRY"
+	match stats.class_def.class_id:
+		&"berserker":            return "RAGE UNCHAINED"
+		&"assassin":             return "SHADOW VEIL"
+		&"ronin":                return "STANCE RESOLVE"
+		&"ranger":               return "HAWK'S EYE"
+		&"mage":                 return "ARCANE FOCUS"
+		&"chaos_druid":          return "PRIMAL FORM"
+		&"demon":                return "DEMON UNLEASHED"
+		&"paladin_guardian":     return "HOLY ZEAL"
+		&"paladin_lightbringer": return "SUNBLESSED"
+	return "BATTLE CRY"
 
 # Read by combat code (hitbox / ability_runner) to scale outgoing
 # damage. Multiplicative with rage buff so a 100-rage Berserker firing
@@ -694,12 +749,47 @@ func is_guarding() -> bool:
 func _trigger_guard() -> void:
 	var now: float = Time.get_ticks_msec() / 1000.0
 	_guard_until = now + GUARD_DURATION
-	# Camera shake when blocking lands an absorbed hit is handled in
-	# take_damage; here we just brief-flash the screen blueish to show
-	# the stance is up.
+	# Class-themed flash for the stance entry. Berserker gets red guard
+	# (defiance!), Mage gets blue (mana shield), Paladin gets gold
+	# (divine), etc. Defaults to a steel blue if no class picked.
+	var color: Color = _class_buff_color()
+	# Lighten slightly so guard reads as defensive vs the saturated
+	# Battle Cry color
+	color = color.lightened(0.25)
 	var juice: Node = get_node_or_null("/root/Juice")
 	if juice and juice.has_method("flash"):
-		juice.flash(Color(0.65, 0.85, 1.00), 0.10, 0.20)
+		juice.flash(color, 0.10, 0.20)
+	if juice and juice.has_method("toast"):
+		juice.toast(_guard_label(), color, 1.0)
+
+func _guard_label() -> String:
+	if not stats or not stats.class_def:
+		return "GUARD"
+	match stats.class_def.class_id:
+		&"mage":                 return "MANA SHIELD"
+		&"paladin_guardian":     return "DIVINE SHIELD"
+		&"paladin_lightbringer": return "DIVINE SHIELD"
+		&"ronin":                return "PARRY STANCE"
+	return "GUARD"
+
+# Healing pulse: heals HEAL_PCT_OF_MAX of max HP, fires green flash +
+# toast. Used by Lightbringer's Healing Aura and other heal-themed
+# abilities. Doesn't grant the Battle Cry damage buff so it stays a
+# pure defensive option.
+func _trigger_heal() -> void:
+	if not stats:
+		return
+	var amount: float = stats.max_hp * HEAL_PCT_OF_MAX
+	heal(amount)
+	var juice: Node = get_node_or_null("/root/Juice")
+	if juice:
+		if juice.has_method("flash"):
+			juice.flash(Color(0.40, 0.95, 0.55), 0.15, 0.45)
+		if juice.has_method("toast"):
+			juice.toast("HEALED  +%d HP" % int(amount), Color(0.40, 0.95, 0.55), 1.4)
+	var ab: Node = get_node_or_null("/root/AudioBus")
+	if ab and ab.has_method("play_cue"):
+		ab.play_cue(&"heal", global_position, -6.0, 1.0)
 
 # --- Class kits ---
 # Default kit: 4 standard abilities every class can fall back to. Each
@@ -737,67 +827,107 @@ func _kit_ronin() -> Array:
 	]
 
 func _kit_berserker() -> Array:
+	# Aggression. War Cry triggers Battle Cry buff (red rage flash).
 	return [
+		# Q: Cleave - quick wide swing
 		{"id": &"cleave_1", "name": "Cleave", "damage": 40.0, "range": 3.0, "radius": 2.0, "cooldown": 0.8, "anim": "attack", "pitch": 0.85},
-		{"id": &"war_cry", "name": "War Cry", "damage": 0.0, "range": 6.0, "radius": 6.0, "cooldown": 12.0, "anim": "taunt"},
-		{"id": &"leap_smash", "name": "Leap Smash", "damage": 60.0, "range": 4.0, "radius": 2.4, "cooldown": 6.0, "anim": "attack", "pitch": 0.8},
-		{"id": &"fury_swing", "name": "Fury Swing", "damage": 80.0, "range": 3.5, "radius": 2.0, "cooldown": 4.0, "anim": "attack", "pitch": 0.75},
+		# E: Leap Smash - airborne committed attack
+		{"id": &"leap_smash", "name": "Leap Smash", "damage": 60.0, "range": 4.0, "radius": 2.4, "cooldown": 6.0, "anim": "heavy", "pitch": 0.8},
+		# R: War Cry - +35% damage buff for 6s (Battle Cry trigger)
+		{"id": &"war_cry", "name": "War Cry", "damage": 0.0, "range": 6.0, "radius": 6.0, "cooldown": 14.0, "anim": "power_up"},
+		# F: Fury Swing - heaviest strike, gates on long cooldown
+		{"id": &"fury_swing", "name": "Fury Swing", "damage": 80.0, "range": 3.5, "radius": 2.0, "cooldown": 4.0, "anim": "heavy", "pitch": 0.75},
 	]
 
 func _kit_assassin() -> Array:
+	# Quick precision; Stealth doubles as a Battle Cry buff trigger.
 	return [
-		{"id": &"dagger_1", "name": "Dagger Combo 1", "damage": 24.0, "range": 2.2, "radius": 1.0, "cooldown": 0.4, "cost": 5.0, "anim": "attack", "pitch": 1.5},
-		{"id": &"backstab", "name": "Backstab", "damage": 70.0, "range": 2.0, "radius": 0.8, "cooldown": 5.0, "cost": 18.0, "anim": "attack", "pitch": 1.3},
-		{"id": &"blink_dash", "name": "Blink Dash", "damage": 18.0, "range": 7.0, "radius": 1.0, "cooldown": 3.0, "cost": 12.0, "anim": "dodge", "pitch": 1.7},
+		# Q: Dagger Combo - quick draw + slash via iai (katana_impact)
+		{"id": &"dagger_1", "name": "Dagger Combo", "damage": 24.0, "range": 2.2, "radius": 1.0, "cooldown": 0.4, "cost": 5.0, "anim": "iai", "pitch": 1.5},
+		# E: Backstab - heavy precision strike
+		{"id": &"backstab", "name": "Backstab", "damage": 70.0, "range": 2.0, "radius": 0.8, "cooldown": 5.0, "cost": 18.0, "anim": "heavy", "pitch": 1.3},
+		# R: Throw Kunai - ranged
 		{"id": &"throw_kunai", "name": "Throw Kunai", "damage": 22.0, "range": 12.0, "radius": 0.6, "cooldown": 1.0, "cost": 8.0, "anim": "attack", "pitch": 1.6},
+		# F: Shadow Veil - 6s damage buff (themed flash violet)
+		{"id": &"stealth_form", "name": "Shadow Veil", "damage": 0.0, "range": 1.0, "radius": 1.0, "cooldown": 18.0, "anim": "power_up"},
 	]
 
 func _kit_ranger() -> Array:
+	# Bow class: range + Hawk's Eye buff.
 	return [
+		# Q: Arrow Shot - basic ranged
 		{"id": &"arrow_shot", "name": "Arrow Shot", "damage": 30.0, "range": 14.0, "radius": 0.6, "cooldown": 0.5, "cost": 5.0, "anim": "attack", "pitch": 1.3},
-		{"id": &"snipe", "name": "Snipe", "damage": 90.0, "range": 24.0, "radius": 0.5, "cooldown": 6.0, "cost": 22.0, "anim": "attack", "pitch": 1.0},
-		{"id": &"hawk_command", "name": "Hawk Strike", "damage": 50.0, "range": 16.0, "radius": 1.5, "cooldown": 8.0, "cost": 20.0, "anim": "taunt"},
-		{"id": &"trap_set", "name": "Bear Trap", "damage": 35.0, "range": 4.0, "radius": 1.5, "cooldown": 10.0, "anim": "stand_up"},
+		# E: Snipe - charged precision
+		{"id": &"snipe", "name": "Snipe", "damage": 90.0, "range": 24.0, "radius": 0.5, "cooldown": 6.0, "cost": 22.0, "anim": "heavy", "pitch": 1.0},
+		# R: Hawk's Eye - +35% damage buff (Battle Cry trigger via hawk_command id)
+		{"id": &"hawk_command", "name": "Hawk's Eye", "damage": 0.0, "range": 1.0, "radius": 1.0, "cooldown": 14.0, "anim": "power_up"},
+		# F: Bear Trap - place hostile zone
+		{"id": &"trap_set", "name": "Bear Trap", "damage": 35.0, "range": 4.0, "radius": 1.5, "cooldown": 10.0, "anim": "block"},
 	]
 
 func _kit_mage() -> Array:
+	# Spell-slinger: Mana Shield is Guard, Frost Nova is AOE.
 	return [
-		{"id": &"spark", "name": "Spark", "damage": 22.0, "range": 12.0, "radius": 1.0, "cooldown": 0.6, "cost": 5.0, "element": Ability.DamageType.LIGHTNING, "anim": "attack", "pitch": 1.5},
-		{"id": &"fireball", "name": "Fireball", "damage": 65.0, "range": 14.0, "radius": 2.5, "cooldown": 3.0, "cost": 22.0, "element": Ability.DamageType.FIRE, "anim": "attack", "pitch": 0.85},
+		# Q: Spark - quick ranged lightning
+		{"id": &"spark", "name": "Spark", "damage": 22.0, "range": 12.0, "radius": 1.0, "cooldown": 0.6, "cost": 5.0, "element": Ability.DamageType.LIGHTNING, "anim": "iai", "pitch": 1.5},
+		# E: Fireball - charged AOE
+		{"id": &"fireball", "name": "Fireball", "damage": 65.0, "range": 14.0, "radius": 2.5, "cooldown": 3.0, "cost": 22.0, "element": Ability.DamageType.FIRE, "anim": "heavy", "pitch": 0.85},
+		# R: Frost Nova - point-blank AOE freeze
 		{"id": &"frost_nova", "name": "Frost Nova", "damage": 45.0, "range": 5.0, "radius": 5.0, "cooldown": 8.0, "cost": 28.0, "element": Ability.DamageType.FROST, "anim": "attack", "pitch": 0.7},
-		{"id": &"teleport", "name": "Teleport", "damage": 0.0, "range": 12.0, "radius": 0.5, "cooldown": 12.0, "cost": 30.0, "anim": "dodge", "pitch": 1.8},
+		# F: Mana Shield - 2s damage soak (Guard trigger via mana_shield id)
+		{"id": &"mana_shield", "name": "Mana Shield", "damage": 0.0, "range": 1.0, "radius": 1.0, "cooldown": 6.0, "cost": 15.0, "anim": "block"},
 	]
 
 func _kit_druid() -> Array:
+	# Shapeshifter; Druid Form triggers Battle Cry-equivalent buff.
 	return [
+		# Q: Vine Lash - quick range
 		{"id": &"vine_lash", "name": "Vine Lash", "damage": 30.0, "range": 5.0, "radius": 1.5, "cooldown": 0.7, "cost": 6.0, "anim": "attack", "pitch": 0.9},
+		# E: Bear Swipe - heavy melee
+		{"id": &"bear_swipe", "name": "Bear Swipe", "damage": 55.0, "range": 3.0, "radius": 2.4, "cooldown": 4.0, "cost": 18.0, "anim": "heavy", "pitch": 0.7},
+		# R: Druid Form - Battle Cry-equivalent buff (lime flash)
+		{"id": &"druid_form", "name": "Primal Form", "damage": 0.0, "range": 1.0, "radius": 1.0, "cooldown": 18.0, "anim": "power_up"},
+		# F: Plant Totem - utility AOE that places a stationary aura
 		{"id": &"totem_plant", "name": "Plant Totem", "damage": 0.0, "range": 3.0, "radius": 4.0, "cooldown": 18.0, "cost": 25.0, "anim": "stand_up"},
-		{"id": &"bear_form", "name": "Bear Swipe", "damage": 55.0, "range": 3.0, "radius": 2.4, "cooldown": 4.0, "cost": 18.0, "anim": "attack", "pitch": 0.7},
-		{"id": &"wolf_form", "name": "Wolf Pounce", "damage": 40.0, "range": 6.0, "radius": 1.6, "cooldown": 5.0, "cost": 18.0, "anim": "dodge", "pitch": 1.3},
 	]
 
 func _kit_demon() -> Array:
+	# Hellfire + soul magic; Demon Form is the buff cap.
 	return [
-		{"id": &"claw_rake", "name": "Claw Rake", "damage": 38.0, "range": 2.6, "radius": 1.4, "cooldown": 0.5, "anim": "attack", "pitch": 0.95},
-		{"id": &"hellfire_burst", "name": "Hellfire Burst", "damage": 70.0, "range": 5.0, "radius": 5.0, "cooldown": 6.0, "element": Ability.DamageType.FIRE, "anim": "attack", "pitch": 0.7},
+		# Q: Claw Rake - fast melee
+		{"id": &"claw_rake", "name": "Claw Rake", "damage": 38.0, "range": 2.6, "radius": 1.4, "cooldown": 0.5, "anim": "iai", "pitch": 0.95},
+		# E: Hellfire Burst - AOE fire
+		{"id": &"hellfire_burst", "name": "Hellfire Burst", "damage": 70.0, "range": 5.0, "radius": 5.0, "cooldown": 6.0, "element": Ability.DamageType.FIRE, "anim": "heavy", "pitch": 0.7},
+		# R: Soul Drain - shadow lifesteal (range)
 		{"id": &"soul_drain", "name": "Soul Drain", "damage": 55.0, "range": 8.0, "radius": 1.5, "cooldown": 4.0, "element": Ability.DamageType.SHADOW, "anim": "attack", "pitch": 0.85},
-		{"id": &"wing_glide", "name": "Wing Glide", "damage": 0.0, "range": 9.0, "radius": 1.0, "cooldown": 8.0, "anim": "dodge", "pitch": 1.5},
+		# F: Demon Form - Battle Cry buff (hellfire-red flash)
+		{"id": &"demon_form", "name": "Demon Unleashed", "damage": 0.0, "range": 1.0, "radius": 1.0, "cooldown": 18.0, "anim": "power_up"},
 	]
 
 func _kit_paladin_guardian() -> Array:
+	# Tank-paladin: Divine Shield is Guard, holy strikes for damage.
 	return [
+		# Q: Sword Smite - holy melee
 		{"id": &"sword_smite", "name": "Sword Smite", "damage": 42.0, "range": 3.0, "radius": 1.6, "cooldown": 0.7, "cost": 6.0, "element": Ability.DamageType.HOLY, "anim": "attack", "pitch": 1.1},
+		# E: Shield Bash - close stagger
 		{"id": &"shield_bash", "name": "Shield Bash", "damage": 28.0, "range": 2.4, "radius": 1.6, "cooldown": 4.0, "cost": 12.0, "anim": "block", "pitch": 0.9},
-		{"id": &"holy_pillar", "name": "Holy Pillar", "damage": 80.0, "range": 5.0, "radius": 2.5, "cooldown": 12.0, "cost": 35.0, "element": Ability.DamageType.HOLY, "anim": "attack", "pitch": 1.0},
-		{"id": &"judgment", "name": "Judgment Strike", "damage": 110.0, "range": 3.5, "radius": 2.0, "cooldown": 18.0, "cost": 50.0, "element": Ability.DamageType.HOLY, "anim": "attack", "pitch": 0.9},
+		# R: Judgment Strike - heavy holy slam (capstone)
+		{"id": &"judgment", "name": "Judgment Strike", "damage": 110.0, "range": 3.5, "radius": 2.0, "cooldown": 18.0, "cost": 50.0, "element": Ability.DamageType.HOLY, "anim": "heavy", "pitch": 0.9},
+		# F: Divine Shield - 2s damage soak (Guard trigger)
+		{"id": &"divine_shield", "name": "Divine Shield", "damage": 0.0, "range": 1.0, "radius": 1.0, "cooldown": 12.0, "cost": 30.0, "anim": "power_up"},
 	]
 
 func _kit_paladin_light() -> Array:
+	# Holy support: Sun Beam ranged, Healing Aura HEALS the player.
 	return [
+		# Q: Mace Swing - basic holy melee
 		{"id": &"mace_swing", "name": "Mace Swing", "damage": 30.0, "range": 2.6, "radius": 1.4, "cooldown": 0.6, "cost": 4.0, "element": Ability.DamageType.HOLY, "anim": "attack"},
-		{"id": &"sun_beam", "name": "Sun Beam", "damage": 60.0, "range": 12.0, "radius": 1.0, "cooldown": 5.0, "cost": 24.0, "element": Ability.DamageType.HOLY, "anim": "attack", "pitch": 1.4},
-		{"id": &"healing_aura", "name": "Healing Aura", "damage": 0.0, "range": 4.0, "radius": 8.0, "cooldown": 18.0, "cost": 35.0, "element": Ability.DamageType.HOLY, "anim": "stand_up"},
-		{"id": &"divine_shield", "name": "Divine Shield", "damage": 0.0, "range": 1.0, "radius": 1.0, "cooldown": 30.0, "cost": 50.0, "anim": "block"},
+		# E: Sun Beam - focused holy beam
+		{"id": &"sun_beam", "name": "Sun Beam", "damage": 60.0, "range": 12.0, "radius": 1.0, "cooldown": 5.0, "cost": 24.0, "element": Ability.DamageType.HOLY, "anim": "iai", "pitch": 1.4},
+		# R: Holy Pillar - heavy AOE
+		{"id": &"holy_pillar", "name": "Holy Pillar", "damage": 80.0, "range": 5.0, "radius": 2.5, "cooldown": 12.0, "cost": 35.0, "element": Ability.DamageType.HOLY, "anim": "heavy", "pitch": 1.0},
+		# F: Healing Aura - heals player 30% max HP (Heal trigger)
+		{"id": &"healing_aura", "name": "Healing Aura", "damage": 0.0, "range": 4.0, "radius": 8.0, "cooldown": 18.0, "cost": 35.0, "anim": "power_up"},
 	]
 
 # Short forward dash with i-frames + dodge animation. Bound to Shift via
