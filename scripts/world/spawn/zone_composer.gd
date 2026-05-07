@@ -73,6 +73,66 @@ func _nat(asset: String, pos: Vector3, rot_y_deg: float = 0.0, scale: float = 1.
 	_strip_colliders(inst)
 	return inst
 
+# Cherry blossom helper: spawn a Kenney tree, then tint every surface's
+# albedo toward soft pink. Uses surface_material_override so the original
+# .glb textures are untouched (no perma-modifications). Used by the
+# Japanese-themed Sword-Vow Ruins to make a forest of regular Kenney
+# trees read as a sakura grove.
+func _sakura(asset: String, pos: Vector3, rot_y_deg: float = 0.0, scale: float = 1.0) -> Node3D:
+	var inst := _nat(asset, pos, rot_y_deg, scale)
+	if inst == null:
+		return null
+	# Light pink for blossoms (foliage); slightly desaturated brown for trunk
+	# so contrast reads. We tint ALL surfaces because we can't easily tell
+	# which ones are foliage vs trunk in the imported .glb hierarchy.
+	# Pink reads dominant against a green/grass floor either way.
+	_tint_tree(inst, Color(1.00, 0.78, 0.85, 1.0))
+	return inst
+
+# Walk MeshInstance3Ds under `node` and slap a pink-tinted StandardMaterial3D
+# on every surface. We don't try to be clever about foliage-vs-trunk; the
+# whole tree reads as cherry-pink which is the sakura silhouette.
+func _tint_tree(node: Node, tint: Color) -> void:
+	if node is MeshInstance3D:
+		var mi := node as MeshInstance3D
+		if mi.mesh:
+			for i in range(mi.mesh.get_surface_count()):
+				var mat := StandardMaterial3D.new()
+				mat.albedo_color = tint
+				mat.roughness = 0.85
+				mi.set_surface_override_material(i, mat)
+	for c in node.get_children():
+		_tint_tree(c, tint)
+
+# Stone lantern (toro) — built from a tall narrow column piece + a tinted
+# torch on top so it reads as a paper lantern atop a stone pedestal. No
+# dedicated Kenney piece; this composition is the closest read.
+func _lantern(pos: Vector3, lit: bool = true) -> Node3D:
+	var pedestal := _spawn("column.gltf.glb", pos, 0.0, 0.6)
+	# Torch with tinted warm light on top. We can't easily nest the torch
+	# inside the pedestal scale, so spawn it as a separate entity offset up.
+	_torch(pos + Vector3(0, 1.2, 0), lit)
+	return pedestal
+
+# Torii gate — two tall posts + horizontal beam at top. Built from
+# Kenney column pieces stacked vertically. Width is the player-passable
+# opening between the posts.
+func _torii(center: Vector3, width: float = 4.0) -> void:
+	# Two posts (use 2x stacked decorated columns for height)
+	for side in [-1, 1]:
+		var post_x: float = float(side) * (width * 0.5)
+		_spawn("column.gltf.glb", center + Vector3(post_x, 0, 0))
+		_spawn("column.gltf.glb", center + Vector3(post_x, 1.4, 0))
+		_spawn("pillar_decorated.gltf.glb", center + Vector3(post_x, 2.8, 0), 0.0)
+	# Horizontal beam: 3 wide stones spanning the gap, tinted darker red.
+	# We use floor_tile_large rotated 90° as the beam since Kenney has no
+	# proper torii beam piece. Slap a red tint on it via _tint_tree.
+	for i in range(-1, 2):
+		var beam := _spawn("floor_tile_large.gltf.glb", center + Vector3(float(i) * 1.5, 4.0, 0), 0.0, 0.5)
+		if beam:
+			# Vermilion red — torii signature color
+			_tint_tree(beam, Color(0.78, 0.18, 0.15, 1.0))
+
 # Walk the prop subtree and disable every CollisionShape3D / StaticBody3D
 # so the player cannot get wedged inside a scattered pillar or tree
 # trunk. Decoration is purely visual; only the floor + designed walls
@@ -210,120 +270,147 @@ func _torch(pos: Vector3, lit: bool = true) -> void:
 # When a real Quaternius nature pack lands, swap rubble/columns for grass
 # tufts and tree stumps; swap walls for ruined-arch stone fragments.
 func _build_sword_vow_ruins() -> void:
-	# Open courtyard reading as a SUMERIAN-RUIN-IN-A-FOREST. Ground is
-	# now provided by TerrainGenerator (heightmapped grass / dirt / rock
-	# blend with rolling hills). This builder only places nature decor
-	# and stone ruin props on top.
+	# JAPANESE SAKURA GROVE & DOJO. Bond's spec:
+	#   - Cherry blossoms instead of generic trees
+	#   - Dojo style instead of stone castle
+	#   - Save medieval/castle for the Paladin location (Sunsworn Chapel)
 	#
-	# Density: ~50 grass tufts + ~30 flowers scattered across the
-	# central play area, avoiding the cobbled center path so combat
-	# space stays clear.
-	var grid_step := 4.0
-	var grid := int(size / grid_step)
-	# Cobbled stone center path leading to the throne (visual cue,
-	# helps the player navigate)
-	for z in range(-int(size / 2) + 4, int(size / 2) + 1, 2):
-		_spawn("floor_tile_large.gltf.glb", Vector3(0, 0.05, z))
-	# Scatter grass + flowers over the open ground
+	# Layout (south = player spawn, north = boss/dojo):
+	#   SOUTH  vermilion torii gate flanked by stone lanterns
+	#   MID    stone-tile path through cherry grove, wooden bridge over a
+	#          dry stream of stones, bamboo perimeter
+	#   NORTH  raised wooden dojo platform (boss arena), large sakura tree
+	#          behind throne, two stone lanterns flanking, white-pink motes
+
+	# --- Ground decor: grass + flower scatter, avoiding center path ---
 	for _i in range(140):
 		var ox: float = randf_range(-size / 2 + 2, size / 2 - 2)
 		var oz: float = randf_range(-size / 2 + 2, size / 2 - 2)
-		# Avoid the cobbled center path
+		# Keep a 1.5m-wide central spine clear for the stone path
 		if abs(ox) <= 1.5 and oz >= -int(size / 2) + 4:
 			continue
 		var roll: float = randf()
 		if roll < 0.55:
-			var pick: String = ["grass.glb", "grass_large.glb", "grass_leafs.glb", "grass_leafsLarge.glb"].pick_random()
-			_nat(pick, Vector3(ox, 0, oz), randf() * 360.0)
-		elif roll < 0.80:
-			var fpick: String = ["flower_purpleA.glb", "flower_purpleB.glb", "flower_redA.glb", "flower_redB.glb", "flower_yellowA.glb", "flower_yellowB.glb"].pick_random()
+			var gpick: String = ["grass.glb", "grass_large.glb", "grass_leafs.glb", "grass_leafsLarge.glb"].pick_random()
+			_nat(gpick, Vector3(ox, 0, oz), randf() * 360.0)
+		elif roll < 0.78:
+			# Pink/red/purple palette so flower bed reads as a Japanese garden
+			var fpick: String = ["flower_purpleA.glb", "flower_purpleB.glb", "flower_redA.glb", "flower_redB.glb"].pick_random()
 			_nat(fpick, Vector3(ox, 0, oz), randf() * 360.0)
 		elif roll < 0.95:
-			var bpick: String = ["plant_bush.glb", "mushroom_red.glb", "mushroom_tan.glb"].pick_random()
-			_nat(bpick, Vector3(ox, 0, oz), randf() * 360.0, randf_range(0.8, 1.2))
-	# Tree perimeter — frames the arena. Trees scaled 2.6-4x so they
-	# read as proper canopy size (~5-8m tall) instead of chibi-tiny.
-	# 56 trees in two staggered rings to fill the horizon density.
-	for i in range(56):
-		var ring: int = i / 28
-		var angle: float = (i % 28) * TAU / 28.0 + (PI / 28.0 if ring == 1 else 0.0)
+			# Bamboo crops scattered as ground decor (also used as a tall ring
+			# perimeter below). Adds Japanese garden feel.
+			if randf() < 0.5:
+				_nat(["crops_bambooStageA.glb", "crops_bambooStageB.glb"].pick_random(), Vector3(ox, 0, oz), randf() * 360.0, randf_range(1.4, 2.2))
+			else:
+				_nat(["plant_bush.glb", "plant_bushDetailed.glb"].pick_random(), Vector3(ox, 0, oz), randf() * 360.0, randf_range(0.8, 1.2))
+
+	# --- South entry: TORII GATE + flanking lanterns + welcome lanterns
+	_torii(Vector3(0, 0, size / 2 - 4), 5.0)
+	# Two stone lanterns flanking the entry path
+	_lantern(Vector3(-3, 0, size / 2 - 4))
+	_lantern(Vector3(3, 0, size / 2 - 4))
+	# More lanterns walking the path (every 4m)
+	for z_step in range(-12, 13, 4):
+		_lantern(Vector3(-2.5, 0, z_step))
+		_lantern(Vector3(2.5, 0, z_step))
+
+	# --- Stone path of small decorated tiles (more zen than full cobble) ---
+	for z in range(-int(size / 2) + 4, int(size / 2) + 1, 2):
+		_spawn("floor_tile_small_decorated.gltf.glb", Vector3(0, 0.05, z))
+
+	# --- Wooden arched bridge over a "dry stream" of stones in middle ---
+	# The bridge is the eye-magnet centerpiece. Stone scatter underneath
+	# reads as a stream bed even without water.
+	_nat("bridge_wood.glb", Vector3(0, 0.1, 0), 0.0, 1.4)
+	# Stones running perpendicular under the bridge (the "stream")
+	for x_step in range(-6, 7, 2):
+		_nat(["cliff_blockHalf_stone.glb"].pick_random(), Vector3(float(x_step), 0, 0), randf() * 360.0, randf_range(0.6, 0.9))
+
+	# --- Cherry blossom grove perimeter (instead of generic trees) ---
+	# Tinted to soft pink. We use the _fall variants because they have
+	# fluffier silhouettes than the green trees and read more like sakura
+	# canopies.
+	for i in range(48):
+		var ring: int = i / 24
+		var angle: float = (i % 24) * TAU / 24.0 + (PI / 24.0 if ring == 1 else 0.0)
 		var r: float = size / 2 + (1.5 + ring * 4.0) + randf_range(-1, 2)
 		var tx: float = cos(angle) * r
 		var tz: float = sin(angle) * r
-		# Skip the south entry corridor so player can see the spawn point
+		# Skip the south entry corridor so torii is visible from spawn
 		if abs(tx) < 4 and tz > size / 2 - 2:
 			continue
-		var tree_pick: String = ["tree_default.glb", "tree_default_dark.glb", "tree_detailed.glb", "tree_fat.glb", "tree_blocks.glb"].pick_random()
-		_nat(tree_pick, Vector3(tx, 0, tz), randf() * 360.0, randf_range(2.6, 4.0))
-	# Inner-arena scattered trees (denser foliage)
-	for _i in range(15):
+		var tree_pick: String = ["tree_default_fall.glb", "tree_detailed_fall.glb", "tree_fat_fall.glb", "tree_blocks_fall.glb"].pick_random()
+		_sakura(tree_pick, Vector3(tx, 0, tz), randf() * 360.0, randf_range(2.6, 4.0))
+
+	# --- Tall bamboo grove woven into the cherry perimeter for vertical
+	# variety and dense Japanese-garden density ---
+	for i in range(28):
+		var angle: float = i * TAU / 28.0
+		var r: float = size / 2 + 0.5
+		var bx: float = cos(angle) * r
+		var bz: float = sin(angle) * r
+		if abs(bx) < 4 and bz > size / 2 - 2:
+			continue
+		# Bamboo crops scaled tall to read as 4-6m grove
+		_nat(["crops_bambooStageA.glb", "crops_bambooStageB.glb"].pick_random(), Vector3(bx, 0, bz), randf() * 360.0, randf_range(2.5, 3.8))
+
+	# --- Inner-arena cherry blossom scatter for foreground depth ---
+	for _i in range(8):
 		var ix: float = randf_range(-size / 2 + 6, size / 2 - 6)
-		var iz: float = randf_range(-size / 2 + 8, size / 2 - 6)
-		# Keep central path clear
-		if abs(ix) < 5: continue
-		_nat(["tree_thin.glb", "tree_thin_dark.glb", "tree_cone.glb"].pick_random(), Vector3(ix, 0, iz), randf() * 360.0, randf_range(2.0, 3.2))
-	# Throne dais at north — three rising stone tiers
-	for tier in range(3):
-		var w: int = 5 - tier
-		var y: float = 0.35 * float(tier + 1)
-		for dx in range(-w, w + 1):
-			_spawn("floor_tile_large.gltf.glb", Vector3(float(dx) * 1.0, y, -size / 2 + 4 + tier))
-	# Throne back arch + flanking columns
-	_spawn("wall_arched.gltf.glb", Vector3(-2, 0.7, -size / 2 + 6))
-	_spawn("wall_arched.gltf.glb", Vector3(2, 0.7, -size / 2 + 6), 180.0)
-	_spawn("column.gltf.glb", Vector3(-3, 0.7, -size / 2 + 4))
-	_spawn("column.gltf.glb", Vector3(3, 0.7, -size / 2 + 4))
-	# Scattered broken columns + cliff rocks across the courtyard,
-	# avoiding the central path so combat space stays clear
-	for _i in range(22):
+		var iz: float = randf_range(-size / 2 + 8, size / 2 - 8)
+		if abs(ix) < 5: continue  # keep central path clear
+		_sakura(["tree_default_fall.glb", "tree_detailed_fall.glb"].pick_random(), Vector3(ix, 0, iz), randf() * 360.0, randf_range(2.0, 3.0))
+
+	# --- Stone scatter (zen rocks) instead of broken columns + rubble ---
+	# Replaces the Sumerian-ruin debris from the old layout.
+	for _i in range(18):
 		var ox: float = randf_range(-size / 2 + 4, size / 2 - 4)
 		var oz: float = randf_range(-size / 2 + 8, size / 2 - 4)
 		if abs(ox) < 4:
 			continue
-		var pick: int = randi() % 5
-		var p: Node3D
+		var pick: int = randi() % 4
 		match pick:
-			0: p = _spawn("pillar.gltf.glb", Vector3(ox, 0, oz), randf() * 360.0)
-			1: p = _spawn("rubble_large.gltf.glb", Vector3(ox, 0, oz), randf() * 360.0)
-			2: p = _nat("cliff_blockHalf_stone.glb", Vector3(ox, 0, oz), randf() * 360.0)
-			3: p = _nat("plant_bush.glb", Vector3(ox, 0, oz), randf() * 360.0)
-			4: p = _nat("mushroom_red.glb", Vector3(ox, 0, oz), randf() * 360.0)
-		if p and pick == 0 and randf() < 0.4:
-			p.rotation.x = deg_to_rad(randf_range(-25, 25))
-			p.rotation.z = deg_to_rad(randf_range(-25, 25))
-	# Campfire ring at the player spawn so south end is recognizable
-	_nat("campfire_stones.glb", Vector3(0, 0, size / 2 - 6))
-	# Lit torches at throne + entry
-	_torch(Vector3(-4, 0.7, -size / 2 + 4), true)
-	_torch(Vector3(4, 0.7, -size / 2 + 4), true)
-	_torch(Vector3(-6, 0, size / 2 - 4), true)
-	_torch(Vector3(6, 0, size / 2 - 4), true)
-	# Lore flavor: half-buried sword in the central path
+			0: _nat("cliff_blockHalf_stone.glb", Vector3(ox, 0, oz), randf() * 360.0, randf_range(0.6, 1.2))
+			1: _nat("stump_round.glb", Vector3(ox, 0, oz), randf() * 360.0, randf_range(0.8, 1.4))
+			2: _nat("plant_bushDetailed.glb", Vector3(ox, 0, oz), randf() * 360.0, randf_range(1.0, 1.6))
+			3: _nat("plant_bushLarge.glb", Vector3(ox, 0, oz), randf() * 360.0, randf_range(0.8, 1.2))
+
+	# --- NORTH end: WOODEN DOJO PLATFORM (boss arena) ---
+	# Three-step rising wooden platform (use floor_dirt for warm wood read,
+	# scaled wider than tall so it presents as a temple stage)
+	for tier in range(3):
+		var w: int = 5 - tier
+		var y: float = 0.35 * float(tier + 1)
+		for dx in range(-w, w + 1):
+			_spawn("floor_dirt_large.gltf.glb", Vector3(float(dx) * 1.0, y, -size / 2 + 4 + tier))
+	# Twin stone lanterns flanking the dojo
+	_lantern(Vector3(-5, 1.05, -size / 2 + 4))
+	_lantern(Vector3(5, 1.05, -size / 2 + 4))
+	# Decorated columns at the back of the dojo (replace stone arches)
+	_spawn("pillar_decorated.gltf.glb", Vector3(-3, 1.05, -size / 2 + 6))
+	_spawn("pillar_decorated.gltf.glb", Vector3(3, 1.05, -size / 2 + 6))
+	# A single grand sakura behind the dojo as a focal point
+	_sakura("tree_fat_fall.glb", Vector3(0, 0, -size / 2 + 8), 0.0, 5.0)
+	# Lore flavor: half-buried sword in the central path (oath-keeper)
 	_spawn("sword_shield_broken.gltf.glb", Vector3(0, 0, 8), 25.0)
 
-	# Throne dais at the north end (boss spawn area)
-	_spawn("floor_dirt_large_rocky.gltf.glb", Vector3(0, 0.4, -size / 2 + 4))
-	_spawn("floor_dirt_large_rocky.gltf.glb", Vector3(-4, 0.4, -size / 2 + 4))
-	_spawn("floor_dirt_large_rocky.gltf.glb", Vector3(4, 0.4, -size / 2 + 4))
-
-	# Two flanking columns on the throne dais
-	_spawn("column.gltf.glb", Vector3(-3, 0.4, -size / 2 + 5))
-	_spawn("column.gltf.glb", Vector3(3, 0.4, -size / 2 + 5))
+	# Campfire ring at the player spawn so south end is recognizable
+	_nat("campfire_stones.glb", Vector3(0, 0, size / 2 - 7))
 
 	# --- Ambient world life ---
-	# Birds drifting overhead — gives the sky depth and motion. 4 silhouettes
-	# at varying speeds/headings so the eye always catches one passing.
 	var wl: Node = get_node_or_null("/root/WorldLife")
 	if wl:
-		wl.spawn_bird_flock(self, 4, Vector3(0, 18, 0), size * 0.7)
-		# Smoke wisps from the campfire at south spawn (creates "you came from
-		# somewhere safe" reading) and from each torch.
-		wl.spawn_chimney_smoke(self, Vector3(0, 1.2, size / 2 - 6))
-		wl.spawn_chimney_smoke(self, Vector3(-4, 1.5, -size / 2 + 4))
-		wl.spawn_chimney_smoke(self, Vector3(4, 1.5, -size / 2 + 4))
-		# Sacred motes around the throne — Kazat's iron presence has bent
-		# something cosmically; gold dust hangs in the air at the dais.
-		wl.spawn_intro_motes(self, Vector3(0, 1.2, -size / 2 + 4), 4.0, Color(1.0, 0.65, 0.25, 1.0))
+		# Fewer birds, slower (peaceful temple grounds)
+		wl.spawn_bird_flock(self, 3, Vector3(0, 16, 0), size * 0.6)
+		# Cherry petals raining over the entire courtyard — the signature
+		# Japanese touch. Volume sized to cover the play area.
+		wl.spawn_petal_fall(self, Vector3(0, 12, 0), Vector3(size, 1, size), Color(1.0, 0.65, 0.78, 0.95))
+		# Wisp of smoke from the campfire (warm spawn read)
+		wl.spawn_chimney_smoke(self, Vector3(0, 1.2, size / 2 - 7))
+		# Pale pink motes hanging at the dojo (sacred grove vibe, NOT the
+		# orange/cursed-throne reading from the original castle layout)
+		wl.spawn_intro_motes(self, Vector3(0, 1.5, -size / 2 + 5), 4.5, Color(1.0, 0.85, 0.92, 1.0))
 
 # ----------------------------------------------------------------
 # ASH-STEP CAMP — open steppe, raider tents, spear-rack, fire pit
@@ -490,27 +577,74 @@ func _build_coven_glen() -> void:
 # SUNSWORN CHAPEL — interior chapel courtyard
 # ----------------------------------------------------------------
 func _build_sunsworn_chapel() -> void:
+	# PALADIN INTRO: Medieval castle chapel. Bond's spec moved the heavy
+	# stone-castle aesthetic out of Sword-Vow Ruins (now Japanese) and
+	# into here. Stone-tile floor, 4 corner watch towers (Kenney castle),
+	# stone walls at perimeter, twin colonnades down the spine to the
+	# altar, white banners, holy braziers.
 	var tile_size := 4.0
-	var grid := 5
+	var grid := int(size / tile_size)
+	# Stone-tile floor across the whole footprint
 	for x in range(-grid, grid + 1):
 		for z in range(-grid, grid + 1):
-			_spawn("floor_dirt_small_A.gltf.glb", Vector3(x * tile_size, 0, z * tile_size))
-	# Two long colonnades
+			_spawn("floor_tile_large.gltf.glb", Vector3(x * tile_size, 0, z * tile_size))
+	# Outer chapel walls (Kenney castle wall pieces) — encloses the chapel
+	for x_step in range(-int(size / 2) + 4, int(size / 2) - 3, 4):
+		_cas("wall.glb", Vector3(x_step, 0, -size / 2 + 1))
+		_cas("wall.glb", Vector3(x_step, 0, size / 2 - 1))
+	for z_step in range(-int(size / 2) + 4, int(size / 2) - 3, 4):
+		_cas("wall.glb", Vector3(-size / 2 + 1, 0, z_step), 90.0)
+		_cas("wall.glb", Vector3(size / 2 - 1, 0, z_step), 90.0)
+	# Square watch towers at the four corners — paladin guard posts
+	for corner in [Vector3(-size / 2 + 2, 0, -size / 2 + 2), Vector3(size / 2 - 2, 0, -size / 2 + 2), Vector3(-size / 2 + 2, 0, size / 2 - 2), Vector3(size / 2 - 2, 0, size / 2 - 2)]:
+		_cas("tower-square-base-color.glb", corner)
+		_cas("tower-square-mid.glb", corner + Vector3(0, 4, 0))
+		_cas("tower-square-top.glb", corner + Vector3(0, 8, 0))
+		_cas("tower-square-roof.glb", corner + Vector3(0, 11, 0))
+	# Gate at south entry
+	_cas("wall-narrow-gate.glb", Vector3(0, 0, size / 2 - 1))
+	# Twin long colonnades down the spine
 	for z_step in range(-16, 17, 4):
-		_spawn("pillar_decorated.gltf.glb", Vector3(-12, 0, z_step))
-		_spawn("pillar_decorated.gltf.glb", Vector3(12, 0, z_step))
-	# Altar at the north end
-	_spawn("column.gltf.glb", Vector3(0, 0, -16))
-	_spawn("torch_lit.gltf.glb", Vector3(-2, 0, -18))
-	_spawn("torch_lit.gltf.glb", Vector3(2, 0, -18))
-	# Pews indicated by pillars
-	for z_step in [-8, 0, 8]:
-		_spawn("barrier_column.gltf.glb", Vector3(-6, 0, z_step), 0.0)
-		_spawn("barrier_column.gltf.glb", Vector3(6, 0, z_step), 180.0)
-	# Many lit torches for "holy" atmosphere
-	for z_step in range(-16, 17, 8):
-		_torch(Vector3(-13, 0, z_step), true)
-		_torch(Vector3(13, 0, z_step), true)
+		_spawn("pillar_decorated.gltf.glb", Vector3(-10, 0, z_step))
+		_spawn("pillar_decorated.gltf.glb", Vector3(10, 0, z_step))
+	# Altar block at north end (raised platform with column behind)
+	for dx in range(-3, 4):
+		_spawn("floor_tile_large.gltf.glb", Vector3(float(dx), 0.4, -size / 2 + 4))
+	_spawn("table_long_decorated_A.gltf.glb", Vector3(0, 0.4, -size / 2 + 4))
+	_spawn("candle_triple.gltf.glb", Vector3(-2, 1.3, -size / 2 + 4))
+	_spawn("candle_triple.gltf.glb", Vector3(2, 1.3, -size / 2 + 4))
+	# Tall column behind the altar
+	_spawn("column.gltf.glb", Vector3(-3, 0.4, -size / 2 + 6))
+	_spawn("column.gltf.glb", Vector3(3, 0.4, -size / 2 + 6))
+	# Pews indicated by stone barrier rows on either side of the spine
+	for z_step in [-12, -6, 0, 6, 12]:
+		_spawn("barrier_column.gltf.glb", Vector3(-5, 0, z_step), 0.0)
+		_spawn("barrier_column.gltf.glb", Vector3(5, 0, z_step), 180.0)
+	# White banners flanking the colonnade (paladin holy colors)
+	for z_step in [-12, -4, 4, 12]:
+		_cas("flag-banner-long.glb", Vector3(-10, 0.2, z_step))
+		_cas("flag-banner-long.glb", Vector3(10, 0.2, z_step))
+	# Many lit torches for holy atmosphere
+	for z_step in range(-16, 17, 4):
+		_torch(Vector3(-12, 0, z_step), true)
+		_torch(Vector3(12, 0, z_step), true)
+	# Lore: kneeling cushions / prayer mats at the altar (use small tiles)
+	_spawn("floor_tile_small.gltf.glb", Vector3(-2, 0.05, -size / 2 + 8))
+	_spawn("floor_tile_small.gltf.glb", Vector3(2, 0.05, -size / 2 + 8))
+
+	# --- Ambient world life ---
+	var wl: Node = get_node_or_null("/root/WorldLife")
+	if wl:
+		# Doves over the chapel (peaceful sacred reading)
+		wl.spawn_bird_flock(self, 5, Vector3(0, 14, 0), size * 0.55)
+		# Brazier/incense smoke at altar candles
+		wl.spawn_chimney_smoke(self, Vector3(-2, 2.0, -size / 2 + 4))
+		wl.spawn_chimney_smoke(self, Vector3(2, 2.0, -size / 2 + 4))
+		# Tower-top brazier smoke
+		for corner in [Vector3(-size / 2 + 2, 12, -size / 2 + 2), Vector3(size / 2 - 2, 12, -size / 2 + 2), Vector3(-size / 2 + 2, 12, size / 2 - 2), Vector3(size / 2 - 2, 12, size / 2 - 2)]:
+			wl.spawn_chimney_smoke(self, corner)
+		# Holy white-gold motes over the altar (paladin sun-light)
+		wl.spawn_intro_motes(self, Vector3(0, 1.5, -size / 2 + 4), 5.0, Color(1.0, 0.95, 0.75, 1.0))
 
 # ----------------------------------------------------------------
 # PYRE ASCENT — Demon intro, basalt spiral stair

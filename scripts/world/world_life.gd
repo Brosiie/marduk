@@ -85,6 +85,61 @@ func spawn_intro_motes(parent: Node, at_pos: Vector3, radius: float, color: Colo
 	motes.global_position = at_pos
 	return motes
 
+# Cherry blossom petals drifting down across an area. For Japanese-themed
+# zones (Sword-Vow Ruins). Petals drift sideways with wind, fall slowly,
+# rotate gently. Read as pink confetti from far away — instantly says
+# "Japan / spring / sakura". Returns the GPUParticles3D so caller can
+# parent-rotate or move it.
+func spawn_petal_fall(parent: Node, area_center: Vector3, area_size: Vector3, petal_color: Color = Color(1.0, 0.65, 0.75, 0.95)) -> GPUParticles3D:
+	var p := _make_petal_particles(area_size, petal_color)
+	parent.add_child(p)
+	p.global_position = area_center
+	return p
+
+func _make_petal_particles(area_size: Vector3, color: Color) -> GPUParticles3D:
+	var p := GPUParticles3D.new()
+	p.name = "PetalFall"
+	p.amount = 80
+	p.lifetime = 12.0
+	p.preprocess = 6.0  # already raining petals on scene load
+	var mat := ParticleProcessMaterial.new()
+	# Spawn at top of the volume, drift down + sideways
+	mat.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_BOX
+	mat.emission_box_extents = Vector3(area_size.x * 0.5, 0.5, area_size.z * 0.5)
+	# Petal direction: very gentle downward + slight wind drift
+	mat.direction = Vector3(0.3, -1.0, 0.1)
+	mat.spread = 30.0
+	mat.initial_velocity_min = 0.3
+	mat.initial_velocity_max = 0.8
+	mat.gravity = Vector3(0.4, -0.4, 0.2)  # mostly down with sideways wind
+	# Petals tumble as they fall
+	mat.angular_velocity_min = -120.0
+	mat.angular_velocity_max = 120.0
+	mat.scale_min = 0.04
+	mat.scale_max = 0.10
+	mat.color = color
+	# Subtle horizontal sine drift via tangential accel
+	mat.tangential_accel_min = -0.3
+	mat.tangential_accel_max = 0.3
+	p.process_material = mat
+	# Petal shape: small quad, billboard-aligned, soft pink albedo
+	var quad := QuadMesh.new()
+	quad.size = Vector2(0.18, 0.10)  # rectangular like a real petal
+	var smat := StandardMaterial3D.new()
+	smat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	smat.shading_mode = BaseMaterial3D.SHADING_MODE_PER_PIXEL
+	smat.albedo_color = color
+	smat.cull_mode = BaseMaterial3D.CULL_DISABLED  # visible from any angle
+	smat.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
+	smat.billboard_keep_scale = true
+	quad.material = smat
+	p.draw_pass_1 = quad
+	# Set the visibility AABB so the renderer doesn't cull when player walks
+	# around. Big enough to cover the full area volume.
+	var box := AABB(-area_size * 0.5 - Vector3(0, 5, 0), area_size + Vector3(0, 10, 0))
+	p.visibility_aabb = box
+	return p
+
 # --- Bird mesh ---
 
 func _make_bird() -> Node3D:
