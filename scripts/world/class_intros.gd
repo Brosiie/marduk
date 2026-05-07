@@ -26,6 +26,19 @@ static func intro_zone_for(class_id: StringName) -> StringName:
 	var entry: Dictionary = INTRO_BY_CLASS.get(class_id, {})
 	return entry.get("zone", &"")
 
+# Reverse: which class should auto-spawn in this intro zone? Used by
+# Player._ready() to assign Ronin in Sword-Vow, Paladin in Sunsworn,
+# etc., so the character moves in stance posture instead of unarmed
+# from frame zero. When two classes share a zone (paladin_guardian +
+# paladin_lightbringer share sunsworn_chapel) we return the first
+# match -- Bond can swap in-game once the class menu lands.
+static func class_for_zone(zone_id: StringName) -> StringName:
+	for cid in INTRO_BY_CLASS.keys():
+		var entry: Dictionary = INTRO_BY_CLASS[cid]
+		if entry.get("zone", &"") == zone_id:
+			return cid
+	return &""
+
 static func mini_boss_for(class_id: StringName) -> StringName:
 	var entry: Dictionary = INTRO_BY_CLASS.get(class_id, {})
 	return entry.get("mini_boss", &"")

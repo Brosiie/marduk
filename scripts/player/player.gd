@@ -107,6 +107,13 @@ func _ready() -> void:
 	if not stats:
 		stats = PlayerStats.new()
 		stats.recompute_derived()
+	# Auto-class assignment: when the player spawns in an intro zone
+	# (sword_vow_ruins, sunsworn_chapel, etc.) without a class picked
+	# yet, infer the matching class from the zone. This means Kachujin
+	# in Sword-Vow gets the Ronin katana_walk/run/idle overrides from
+	# frame zero, instead of moving like an unarmed peasant.
+	if stats and not stats.class_def:
+		_auto_assign_class_from_scene()
 	# Force-fresh HP/mana so HUD doesn't show stale values from the ProgressBar defaults
 	stats.hp = stats.max_hp
 	stats.mana = stats.max_mana
@@ -234,6 +241,63 @@ func _spawn_fallback_capsule() -> void:
 	lit.position = Vector3(0, 1.6, 0)
 	mesh.add_child(lit)
 	print("[Player] mesh invisible (skinning collapse) — spawned glowing fallback capsule + label + light")
+
+# Look at the active scene's Geometry node (where ZoneComposer lives),
+# read its style_id (e.g. &"sword_vow_ruins"), reverse-lookup the matching
+# class via ClassIntros, and assign stats.class_def from ClassRegistry.
+# This means Bond can drop straight into Sword-Vow Ruins and Kachujin
+# already has the Ronin animation overrides + class kit + resource bar
+# without needing to pick a class through a menu.
+#
+# No-op when the scene has no style_id, when the lookup misses, or when
+# ClassRegistry isn't reachable. Doesn't override an already-set class.
+func _auto_assign_class_from_scene() -> void:
+	if stats and stats.class_def:
+		return  # already picked
+	var scene := get_tree().current_scene if get_tree() else null
+	if scene == null:
+		return
+	var zone_id: StringName = _read_scene_zone_id(scene)
+	if zone_id == &"":
+		return
+	# Reverse-lookup via ClassIntros (loaded as a script, not an autoload)
+	var ci_script: GDScript = load("res://scripts/world/class_intros.gd")
+	if ci_script == null:
+		return
+	var class_id: StringName = ci_script.class_for_zone(zone_id)
+	if class_id == &"":
+		return
+	var registry: Node = get_node_or_null("/root/ClassRegistry")
+	if registry == null or not registry.has_method("get_class_def"):
+		return
+	var class_def: PlayerClass = registry.get_class_def(class_id)
+	if class_def == null:
+		return
+	stats.class_def = class_def
+	# Recompute base stats now that we have a class. recompute_derived
+	# runs the full pipeline (base + attribute bonuses + skill effects +
+	# equipment) so HP/mana/str/dex/int/vit/armor all rescale.
+	if stats.has_method("recompute_derived"):
+		stats.recompute_derived()
+		stats.hp = stats.max_hp
+		stats.mana = stats.max_mana
+	print("[Player] auto-assigned class %s from zone %s" % [class_id, zone_id])
+
+# Walk the scene to find a Geometry node carrying style_id (the
+# ZoneComposer convention). Returns the StringName style_id or &"".
+func _read_scene_zone_id(scene: Node) -> StringName:
+	# Common case: scene root has a Geometry child with the script
+	var geometry := scene.get_node_or_null("Geometry")
+	if geometry and "style_id" in geometry:
+		return StringName(String(geometry.style_id))
+	# Fallback: walk the tree looking for any node with style_id
+	for child in scene.get_children():
+		if "style_id" in child:
+			return StringName(String(child.style_id))
+		var nested := child.get_node_or_null("Geometry")
+		if nested and "style_id" in nested:
+			return StringName(String(nested.style_id))
+	return &""
 
 # Pulls the Mixamo .fbx animations declared in AnimationRegistry onto this
 # Player's AnimationPlayer under the canonical "marduk/<slot>" namespace.
