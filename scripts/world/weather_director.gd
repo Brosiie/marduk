@@ -344,35 +344,76 @@ func _find_sun_direction() -> Vector3:
 			return -(n as DirectionalLight3D).global_transform.basis.z
 	return Vector3(-0.5, -0.7, -0.5).normalized()
 
-# --- Policy: BOND, write this function ---
+# --- Policy: Markov chain + time-of-day bias ---
 #
-# This decides what weather comes next when the duration timer expires.
-# Multiple valid approaches; pick whichever matches the gameplay vibe.
+# Two-stage decision:
+#   1. Pull base transition weights from the Markov row for `current`.
+#      Storms must be preceded by rain. Rainbow trigger
+#      (STORM|RAIN -> CLEAR|OVERCAST) feels earned.
+#   2. Multiply weights by time-of-day modifiers so dawn favors mist,
+#      dusk favors storms, night favors overcast/mist.
 #
-# OPTIONS:
-# A) Simple weighted random:
-#      60% CLEAR, 15% OVERCAST, 15% RAIN, 7% STORM, 3% MIST
-# B) Markov chain (state-aware):
-#      CLEAR  -> 70% CLEAR, 20% OVERCAST, 10% MIST
-#      OVERCAST -> 30% CLEAR, 30% OVERCAST, 30% RAIN, 10% MIST
-#      RAIN -> 25% RAIN, 50% OVERCAST, 20% STORM, 5% CLEAR
-#      STORM -> 50% RAIN, 30% OVERCAST, 20% STORM (storms persist)
-#      MIST -> 60% CLEAR, 30% MIST, 10% OVERCAST
-# C) Time-of-day biased: storms more likely at dusk, mist at dawn
-# D) Always cycle: CLEAR -> OVERCAST -> RAIN -> STORM -> RAIN -> OVERCAST -> CLEAR
-#
-# Markov (B) gives the most natural feel because storms must be preceded
-# by RAIN (no sudden CLEAR -> STORM jumps), and the transition into
-# CLEAR via OVERCAST gives the rainbow time to feel earned.
-#
-# TODO(Bond): pick A/B/C/D or write your own. Default below is option A
-# as a placeholder so the system runs out of the box.
+# Self-transitions (CLEAR->CLEAR) are kept low so the duration timer
+# doesn't burn 4 minutes on identical-looking weather.
 func _pick_next_weather() -> int:
-	# Default placeholder: simple weighted random (option A above).
-	# Replace this body with your weather policy of choice.
-	var roll: float = randf()
-	if roll < 0.60: return Weather.CLEAR
-	if roll < 0.75: return Weather.OVERCAST
-	if roll < 0.90: return Weather.RAIN
-	if roll < 0.97: return Weather.STORM
-	return Weather.MIST
+	var weights: Dictionary = _markov_row_for(current).duplicate()
+	_apply_time_bias(weights, _time_of_day())
+	return _weighted_pick(weights)
+
+func _time_of_day() -> float:
+	var clock: Node = get_node_or_null("/root/WorldClock")
+	if clock and "time_of_day" in clock:
+		return float(clock.time_of_day)
+	return 0.5
+
+# Transition probabilities from `state`. Weights don't have to sum to
+# 1.0 -- _weighted_pick normalizes. Tuned so:
+#   - Storms always preceded by rain (no CLEAR -> STORM jumps)
+#   - Rainbow trigger fires roughly every 5-10 min of play
+#   - Self-transitions are minority (visible variety guaranteed)
+func _markov_row_for(state: int) -> Dictionary:
+	match state:
+		Weather.CLEAR:
+			return {Weather.CLEAR: 35.0, Weather.OVERCAST: 35.0, Weather.MIST: 18.0, Weather.RAIN: 12.0}
+		Weather.OVERCAST:
+			return {Weather.CLEAR: 25.0, Weather.OVERCAST: 30.0, Weather.RAIN: 30.0, Weather.MIST: 15.0}
+		Weather.RAIN:
+			return {Weather.RAIN: 15.0, Weather.OVERCAST: 50.0, Weather.STORM: 25.0, Weather.CLEAR: 10.0}
+		Weather.STORM:
+			return {Weather.STORM: 15.0, Weather.RAIN: 55.0, Weather.OVERCAST: 25.0, Weather.MIST: 5.0}
+		Weather.MIST:
+			return {Weather.CLEAR: 50.0, Weather.MIST: 25.0, Weather.OVERCAST: 20.0, Weather.RAIN: 5.0}
+	return {Weather.CLEAR: 1.0}
+
+# Time-of-day modulation. Multiplies the weight of certain weather
+# types based on the WorldClock phase:
+#   Dawn   (0.20-0.30): mist 2.5x  (mystical morning)
+#   Dusk   (0.70-0.85): storm 1.7x, rain 1.4x  (epic boss-fight sky)
+#   Night  (>=0.85 or <0.20): clear 0.6x, overcast 1.4x, mist 1.3x
+#   Day    (0.30-0.70): no modifier (Markov base wins)
+func _apply_time_bias(weights: Dictionary, t: float) -> void:
+	if t >= 0.20 and t < 0.30:
+		weights[Weather.MIST] = weights.get(Weather.MIST, 0.0) * 2.5
+	elif t >= 0.70 and t < 0.85:
+		weights[Weather.STORM] = weights.get(Weather.STORM, 0.0) * 1.7
+		weights[Weather.RAIN] = weights.get(Weather.RAIN, 0.0) * 1.4
+	elif t >= 0.85 or t < 0.20:
+		weights[Weather.CLEAR] = weights.get(Weather.CLEAR, 0.0) * 0.6
+		weights[Weather.OVERCAST] = weights.get(Weather.OVERCAST, 0.0) * 1.4
+		weights[Weather.MIST] = weights.get(Weather.MIST, 0.0) * 1.3
+
+# Sample a weighted-random key from `weights`. Robust to empty/zero
+# weights (returns CLEAR as the safe default).
+func _weighted_pick(weights: Dictionary) -> int:
+	var total: float = 0.0
+	for w in weights.values():
+		total += float(w)
+	if total <= 0.0:
+		return Weather.CLEAR
+	var roll: float = randf() * total
+	var cumulative: float = 0.0
+	for k in weights.keys():
+		cumulative += float(weights[k])
+		if roll <= cumulative:
+			return int(k)
+	return Weather.CLEAR
