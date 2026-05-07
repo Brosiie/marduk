@@ -31,7 +31,7 @@ const CLASS_MESHES := {
 	# Assassin - leather, daggers, hooded rogue silhouette. Nightshade J Friedrich
 	&"assassin":             "res://assets/characters/mixamo/classes/assassin.glb",
 	# Ronin - katana swordsman in plated mail. Knight D Pelegrini
-	&"ronin":                "res://assets/characters/mixamo/classes/ronin.glb",
+	&"ronin":                "res://assets/characters/mixamo/classes/assassin.glb",
 	# Ranger - leather + bow, draws cleanly. Erika Archer With Bow Arrow (bow prop attached)
 	&"ranger":               "res://assets/characters/mixamo/classes/ranger.glb",
 	# Mage - robed sorcerer with staff. Ganfaul M Aure

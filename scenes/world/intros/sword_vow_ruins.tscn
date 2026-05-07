@@ -15,7 +15,7 @@
 [ext_resource type="Shader" path="res://shaders/toon.gdshader" id="4_toon"]
 [ext_resource type="Script" path="res://scripts/world/spawn/spawner.gd" id="5_spawner"]
 [ext_resource type="Script" path="res://scripts/world/spawn/boss_anchor.gd" id="6_boss_anchor"]
-[ext_resource type="PackedScene" path="res://assets/characters/mixamo/classes/ronin.glb" id="7_ronin"]
+[ext_resource type="PackedScene" path="res://assets/characters/mixamo/classes/assassin.glb" id="7_ronin"]
 [ext_resource type="PackedScene" path="res://assets/characters/kaykit/Assets/gltf/sword_1handed.gltf" id="8_katana"]
 [ext_resource type="Script" path="res://scripts/world/warp_portal.gd" id="9_warp"]
 
