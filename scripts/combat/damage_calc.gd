@@ -71,7 +71,9 @@ static func calc(attacker_stats, defender, ability: Ability, attacker_node: Node
 		dmg *= attacker_node.heaven_damage_multiplier()
 
 	# Layer 7b: Class weapon proficiency bonus (+20% on-class, -10% off-class, 1.0 neutral)
-	if attacker_node and attacker_stats and attacker_stats.class_def:
+	# Guard with `in` since enemy attacker_stats objects (EnemyBase/BossBase)
+	# do not have a class_def field; reading it would throw.
+	if attacker_node and attacker_stats and "class_def" in attacker_stats and attacker_stats.class_def:
 		var weapon: Item = null
 		if attacker_node.has_method("get_inventory"):
 			var inv: Inventory = attacker_node.get_inventory()
@@ -88,7 +90,7 @@ static func calc(attacker_stats, defender, ability: Ability, attacker_node: Node
 	# If attacker's class uses mana AND ability is a spell, it gets the 4x mana-tier multiplier
 	# baked in via base_damage authoring (mage spells already have higher base_damage in the registry).
 	# This layer therefore applies a soft adjustment only if mismatch detected.
-	if attacker_stats and attacker_stats.class_def:
+	if attacker_stats and "class_def" in attacker_stats and attacker_stats.class_def:
 		var mech: StringName = attacker_stats.class_def.resource_mechanic
 		# Stamina-class uses spell-tagged ability (eg Druid casting from a staff): apply 0.25 ratio
 		if mech == &"stamina" and ability.damage_type != Ability.DamageType.PHYSICAL:

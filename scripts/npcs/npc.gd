@@ -151,6 +151,13 @@ func _unhandled_input(event: InputEvent) -> void:
 	_open_dialogue()
 
 func _open_dialogue() -> void:
+	# Codex unlock: first dialogue with this NPC flips their character
+	# entry. Maps display_name to the codex id by lowercasing + spaces->_.
+	var cdx = get_node_or_null("/root/CodexRegistry")
+	if cdx and cdx.has_method("unlock"):
+		# Try by display_name -> "c_<slug>" (storyteller, iddinu, belitu)
+		var slug: String = display_name.to_lower().replace(",", "").replace(" ", "_").split("_")[0]
+		cdx.unlock(StringName("c_" + slug))
 	# Cheap dialogue: pop a centered label that fades in/out. Real dialogue
 	# system can replace this — we just need V near an NPC to feel alive.
 	var dialog_panel := PanelContainer.new()

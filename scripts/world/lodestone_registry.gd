@@ -106,6 +106,14 @@ func discover(id: StringName) -> bool:
 	var qr = get_node_or_null("/root/QuestRegistry")
 	if qr and qr.has_method("progress"):
 		qr.progress(&"lodestone_count", &"lodestone", 1)
+	# Codex unlock: each lodestone maps to a region. Convert lodestone id
+	# to its region_id and flip the codex entry on first discovery.
+	var cdx = get_node_or_null("/root/CodexRegistry")
+	if cdx and cdx.has_method("unlock"):
+		var meta: Dictionary = LODESTONES.get(id, {})
+		var region_id: StringName = meta.get("region_id", &"")
+		if region_id != &"":
+			cdx.unlock(StringName("r_" + String(region_id)))
 	return true
 
 # Returns dict[id] -> metadata for every discovered lodestone.
