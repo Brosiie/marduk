@@ -29,6 +29,14 @@ const ANIM_LIB_NAME := &"marduk"  # all merged anims live under "marduk/<slot>"
 # from <1s to 60+s on first run with 36 slots x 4 texture conversions.
 const VERBOSE_MISSING := false
 
+# Static path -> Animation cache. The loader is RefCounted so a fresh
+# instance is created per character spawn, but the cache lives at
+# script-level so subsequent characters reuse extracted Animations.
+# Going from 'load + instantiate + queue_free per slot per character'
+# to 'load + instantiate + queue_free ONCE, then cache hit forever' is
+# the difference between 30+s of boot stall and ~2s.
+static var _ANIM_CACHE: Dictionary = {}
+
 func apply(character_root: Node, role: String, role_id: StringName) -> void:
 	var anim_player: AnimationPlayer = _find_anim_player(character_root)
 	if anim_player == null:
@@ -165,21 +173,28 @@ func _find_skeleton(node: Node) -> Skeleton3D:
 # Load a Mixamo .fbx and return the FIRST embedded Animation resource,
 # or null if the file is missing / un-importable.
 #
-# Mixamo anims-without-skin import as PackedScene whose AnimationPlayer
-# carries one or more clips. The clip we want is usually the only one,
-# named "mixamo.com" by default.
+# CACHED: extracted Animations are stored in _ANIM_CACHE so the
+# expensive load+instantiate cycle runs once per path, not once per
+# (path x character). On the second character spawn (mob, boss,
+# re-loaded scene) every .glb is a free dictionary lookup.
 func _load_animation_from_fbx(path: String) -> Animation:
+	if _ANIM_CACHE.has(path):
+		return _ANIM_CACHE[path]
 	if not ResourceLoader.exists(path):
+		_ANIM_CACHE[path] = null
 		return null
 	var packed: PackedScene = load(path)
 	if packed == null:
+		_ANIM_CACHE[path] = null
 		return null
 	var inst: Node = packed.instantiate()
 	if inst == null:
+		_ANIM_CACHE[path] = null
 		return null
 	var ap: AnimationPlayer = _find_anim_player(inst)
 	if ap == null:
 		inst.queue_free()
+		_ANIM_CACHE[path] = null
 		return null
 	var anim: Animation = null
 	for lib_name in ap.get_animation_library_list():
@@ -190,4 +205,5 @@ func _load_animation_from_fbx(path: String) -> Animation:
 		if anim != null:
 			break
 	inst.queue_free()
+	_ANIM_CACHE[path] = anim
 	return anim
