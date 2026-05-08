@@ -958,6 +958,400 @@ func _spawn_breath_vfx(ability_id: StringName) -> void:
 	var color: Color = _breath_color_for(style)
 	_spawn_mouth_puff(color, style)
 	_spawn_blade_coat(color, style)
+	# Per-style signature layer — one ribbon for water, one arc for
+	# thunder, etc. The puff+coat give the GENERIC 'this breathing
+	# form just fired' read; the signature gives the SPECIFIC element.
+	# Demon Slayer reference: Tanjiro's water dragon spiral, Zenitsu's
+	# lightning trail, Rengoku's layered flame columns.
+	_spawn_breath_signature(color, style)
+
+# Per-style hero VFX. Built procedurally on top of the generic puff +
+# blade coat so each style has an unmistakable visual signature
+# instead of all 8 styles being color variants of the same quad burst.
+func _spawn_breath_signature(color: Color, style: StringName) -> void:
+	match style:
+		&"water":   _signature_water(color)
+		&"thunder": _signature_thunder(color)
+		&"flame":   _signature_flame(color)
+		&"wind":    _signature_wind(color)
+		&"stone":   _signature_stone(color)
+		&"sun":     _signature_sun(color)
+		&"moon":    _signature_moon(color)
+		&"mist":    _signature_mist(color)
+
+# WATER: trailing ribbon of slow particles with strong tangential
+# acceleration so they spiral around the blade like Tanjiro's dragon.
+# Two layers — saturated core + lighter foam — for depth.
+func _signature_water(color: Color) -> void:
+	var socket: Node3D = mesh.get_node_or_null("KatanaSocket") if mesh else null
+	if socket == null:
+		return
+	for layer_idx in 2:
+		var ribbon := GPUParticles3D.new()
+		ribbon.name = "WaterRibbon%d" % layer_idx
+		ribbon.amount = 60
+		ribbon.lifetime = 1.4
+		ribbon.one_shot = true
+		ribbon.explosiveness = 0.05  # SLOW continuous — long arc
+		ribbon.visibility_aabb = AABB(Vector3(-2, -1, -2), Vector3(4, 3, 4))
+		var pm := ParticleProcessMaterial.new()
+		pm.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_BOX
+		pm.emission_box_extents = Vector3(0.03, 0.03, 0.45)
+		pm.direction = Vector3(0, 0.4, 1.0)
+		pm.spread = 6.0
+		pm.initial_velocity_min = 1.6
+		pm.initial_velocity_max = 2.4
+		# Tangential accel = curve away from forward = ribbon spiral
+		pm.tangential_accel_min = 1.8 - layer_idx * 0.6
+		pm.tangential_accel_max = 3.2 - layer_idx * 0.6
+		pm.gravity = Vector3(0, -0.8, 0)
+		pm.scale_min = 0.10 + layer_idx * 0.06
+		pm.scale_max = 0.20 + layer_idx * 0.10
+		pm.color = color.lightened(layer_idx * 0.30)
+		ribbon.process_material = pm
+		var quad := QuadMesh.new()
+		quad.size = Vector2(0.16, 0.16)
+		var smat := StandardMaterial3D.new()
+		smat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		smat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		smat.albedo_color = color.lightened(layer_idx * 0.30)
+		smat.emission_enabled = true
+		smat.emission = color
+		smat.emission_energy_multiplier = 1.4
+		smat.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
+		quad.material = smat
+		ribbon.draw_pass_1 = quad
+		socket.add_child(ribbon)
+		ribbon.position = Vector3(0, 0.5, 0)
+		get_tree().create_timer(2.0).timeout.connect(func():
+			if is_instance_valid(ribbon): ribbon.queue_free())
+
+# THUNDER: ImmediateMesh-based jagged bolt from hand to blade tip,
+# flashes for one frame then fades. Plus a sparking particle burst
+# at the tip. Demon Slayer reference: Zenitsu's first-form flash.
+func _signature_thunder(color: Color) -> void:
+	var socket: Node3D = mesh.get_node_or_null("KatanaSocket") if mesh else null
+	if socket == null:
+		return
+	# Jagged bolt mesh — 6 segments with random perpendicular jitter
+	var bolt := MeshInstance3D.new()
+	bolt.name = "ThunderBolt"
+	var im := ImmediateMesh.new()
+	im.surface_begin(Mesh.PRIMITIVE_LINE_STRIP)
+	for i in range(7):
+		var t: float = float(i) / 6.0
+		var jitter_x: float = (randf() - 0.5) * 0.10 if i not in [0, 6] else 0.0
+		var jitter_y: float = (randf() - 0.5) * 0.10 if i not in [0, 6] else 0.0
+		im.surface_add_vertex(Vector3(jitter_x, jitter_y, t * 0.95))
+	im.surface_end()
+	bolt.mesh = im
+	var bm := StandardMaterial3D.new()
+	bm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	bm.albedo_color = color
+	bm.emission_enabled = true
+	bm.emission = color.lightened(0.4)
+	bm.emission_energy_multiplier = 4.0
+	bm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	bm.no_depth_test = true
+	bolt.material_override = bm
+	socket.add_child(bolt)
+	bolt.position = Vector3(0, 0.05, 0)
+	# Fade the bolt over 0.18s via tween
+	var tw := create_tween()
+	tw.tween_property(bm, "albedo_color:a", 0.0, 0.18)
+	tw.parallel().tween_property(bm, "emission_energy_multiplier", 0.0, 0.18)
+	get_tree().create_timer(0.3).timeout.connect(func():
+		if is_instance_valid(bolt): bolt.queue_free())
+	# Sparking burst at the tip
+	var spark := GPUParticles3D.new()
+	spark.amount = 24
+	spark.lifetime = 0.45
+	spark.one_shot = true
+	spark.explosiveness = 1.0
+	spark.visibility_aabb = AABB(Vector3(-1, -1, -1), Vector3(2, 2, 2))
+	var sm := ParticleProcessMaterial.new()
+	sm.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_SPHERE
+	sm.emission_sphere_radius = 0.05
+	sm.direction = Vector3(0, 0, 1)
+	sm.spread = 180.0
+	sm.initial_velocity_min = 2.5
+	sm.initial_velocity_max = 5.5
+	sm.gravity = Vector3.ZERO
+	sm.scale_min = 0.04
+	sm.scale_max = 0.10
+	sm.color = color
+	spark.process_material = sm
+	var sq := QuadMesh.new()
+	sq.size = Vector2(0.08, 0.08)
+	var ssm := StandardMaterial3D.new()
+	ssm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	ssm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	ssm.emission_enabled = true
+	ssm.emission = color.lightened(0.5)
+	ssm.emission_energy_multiplier = 3.5
+	ssm.albedo_color = color
+	ssm.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
+	sq.material = ssm
+	spark.draw_pass_1 = sq
+	socket.add_child(spark)
+	spark.position = Vector3(0, 1.0, 0)  # tip of blade
+	get_tree().create_timer(1.0).timeout.connect(func():
+		if is_instance_valid(spark): spark.queue_free())
+
+# FLAME: two-layer fire — saturated orange core rising fast, lighter
+# yellow halo rising slower. Plus wisps drifting up from the blade.
+# Demon Slayer reference: Rengoku's flame columns layered against
+# each other.
+func _signature_flame(color: Color) -> void:
+	var socket: Node3D = mesh.get_node_or_null("KatanaSocket") if mesh else null
+	if socket == null:
+		return
+	for layer_idx in 2:
+		var fire := GPUParticles3D.new()
+		fire.amount = 50
+		fire.lifetime = 0.9
+		fire.one_shot = true
+		fire.explosiveness = 0.20
+		fire.visibility_aabb = AABB(Vector3(-2, -1, -2), Vector3(4, 4, 4))
+		var pm := ParticleProcessMaterial.new()
+		pm.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_BOX
+		pm.emission_box_extents = Vector3(0.05, 0.05, 0.45)
+		pm.direction = Vector3(0, 1.0, 0)
+		pm.spread = 18.0 + layer_idx * 8.0
+		pm.initial_velocity_min = 2.5 - layer_idx * 0.6
+		pm.initial_velocity_max = 4.0 - layer_idx * 0.6
+		pm.gravity = Vector3(0, 1.6, 0)  # flames RISE
+		pm.scale_min = 0.10 + layer_idx * 0.05
+		pm.scale_max = 0.22 + layer_idx * 0.08
+		# Outer halo lighter / yellower than the core
+		var fc: Color = color if layer_idx == 0 else Color(1.0, 0.78, 0.30)
+		pm.color = fc
+		fire.process_material = pm
+		var q := QuadMesh.new()
+		q.size = Vector2(0.18, 0.18)
+		var ssm := StandardMaterial3D.new()
+		ssm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		ssm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		ssm.albedo_color = fc
+		ssm.emission_enabled = true
+		ssm.emission = fc
+		ssm.emission_energy_multiplier = 2.4 if layer_idx == 0 else 1.4
+		ssm.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
+		q.material = ssm
+		fire.draw_pass_1 = q
+		socket.add_child(fire)
+		fire.position = Vector3(0, 0.5, 0)
+		get_tree().create_timer(1.6).timeout.connect(func():
+			if is_instance_valid(fire): fire.queue_free())
+
+# WIND: tangential-accelerating particles forming a vortex around the
+# blade. Demon Slayer reference: Sanemi's seventh form spiral.
+func _signature_wind(color: Color) -> void:
+	var socket: Node3D = mesh.get_node_or_null("KatanaSocket") if mesh else null
+	if socket == null:
+		return
+	var v := GPUParticles3D.new()
+	v.amount = 80
+	v.lifetime = 0.9
+	v.one_shot = true
+	v.explosiveness = 0.10
+	v.visibility_aabb = AABB(Vector3(-2, -1, -2), Vector3(4, 3, 4))
+	var pm := ParticleProcessMaterial.new()
+	pm.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_BOX
+	pm.emission_box_extents = Vector3(0.10, 0.10, 0.40)
+	pm.direction = Vector3(0, 0, 1)
+	pm.spread = 35.0
+	pm.initial_velocity_min = 1.0
+	pm.initial_velocity_max = 2.0
+	# Strong tangential = vortex
+	pm.tangential_accel_min = 4.0
+	pm.tangential_accel_max = 7.0
+	pm.gravity = Vector3.ZERO
+	pm.scale_min = 0.06
+	pm.scale_max = 0.14
+	pm.color = color
+	v.process_material = pm
+	var q := QuadMesh.new()
+	q.size = Vector2(0.12, 0.12)
+	var ssm := StandardMaterial3D.new()
+	ssm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	ssm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	ssm.albedo_color = color
+	ssm.emission_enabled = true
+	ssm.emission = color
+	ssm.emission_energy_multiplier = 1.0
+	ssm.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
+	q.material = ssm
+	v.draw_pass_1 = q
+	socket.add_child(v)
+	v.position = Vector3(0, 0.5, 0)
+	get_tree().create_timer(1.6).timeout.connect(func():
+		if is_instance_valid(v): v.queue_free())
+
+# STONE: heavy chunks falling away from the blade with strong gravity.
+# Demon Slayer reference: Gyomei's stone-form rubble.
+func _signature_stone(color: Color) -> void:
+	var socket: Node3D = mesh.get_node_or_null("KatanaSocket") if mesh else null
+	if socket == null:
+		return
+	var s := GPUParticles3D.new()
+	s.amount = 28
+	s.lifetime = 1.4
+	s.one_shot = true
+	s.explosiveness = 0.95
+	s.visibility_aabb = AABB(Vector3(-2, -2, -2), Vector3(4, 4, 4))
+	var pm := ParticleProcessMaterial.new()
+	pm.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_BOX
+	pm.emission_box_extents = Vector3(0.06, 0.06, 0.45)
+	pm.direction = Vector3(0, -0.3, 1.0)
+	pm.spread = 50.0
+	pm.initial_velocity_min = 2.5
+	pm.initial_velocity_max = 4.5
+	pm.gravity = Vector3(0, -8.0, 0)  # heavy fall
+	pm.scale_min = 0.10
+	pm.scale_max = 0.22
+	pm.angular_velocity_min = -180.0
+	pm.angular_velocity_max = 180.0
+	pm.color = color
+	s.process_material = pm
+	var box := BoxMesh.new()
+	box.size = Vector3(0.08, 0.08, 0.10)
+	var ssm := StandardMaterial3D.new()
+	ssm.albedo_color = color
+	ssm.roughness = 0.90
+	box.material = ssm
+	s.draw_pass_1 = box
+	socket.add_child(s)
+	s.position = Vector3(0, 0.5, 0)
+	get_tree().create_timer(2.5).timeout.connect(func():
+		if is_instance_valid(s): s.queue_free())
+
+# SUN: radial beam of bright particles fanning out from blade tip.
+# Demon Slayer reference: Yoriichi's sun-breath dance corona.
+func _signature_sun(color: Color) -> void:
+	var socket: Node3D = mesh.get_node_or_null("KatanaSocket") if mesh else null
+	if socket == null:
+		return
+	var s := GPUParticles3D.new()
+	s.amount = 80
+	s.lifetime = 0.7
+	s.one_shot = true
+	s.explosiveness = 1.0
+	s.visibility_aabb = AABB(Vector3(-3, -2, -3), Vector3(6, 4, 6))
+	var pm := ParticleProcessMaterial.new()
+	pm.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_SPHERE
+	pm.emission_sphere_radius = 0.05
+	pm.direction = Vector3(0, 0, 1)
+	pm.spread = 60.0
+	pm.initial_velocity_min = 4.0
+	pm.initial_velocity_max = 7.0
+	pm.gravity = Vector3.ZERO
+	pm.scale_min = 0.10
+	pm.scale_max = 0.22
+	pm.color = color
+	s.process_material = pm
+	var q := QuadMesh.new()
+	q.size = Vector2(0.18, 0.18)
+	var ssm := StandardMaterial3D.new()
+	ssm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	ssm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	ssm.albedo_color = color
+	ssm.emission_enabled = true
+	ssm.emission = color
+	ssm.emission_energy_multiplier = 3.0
+	ssm.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
+	q.material = ssm
+	s.draw_pass_1 = q
+	socket.add_child(s)
+	s.position = Vector3(0, 0.95, 0)  # tip
+	get_tree().create_timer(1.4).timeout.connect(func():
+		if is_instance_valid(s): s.queue_free())
+
+# MOON: crescent-shaped sweep — particles emit in a horizontal arc and
+# fade fast for the hanging-crescent silhouette.
+# Demon Slayer reference: Kokushibo's crescent moon arcs.
+func _signature_moon(color: Color) -> void:
+	var socket: Node3D = mesh.get_node_or_null("KatanaSocket") if mesh else null
+	if socket == null:
+		return
+	var s := GPUParticles3D.new()
+	s.amount = 40
+	s.lifetime = 0.8
+	s.one_shot = true
+	s.explosiveness = 0.6
+	s.visibility_aabb = AABB(Vector3(-2, -1, -2), Vector3(4, 3, 4))
+	var pm := ParticleProcessMaterial.new()
+	pm.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_RING
+	pm.emission_ring_axis = Vector3(0, 1, 0)
+	pm.emission_ring_radius = 0.50
+	pm.emission_ring_inner_radius = 0.40
+	pm.emission_ring_height = 0.05
+	pm.direction = Vector3(0, 0, 1)
+	pm.spread = 12.0
+	pm.initial_velocity_min = 0.5
+	pm.initial_velocity_max = 1.2
+	pm.gravity = Vector3.ZERO
+	pm.scale_min = 0.08
+	pm.scale_max = 0.18
+	pm.color = color
+	s.process_material = pm
+	var q := QuadMesh.new()
+	q.size = Vector2(0.14, 0.14)
+	var ssm := StandardMaterial3D.new()
+	ssm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	ssm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	ssm.albedo_color = color
+	ssm.emission_enabled = true
+	ssm.emission = color
+	ssm.emission_energy_multiplier = 2.0
+	ssm.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
+	q.material = ssm
+	s.draw_pass_1 = q
+	socket.add_child(s)
+	s.position = Vector3(0, 0.5, 0)
+	get_tree().create_timer(1.5).timeout.connect(func():
+		if is_instance_valid(s): s.queue_free())
+
+# MIST: large soft particles drifting slowly outward at low alpha.
+# Reads as 'breath fogging the air' instead of an attack.
+func _signature_mist(color: Color) -> void:
+	var socket: Node3D = mesh.get_node_or_null("KatanaSocket") if mesh else null
+	if socket == null:
+		return
+	var s := GPUParticles3D.new()
+	s.amount = 30
+	s.lifetime = 1.6
+	s.one_shot = true
+	s.explosiveness = 0.30
+	s.visibility_aabb = AABB(Vector3(-2, -1, -2), Vector3(4, 3, 4))
+	var pm := ParticleProcessMaterial.new()
+	pm.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_BOX
+	pm.emission_box_extents = Vector3(0.20, 0.10, 0.30)
+	pm.direction = Vector3(0, 0.2, 1)
+	pm.spread = 60.0
+	pm.initial_velocity_min = 0.3
+	pm.initial_velocity_max = 0.9
+	pm.gravity = Vector3(0, 0.05, 0)  # slow drift up
+	pm.scale_min = 0.30
+	pm.scale_max = 0.60
+	pm.color = Color(color.r, color.g, color.b, 0.45)
+	s.process_material = pm
+	var q := QuadMesh.new()
+	q.size = Vector2(0.40, 0.40)
+	var ssm := StandardMaterial3D.new()
+	ssm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	ssm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	ssm.albedo_color = Color(color.r, color.g, color.b, 0.35)
+	ssm.emission_enabled = true
+	ssm.emission = color
+	ssm.emission_energy_multiplier = 0.6
+	ssm.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
+	q.material = ssm
+	s.draw_pass_1 = q
+	socket.add_child(s)
+	s.position = Vector3(0, 0.5, 0)
+	get_tree().create_timer(2.5).timeout.connect(func():
+		if is_instance_valid(s): s.queue_free())
 
 # Small puff at the player's mouth (head height, ~0.4m forward).
 # 14 particles, 0.5s lifetime, gentle outward drift.

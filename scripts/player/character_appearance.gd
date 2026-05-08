@@ -46,6 +46,15 @@ class_name CharacterAppearance
 # Implementation gated until Bond approves the Demon spec checklist.
 @export var demon_overlay: Resource = null  # DemonOverlay when implemented
 
+# === Pre-Lucifer soul snapshot (set when Demon class is unlocked from a prior character) ===
+# Used by the Sacrifice Ritual (DEMON_VISUAL_TRANSFORMATION.md § 18) to walk back
+# the Demon transformation and restore the original mortal class.
+# For non-Demon characters these are empty / default.
+@export var pre_lucifer_class_id: StringName = &""              # the soul that walked the gate
+@export var pre_lucifer_skill_node_ids: Array[StringName] = []  # skill tree backup
+@export var lucifer_walked_back: bool = false                   # one-way flag; true after sacrifice
+@export var carries_sacrifice_scar: bool = false                # white scar awarded post-sacrifice
+
 # === Living Character state (Tier 2; updates over time during play) ===
 # These fields mutate during gameplay rather than being set in the creator.
 @export var racial_cosmetic_progress: float = 0.0  # 0..1 toward Race.earned_cosmetic_id
