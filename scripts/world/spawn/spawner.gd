@@ -126,6 +126,18 @@ func _swap_mesh_for_mob(enemy_inst: Node, requested_mob_id: StringName) -> void:
 		return
 	var old_mesh: Node = enemy_inst.get_node_or_null("MobMesh")
 	if old_mesh:
+		# remove_child BEFORE queue_free so the old MobMesh is detached
+		# from enemy_inst before _ready runs. queue_free is deferred to
+		# end of frame; without remove_child, the old mesh sits in
+		# enemy_inst.get_children() and AnimationLibraryLoader's
+		# recursive AP search picks up the OLD AnimationPlayer (which
+		# is queued for deletion). The loader then yields, the frame
+		# ends, the old mesh is freed, the loader resumes with a now-
+		# invalid anim_player, and aborts WITHOUT binding the marduk
+		# library. Result: every spawned mob T-poses despite the
+		# library being on disk. Detaching first keeps the recursive
+		# search from ever seeing the dying mesh.
+		enemy_inst.remove_child(old_mesh)
 		old_mesh.queue_free()
 	var new_mesh := packed.instantiate()
 	new_mesh.name = "MobMesh"

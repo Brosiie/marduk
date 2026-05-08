@@ -421,7 +421,18 @@ func _apply_resource_theme() -> void:
 		return
 	var mech: StringName = player.stats.class_def.resource_mechanic
 	var theme: Dictionary = RESOURCE_THEME.get(mech, RESOURCE_THEME[&"mana"])
-	mana_bar.modulate = theme["color"]
+	# Update the StyleBoxFlat fill directly. Setting `modulate` on top of
+	# the polished bar would multiply with the stylebox bg_color and
+	# double-tint the fill (Stamina ended up green-on-green, etc).
+	mana_bar.modulate = Color.WHITE
+	var fill_color: Color = theme["color"]
+	var sb: StyleBoxFlat = mana_bar.get_theme_stylebox("fill") as StyleBoxFlat
+	if sb:
+		sb.bg_color = fill_color
+		sb.border_color = fill_color.lightened(0.4)
+		sb.shadow_color = fill_color * 0.5
+	else:
+		_apply_bar_style(mana_bar, fill_color, fill_color.lightened(0.3), fill_color.darkened(0.5))
 	if resource_label:
 		resource_label.text = theme["label"]
 

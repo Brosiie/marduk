@@ -29,6 +29,12 @@ var _player: Node = null
 var _slot_nodes: Array = []
 var _bg: Panel
 var _t: float = 0.0
+# Icon texture cache keyed by ability id. _paint_all runs at 10 Hz; each
+# call previously did 12 * (Image.create + 64*64 set_pixel + ImageTexture
+# .create_from_image) = 120 alloc/sec leaked to the GC. Cache flips that
+# to one rebuild per unique ability per session — kit changes maybe 5
+# times in a 30-min playthrough, so cache stays under 20 entries.
+var _icon_cache: Dictionary = {}
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -235,6 +241,9 @@ func _update_cooldowns() -> void:
 const ICON_SIZE: int = 64
 
 func _build_ability_icon(k: Dictionary) -> Texture2D:
+	var ability_id: String = String(k.get("id", ""))
+	if ability_id != "" and _icon_cache.has(ability_id):
+		return _icon_cache[ability_id]
 	var img := Image.create(ICON_SIZE, ICON_SIZE, false, Image.FORMAT_RGBA8)
 	var bg: Color = _color_for_id(StringName(k.get("id", "")))
 	# Radial gradient body (lighter center -> darker edges)
@@ -262,7 +271,10 @@ func _build_ability_icon(k: Dictionary) -> Texture2D:
 	for y in ICON_SIZE:
 		img.set_pixel(0, y, border)
 		img.set_pixel(ICON_SIZE - 1, y, border)
-	return ImageTexture.create_from_image(img)
+	var tex: Texture2D = ImageTexture.create_from_image(img)
+	if ability_id != "":
+		_icon_cache[ability_id] = tex
+	return tex
 
 # Picks a glyph based on ability id. Each glyph is drawn into the
 # image via simple per-pixel paths. The id string is matched against

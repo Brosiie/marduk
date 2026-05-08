@@ -59,10 +59,12 @@ func _build_slots() -> void:
 		add_child(panel)
 		_panels.append(panel)
 
-		# Icon color rect (placeholder until real icons ship)
+		# Icon color rect (placeholder until real icons ship). Using
+		# .y for height (was .x — latent bug if SLOT_SIZE goes non-square
+		# during the polish pass).
 		var icon := ColorRect.new()
 		icon.position = Vector2(8, 8)
-		icon.size = Vector2(SLOT_SIZE.x - 16, SLOT_SIZE.x - 16)
+		icon.size = Vector2(SLOT_SIZE.x - 16, SLOT_SIZE.y - 16)
 		icon.color = DEFAULT_COLOR
 		panel.add_child(icon)
 		_icon_rects.append(icon)

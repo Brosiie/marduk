@@ -124,11 +124,13 @@ func apply(character_root: Node, role: String, role_id: StringName) -> void:
 			# scene unloaded, etc). Bail out gracefully to avoid
 			# 'Cannot call method on previously freed instance'.
 			if not is_instance_valid(character_root) or not is_instance_valid(anim_player):
+				print("[AnimLoader] %s/%s ABORTED at slot %d (root_valid=%s ap_valid=%s)" % [role, role_id, i, is_instance_valid(character_root), is_instance_valid(anim_player)])
 				return
 
 	# Merge / replace the named library on the player. Guard once more
 	# in case the final state changed during the last yield.
 	if not is_instance_valid(anim_player):
+		print("[AnimLoader] %s/%s ABORTED at final guard (ap freed)" % [role, role_id])
 		return
 	if anim_player.has_animation_library(ANIM_LIB_NAME):
 		anim_player.remove_animation_library(ANIM_LIB_NAME)
@@ -248,6 +250,24 @@ func _find_skeleton(node: Node) -> Skeleton3D:
 # expensive load+instantiate cycle runs once per path, not once per
 # (path x character). On the second character spawn (mob, boss,
 # re-loaded scene) every .glb is a free dictionary lookup.
+# Path-substring tokens that mark a slot as "should loop continuously".
+# Idle / walk / run / strafe / sprint anims play forever until the state
+# machine changes. Death / hit / attack / dodge / cast / jump are
+# one-shots — looping them makes the player snap out of death pose, the
+# mob stand back up after dying, and attack swings repeat infinitely
+# until manually stopped (a Bond-reported "ronin keeps swinging" bug).
+const _LOOPING_PATH_TOKENS := [
+	"idle", "walk", "run", "strafe", "sprint",
+	"unarmed_idle", "katana_idle", "block_idle"
+]
+
+func _should_loop(path: String) -> bool:
+	var lower: String = path.to_lower()
+	for token in _LOOPING_PATH_TOKENS:
+		if lower.find(token) >= 0:
+			return true
+	return false
+
 func _load_animation_from_fbx(path: String) -> Animation:
 	if _ANIM_CACHE.has(path):
 		return _ANIM_CACHE[path]
@@ -276,16 +296,17 @@ func _load_animation_from_fbx(path: String) -> Animation:
 		if anim != null:
 			break
 	inst.queue_free()
-	# CRITICAL: force loop_mode = LINEAR on movement/idle animations.
-	# Mixamo .glb files often import with loop_mode = NONE (play once
-	# then stop). When the character moves and we play marduk/walk,
-	# it ticks through one cycle and freezes on the final frame --
-	# which often resembles a T-pose. Looping these clips fixes the
-	# 'character T-poses when moving' bug.
+	# Force loop_mode = LINEAR on movement/idle animations only. Mixamo
+	# .glb files often import with loop_mode = NONE; when the character
+	# walks the clip ticks once and freezes on the final frame which
+	# reads as a T-pose. But forcing LOOP on death/hit/attack/dodge/cast
+	# clips makes them repeat infinitely until manually stopped — the
+	# dead mob keeps standing up, the attack swing fires again on its
+	# own, etc. So we whitelist the looping slots by path-substring.
 	if anim != null:
-		# We don't know the slot here so loop EVERYTHING; one-shot
-		# attacks/dodges/casts are explicitly stop()-controlled by
-		# game code so an extra loop wouldn't hurt them.
-		anim.loop_mode = Animation.LOOP_LINEAR
+		if _should_loop(path):
+			anim.loop_mode = Animation.LOOP_LINEAR
+		else:
+			anim.loop_mode = Animation.LOOP_NONE
 	_ANIM_CACHE[path] = anim
 	return anim

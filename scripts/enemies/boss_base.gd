@@ -81,15 +81,15 @@ func _ready() -> void:
 		p.move_speed_mult = float(d.get("speed_mult", 1.0))
 		phases.append(p)
 
-# Override the EnemyBase animation hook so bosses pull from the boss
-# slot table (phase_1_combo, phase_2_charge, etc.) rather than the
-# generic mob attack pool.
-func _load_marduk_animation_library() -> void:
-	var loader_script: GDScript = load("res://scripts/anim/animation_library_loader.gd")
-	if loader_script == null:
-		return
-	var loader = loader_script.new()
-	loader.apply(self, "boss", boss_id)
+# NOTE: We DELIBERATELY DO NOT override _load_marduk_animation_library
+# from EnemyBase. Earlier this class shipped an override that called
+# `loader.apply(self, "boss", boss_id)` WITHOUT awaiting, and skipped
+# the alias-resolution + play() block. Result: bosses T-posed for the
+# entire fight while the loader's coroutine yielded. EnemyBase already
+# duck-types `if "boss_id" in self` to use boss role/id when available,
+# so the parent implementation handles bosses correctly. Don't add a
+# new override here unless you also await + resolve aliases (see the
+# parent for the canonical sequence).
 
 func take_damage(amount: float, source: Node = null) -> void:
 	if state == State.DEAD or _in_transition:
@@ -360,7 +360,12 @@ func _award_guaranteed_drops(killer: Node) -> void:
 
 	# Guaranteed VERY_RARE
 	if loot_table:
-		var rolls: Array[Item] = loot_table.roll(get_node_or_null("/root/Prestige").current_prestige_level() if get_node_or_null("/root/Prestige") else 0)
+		# Resolve Prestige once; falling back to cycle 0 if the autoload is
+		# absent (unit-test contexts). Two separate `get_node_or_null`
+		# calls were a latent crash because the ternary would re-fetch.
+		var prestige_node: Node = get_node_or_null("/root/Prestige")
+		var cycle: int = prestige_node.current_prestige_level() if prestige_node else 0
+		var rolls: Array[Item] = loot_table.roll(cycle)
 		for it in rolls:
 			killer.receive_loot(it)
 

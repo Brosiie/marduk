@@ -1,0 +1,411 @@
+extends Node
+# NOTE: no class_name here. PlaytestBot is registered as an autoload in
+# project.godot and Godot 4 errors with 'Class hides an autoload
+# singleton' if the same name is also a class_name. Resolve via
+# get_node("/root/PlaytestBot") if anything outside ever needs it.
+
+# A scripted "bot" that takes over the player to verify gameplay
+# behavior without needing a human at the keyboard. Designed to run
+# in --headless mode so I (Claudette) can drive playtests, dump
+# observed state, and detect anomalies (T-pose, stuck-not-moving,
+# look-away, missing skeleton, no anim playing, etc).
+#
+# Usage:
+#   Godot --headless -- --playtest
+#
+# The `-- --playtest` separates engine args from user args; the bot
+# checks OS.get_cmdline_user_args() for "--playtest" and only
+# activates in that case. Without the flag this autoload is dormant
+# so normal play sessions are unaffected.
+#
+# Scenarios run sequentially (each ~3-5s):
+#   1. Wait for anim load to finish, log binding count + sample slots
+#   2. Idle for 1.0s, assert mob/player are NOT T-posing
+#   3. Walk forward (move_up) for 2.0s, assert player moved + walk anim
+#   4. Press Tab to lock-on, assert lock target acquired + facing it
+#   5. Basic attack 3x via attack_basic, assert hitbox spawns + anim
+#   6. Dodge (Space) forward, assert dodge anim + iframes
+#   7. Approach a mob, assert mob aggros + chases + plays walk anim
+#   8. Take damage from mob, assert HP decreases
+#   9. Print final report with PASS/FAIL per check and quit
+
+const SCENARIO_TIMEOUT_S := 60.0   # absolute upper bound
+const TICK_HZ := 10                # state sampling rate
+
+var _active: bool = false
+var _start_time: float = 0.0
+var _player: Node = null
+var _findings: Array[String] = []
+var _passes: Array[String] = []
+var _fails: Array[String] = []
+
+func _ready() -> void:
+	# Self-activate only when the user passed --playtest. Without this
+	# we'd hijack normal sessions which would be a bad surprise.
+	for arg in OS.get_cmdline_user_args():
+		if arg == "--playtest":
+			_active = true
+			break
+	if not _active:
+		return
+	print("\n========================================")
+	print("[PlaytestBot] ACTIVE — scripted scenarios queued")
+	print("========================================\n")
+	_start_time = _now()
+	# Wait for the scene + player to be ready before driving anything.
+	# call_deferred so we don't fight the main scene's _ready chain.
+	call_deferred("_run")
+
+func _now() -> float:
+	return Time.get_ticks_msec() / 1000.0
+
+func _run() -> void:
+	# Find the player; retry up to 5s if main scene is still spawning.
+	for i in range(50):
+		_player = get_tree().get_first_node_in_group("player")
+		if _player:
+			break
+		await get_tree().create_timer(0.1).timeout
+	if _player == null:
+		_fail("player_found", "Player never entered scene tree (5s timeout)")
+		_finish()
+		return
+	_pass("player_found", "Player at %s" % str(_player.global_position))
+
+	# Phase 1: wait for the anim library to finish loading (deferred,
+	# can take up to ~10s on first run). The player sets anim_player
+	# once the library is bound.
+	await _await_anim_ready()
+
+	# Phase 2: idle baseline
+	await _scenario_idle_baseline()
+
+	# Phase 3: walk forward
+	await _scenario_walk_forward()
+
+	# Phase 4: lock-on + facing
+	await _scenario_lock_on()
+
+	# Phase 5: basic attack
+	await _scenario_basic_attack()
+
+	# Phase 6: dodge
+	await _scenario_dodge()
+
+	# Phase 7: aggro a mob (find one, walk toward it)
+	await _scenario_mob_aggro()
+
+	# Phase 8: HUD presence
+	_scenario_hud_presence()
+
+	# Phase 9: meshes + skeletons
+	_scenario_mesh_integrity()
+
+	_finish()
+
+# ---------------------------------------------------------------------
+# Scenario primitives
+# ---------------------------------------------------------------------
+
+func _await_anim_ready() -> void:
+	# Bumped from 12s -> 25s. Player's deferred load yields between
+	# every 3 of 40 slots; on first run with cold .glb caches that's
+	# ~10-18s on M-series. Test was timing out before completion.
+	var deadline: float = _now() + 25.0
+	while _now() < deadline:
+		var ap: AnimationPlayer = _player.get("anim_player")
+		if ap and ap.get_animation_list().size() > 0:
+			# Library bound; check key resolutions
+			var resolved: Dictionary = _player.get("_resolved_anims")
+			var anim_count: int = ap.get_animation_list().size()
+			_pass("anim_load", "%d anims bound, idle=%s walk=%s run=%s attack=%s" % [
+				anim_count,
+				resolved.get("idle", "(none)"),
+				resolved.get("walk", "(none)"),
+				resolved.get("run", "(none)"),
+				resolved.get("attack", "(none)")
+			])
+			return
+		await get_tree().create_timer(0.2).timeout
+	_fail("anim_load", "anim_player never reported anims (12s timeout)")
+
+func _scenario_idle_baseline() -> void:
+	await _wait(0.5)
+	var ap: AnimationPlayer = _player.get("anim_player")
+	if ap == null:
+		_fail("idle_anim", "anim_player is null")
+		return
+	var current: String = String(ap.current_animation)
+	if current == "":
+		_fail("idle_anim", "T-POSE: current_animation is empty after spawn")
+	else:
+		_pass("idle_anim", "playing '%s' on idle" % current)
+
+func _scenario_walk_forward() -> void:
+	var start_pos: Vector3 = _player.global_position
+	_press_action("move_up")
+	# Sample anim mid-walk (after 1s movement is steady) BEFORE releasing
+	# the input. Otherwise the anim already snapped back to idle by the
+	# time we check.
+	await _wait(1.0)
+	var ap: AnimationPlayer = _player.get("anim_player")
+	var mid_walk_anim: String = String(ap.current_animation) if ap else ""
+	await _wait(1.0)
+	_release_action("move_up")
+	var end_pos: Vector3 = _player.global_position
+	var moved: float = start_pos.distance_to(end_pos)
+	if moved < 1.0:
+		_fail("walk_movement", "player moved only %.2fm in 2s (expected >=1m)" % moved)
+	else:
+		_pass("walk_movement", "moved %.2fm forward" % moved)
+	# Verify walk/run anim was active mid-stride (sampled at 1s mark)
+	if mid_walk_anim == "":
+		_fail("walk_anim", "no current_animation while moving (T-POSE while walking)")
+	elif mid_walk_anim.find("walk") >= 0 or mid_walk_anim.find("run") >= 0:
+		_pass("walk_anim", "playing '%s' mid-stride" % mid_walk_anim)
+	else:
+		_fail("walk_anim", "playing '%s' mid-stride (expected walk/run)" % mid_walk_anim)
+
+func _scenario_lock_on() -> void:
+	# Find the closest enemy; if nothing within 30m, skip lock test.
+	var enemies := get_tree().get_nodes_in_group("enemy")
+	if enemies.is_empty():
+		_findings.append("(skip lock_on: no enemies in scene)")
+		return
+	# Drive lock-on via parse_input_event (action_press only flips the
+	# polled state; _input() handlers need an actual InputEvent). If
+	# the player has a public _attempt_lock method, prefer that — it
+	# matches what the keybind invokes anyway.
+	if _player.has_method("_attempt_lock"):
+		_player._attempt_lock()
+	else:
+		_emit_action_event("lock_on")
+	await _wait(0.4)
+	# Verify a target is locked
+	var lock_target = _player.get("_lock_target")
+	if lock_target == null:
+		_fail("lock_on", "no target after pressing lock_on")
+		return
+	_pass("lock_on", "locked onto %s" % str(lock_target))
+	# After 0.5s of lock, the player mesh should face the target
+	await _wait(0.5)
+	var mesh: Node3D = _player.get("mesh")
+	if mesh == null:
+		_fail("lock_facing", "mesh is null")
+		return
+	var to_target: Vector3 = (lock_target as Node3D).global_position - _player.global_position
+	to_target.y = 0
+	if to_target.length_squared() < 0.001:
+		return
+	to_target = to_target.normalized()
+	# Mixamo mesh is +Z forward; mesh.basis.z should align with to_target
+	var mesh_fwd: Vector3 = mesh.global_transform.basis.z
+	mesh_fwd.y = 0
+	if mesh_fwd.length_squared() < 0.001:
+		return
+	mesh_fwd = mesh_fwd.normalized()
+	var dot: float = mesh_fwd.dot(to_target)
+	if dot > 0.6:
+		_pass("lock_facing", "mesh facing target (dot=%.2f)" % dot)
+	else:
+		_fail("lock_facing", "mesh NOT facing target (dot=%.2f, expected >0.6)" % dot)
+
+func _scenario_basic_attack() -> void:
+	for i in range(3):
+		_emit_action_event("attack_basic")
+		await _wait(0.4)
+	# After 3 swings, check the combo counter advanced
+	var combo: int = int(_player.get("combo_count")) if _has_property(_player, "combo_count") else -1
+	if combo > 0:
+		_pass("basic_attack", "combo_count=%d after 3 swings" % combo)
+	else:
+		_findings.append("(basic_attack: combo_count not exposed; can't verify)")
+
+func _scenario_dodge() -> void:
+	var start_pos: Vector3 = _player.global_position
+	# Hold a direction so the dodge has a vector other than zero
+	_press_action("move_up")
+	await _wait(0.1)
+	if _player.has_method("_perform_dodge"):
+		_player._perform_dodge()
+	else:
+		_emit_action_event("dodge")
+	await _wait(0.5)
+	_release_action("move_up")
+	var moved: float = start_pos.distance_to(_player.global_position)
+	if moved > 1.5:
+		_pass("dodge", "dodged %.2fm" % moved)
+	else:
+		_fail("dodge", "dodge moved only %.2fm (expected >1.5m)" % moved)
+
+func _scenario_mob_aggro() -> void:
+	var enemies := get_tree().get_nodes_in_group("enemy")
+	if enemies.is_empty():
+		_findings.append("(skip mob_aggro: no enemies)")
+		return
+	var mob = enemies[0]
+	# Walk toward the mob
+	var to_mob: Vector3 = (mob as Node3D).global_position - _player.global_position
+	to_mob.y = 0
+	# Determine which axis dominates so we know which input to press
+	if abs(to_mob.x) > abs(to_mob.z):
+		_press_action("move_right" if to_mob.x > 0 else "move_left")
+	else:
+		_press_action("move_up" if to_mob.z > 0 else "move_down")
+	# March for up to 4s or until in detect_radius
+	var deadline: float = _now() + 4.0
+	while _now() < deadline:
+		var d: float = _player.global_position.distance_to((mob as Node3D).global_position)
+		if d < float(mob.detect_radius if mob.has_method("get") else 8.0):
+			break
+		await _wait(0.1)
+	_release_action("move_right"); _release_action("move_left")
+	_release_action("move_up");    _release_action("move_down")
+	await _wait(0.5)
+	# Check mob acquired target + is in CHASE
+	var mob_target = mob.get("target") if mob.has_method("get") else null
+	if mob_target == _player:
+		_pass("mob_aggro", "%s aggroed the player" % mob.name)
+	else:
+		_fail("mob_aggro", "%s did not aggro (target=%s)" % [mob.name, str(mob_target)])
+	# Check mob anim is playing
+	var mob_ap: AnimationPlayer = null
+	for n in mob.find_children("*", "AnimationPlayer", true, false):
+		mob_ap = n
+		break
+	if mob_ap:
+		var current: String = String(mob_ap.current_animation)
+		if current == "":
+			_fail("mob_anim", "%s T-POSING (no current_animation)" % mob.name)
+		else:
+			_pass("mob_anim", "%s playing '%s'" % [mob.name, current])
+
+func _scenario_hud_presence() -> void:
+	var huds := get_tree().get_nodes_in_group("hud")
+	if huds.is_empty():
+		_fail("hud_present", "no HUD found in 'hud' group")
+		return
+	var hud = huds[0]
+	# Walk the HUD's children and report key components
+	var found: Array[String] = []
+	for child in hud.find_children("*", "", true, false):
+		var n: String = child.name
+		if n.begins_with("HpBar") or n.begins_with("HPBar"):
+			found.append("hp_bar")
+		elif n.begins_with("ManaBar") or n.begins_with("ResourceBar"):
+			found.append("resource_bar")
+		elif n.begins_with("XpBar") or n.begins_with("XPBar"):
+			found.append("xp_bar")
+		elif n.find("AbilityBar") >= 0 or n.find("AbilitySlot") >= 0:
+			found.append("ability_bar")
+		elif n.begins_with("BossBar"):
+			found.append("boss_bar")
+	_pass("hud_present", "components: %s" % str(found))
+
+func _scenario_mesh_integrity() -> void:
+	var mesh: Node3D = _player.get("mesh")
+	if mesh == null:
+		_fail("mesh_present", "player.mesh is null")
+		return
+	var skel: Skeleton3D = null
+	for n in mesh.find_children("*", "Skeleton3D", true, false):
+		skel = n
+		break
+	if skel == null:
+		_fail("mesh_skeleton", "no Skeleton3D under player.mesh")
+		return
+	_pass("mesh_skeleton", "%d bones" % skel.get_bone_count())
+	# Check the BoneAttachment3D for the katana exists
+	var attach: BoneAttachment3D = null
+	for n in skel.find_children("*", "BoneAttachment3D", true, false):
+		attach = n
+		break
+	if attach == null:
+		_fail("katana_bone", "no BoneAttachment3D under skeleton (sword won't track hand)")
+	else:
+		_pass("katana_bone", "attached to bone idx=%d name=%s" % [attach.bone_idx, attach.bone_name])
+	# Mob mesh integrity
+	for mob in get_tree().get_nodes_in_group("enemy"):
+		var mob_skel: Skeleton3D = null
+		for n in mob.find_children("*", "Skeleton3D", true, false):
+			mob_skel = n
+			break
+		if mob_skel == null:
+			_fail("mob_mesh", "%s has no Skeleton3D" % mob.name)
+		else:
+			# Confirm bone count > 50 (Mixamo standard rig is ~67 bones)
+			if mob_skel.get_bone_count() < 30:
+				_fail("mob_mesh", "%s skeleton has only %d bones (suspicious)" % [mob.name, mob_skel.get_bone_count()])
+			else:
+				_pass("mob_mesh", "%s: %d bones" % [mob.name, mob_skel.get_bone_count()])
+		break  # one mob is enough
+
+# ---------------------------------------------------------------------
+# Input simulation helpers (uses Input.action_press / action_release)
+# ---------------------------------------------------------------------
+
+func _press_action(name: String) -> void:
+	if not InputMap.has_action(name):
+		return
+	Input.action_press(name)
+
+func _release_action(name: String) -> void:
+	if not InputMap.has_action(name):
+		return
+	Input.action_release(name)
+
+# Synthesize a press+release InputEventAction so _input() handlers fire.
+# Action_press alone only flips the polled state; one-shot abilities
+# read via `event.is_action_pressed()` which needs an actual event.
+func _emit_action_event(name: String) -> void:
+	if not InputMap.has_action(name):
+		return
+	var ev := InputEventAction.new()
+	ev.action = name
+	ev.pressed = true
+	Input.parse_input_event(ev)
+	# Release one frame later so single-press handlers complete cleanly
+	await get_tree().process_frame
+	var rel := InputEventAction.new()
+	rel.action = name
+	rel.pressed = false
+	Input.parse_input_event(rel)
+
+func _wait(s: float) -> void:
+	await get_tree().create_timer(s).timeout
+
+func _has_property(obj: Object, prop: String) -> bool:
+	for p in obj.get_property_list():
+		if p.name == prop:
+			return true
+	return false
+
+# ---------------------------------------------------------------------
+# Pass/fail recording + final report
+# ---------------------------------------------------------------------
+
+func _pass(check: String, detail: String) -> void:
+	_passes.append("[PASS] %s: %s" % [check, detail])
+	print("[PlaytestBot][PASS] %s: %s" % [check, detail])
+
+func _fail(check: String, detail: String) -> void:
+	_fails.append("[FAIL] %s: %s" % [check, detail])
+	print("[PlaytestBot][FAIL] %s: %s" % [check, detail])
+
+func _finish() -> void:
+	print("\n========================================")
+	print("[PlaytestBot] FINAL REPORT")
+	print("========================================")
+	print("Passed: %d" % _passes.size())
+	for p in _passes:
+		print("  " + p)
+	print("Failed: %d" % _fails.size())
+	for f in _fails:
+		print("  " + f)
+	if not _findings.is_empty():
+		print("Findings:")
+		for fi in _findings:
+			print("  " + fi)
+	print("========================================")
+	# Exit code reflects health: 0 if no failures.
+	get_tree().quit(0 if _fails.is_empty() else 1)

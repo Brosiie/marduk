@@ -290,9 +290,14 @@ func _begin_windup() -> void:
 	state = State.WINDUP
 	_windup_started_at = Time.get_ticks_msec() / 1000.0
 	_spawn_attack_telegraph()
-	# Schedule the strike commit at the end of the windup window
+	# Schedule the strike commit at the end of the windup window.
+	# is_instance_valid guard FIRST: SceneTreeTimer outlives the mob,
+	# so if the player one-shots the mob mid-windup the lambda fires
+	# on a freed instance and crashes with 'Invalid access to property'.
 	var windup := attack_windup
 	get_tree().create_timer(windup).timeout.connect(func():
+		if not is_instance_valid(self):
+			return
 		if state == State.WINDUP:
 			_clear_attack_telegraph()
 			state = State.ATTACK
@@ -311,7 +316,11 @@ func _attack() -> void:
 			target.take_damage(contact_damage, self)
 	_attack_timer = attack_cooldown
 	state = State.RECOVER
-	get_tree().create_timer(0.3).timeout.connect(func(): if state != State.DEAD: state = State.CHASE)
+	get_tree().create_timer(0.3).timeout.connect(func():
+		if not is_instance_valid(self): return
+		if state != State.DEAD:
+			state = State.CHASE
+	)
 
 # --- Mob telegraph (mirror of boss telegraph but circle-only) ---
 
@@ -500,7 +509,12 @@ func _die(killer: Node) -> void:
 	if killer and killer.has_method("on_kill_credit"):
 		killer.on_kill_credit()
 	if loot_table and killer:
-		var drops: Array[Item] = loot_table.roll(get_node("/root/Prestige").current_prestige_level() if get_node_or_null("/root/Prestige") else 0)
+		# Prestige autoload is missing in unit-test contexts. Resolve once
+		# and short-circuit to 0 if absent, so a missing Prestige doesn't
+		# crash the whole death-loot pipeline.
+		var prestige_node: Node = get_node_or_null("/root/Prestige")
+		var cycle: int = prestige_node.current_prestige_level() if prestige_node else 0
+		var drops: Array[Item] = loot_table.roll(cycle)
 		_spawn_pickups(drops)
 	queue_free()
 
