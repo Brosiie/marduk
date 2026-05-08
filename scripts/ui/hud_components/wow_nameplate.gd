@@ -34,10 +34,22 @@ var _last_hp: float = -1.0
 var _flash_timer: float = 0.0
 var _is_targeted: bool = false
 var _ring_phase: float = 0.0
+# Cached colors so _process doesn't allocate fresh Color structs every
+# tick. With 20 mobs on screen the previous version did 40-60 Color
+# allocations per frame plus 40 material-property writes. Caching once
+# at _ready and only re-applying when the critical-state actually
+# changes drops both to zero on steady-state frames.
+var _hostility_color_cache: Color = Color.WHITE
+const _CRIT_HOT_COLOR: Color = Color(1.0, 0.18, 0.10)
+var _critical_state_applied: bool = false  # tracks if we're currently in the <30% HP visual
 
 func _ready() -> void:
 	if actor_path != NodePath():
 		actor = get_node_or_null(actor_path)
+	# Cache the hostility color once. _color_for_hostility is a match()
+	# block that allocs a new Color on every call; caching keeps it
+	# out of _process.
+	_hostility_color_cache = _color_for_hostility()
 	# Layered HP bar: gold rim (back) + dark inset (mid) + colored fill
 	# (front) + flash overlay (above all). Three-layer compositing
 	# reads as a real game HP bar with depth, not just a flat colored
@@ -180,13 +192,20 @@ func _process(delta: float) -> void:
 	_hp_fill.position.x = -((1.0 - _hp_pct) * (NP_WIDTH - 0.04) * 0.5)
 	# Color shifts to a hotter shade as HP drops below 30% — visual
 	# 'critical' cue without needing a separate sfx hookup.
-	if _hp_pct < 0.30 and hostility != 2:
-		var hot: Color = Color(1.0, 0.18, 0.10)
-		_hp_fill_mat.albedo_color = _color_for_hostility().lerp(hot, 0.6)
-		_hp_fill_mat.emission = hot
-	else:
-		_hp_fill_mat.albedo_color = _color_for_hostility()
-		_hp_fill_mat.emission = _color_for_hostility()
+	# Edge-triggered: only update the material when we CROSS the 30%
+	# threshold. Steady-state frames skip the assignment so the
+	# StandardMaterial3D doesn't dirty itself every tick. With 20+
+	# enemies this is the difference between zero per-frame material
+	# writes and 40-80 of them.
+	var should_be_critical: bool = (_hp_pct < 0.30 and hostility != 2)
+	if should_be_critical and not _critical_state_applied:
+		_hp_fill_mat.albedo_color = _hostility_color_cache.lerp(_CRIT_HOT_COLOR, 0.6)
+		_hp_fill_mat.emission = _CRIT_HOT_COLOR
+		_critical_state_applied = true
+	elif not should_be_critical and _critical_state_applied:
+		_hp_fill_mat.albedo_color = _hostility_color_cache
+		_hp_fill_mat.emission = _hostility_color_cache
+		_critical_state_applied = false
 	# Boss numeric HP readout
 	if _hp_label and hostility == 3:
 		_hp_label.text = "%d / %d" % [int(hp_cur), int(hp_max)]

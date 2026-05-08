@@ -64,6 +64,11 @@ func count_of(item_id: StringName) -> int:
 	return n
 
 signal equip_blocked(item: Item, reason: String)
+# Heaven Rule (CHARACTER_DESIGN.md § 8.4): when a Demon attempts to equip Heaven,
+# the equip flow emits this instead of silently rejecting. The SacrificePrompt UI
+# subscribes and shows the modal. If the player accepts, SacrificeRitual.walk_back
+# is invoked and the item is then re-equipped.
+signal sacrifice_required(item: Item, class_def: PlayerClass)
 
 # Class-aware equip check. Returns true if the item passes:
 #   - class_restriction (if any)
@@ -93,6 +98,14 @@ func equip(item: Item, slot_override: int = -1, class_def: PlayerClass = null) -
 	# slot_override: pass RING_LEFT or RING_RIGHT explicitly when equipping a ring.
 	# class_def: when non-null, enforces class restriction and armor type cap.
 	if not item or item.slot == Item.Slot.NONE:
+		return null
+
+	# Heaven Rule: if a Demon-class character attempts to equip Heaven, route
+	# to the Sacrifice Prompt instead of the standard reject. The prompt UI
+	# decides whether to call SacrificeRitual.walk_back and then re-attempt
+	# the equip. See DEMON_VISUAL_TRANSFORMATION.md § 18.
+	if class_def and class_def.class_id == &"demon" and item.id == &"heaven":
+		sacrifice_required.emit(item, class_def)
 		return null
 
 	if class_def:

@@ -47,6 +47,15 @@ func _ready() -> void:
 	_install_combo_label()
 	_polish_bars()
 	_install_class_portrait()
+	# Bond's "cluttered" complaint had a concrete cause: hud.tscn ships
+	# the legacy AbilitySlotBar at the bottom-center AND _ready below
+	# adds the polished WowAbilityBar at the same anchor. Both rendered
+	# overlapping. Hide the legacy one — WowAbilityBar supersedes it.
+	# Kept in the tree (not queue_free'd) so any code that references
+	# it via NodePath still resolves.
+	var legacy_ability_bar: Control = $Root.get_node_or_null("AbilitySlotBar") as Control
+	if legacy_ability_bar:
+		legacy_ability_bar.visible = false
 	player.hp_changed.connect(_on_hp)
 	player.mana_changed.connect(_on_mana)
 	player.resource_changed.connect(_on_resource)

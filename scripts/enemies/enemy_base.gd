@@ -415,25 +415,47 @@ func _apply_enemy_rim() -> void:
 		return
 	_apply_rim_recurse(self, rim_shader)
 
+# Per-mob_id rim ShaderMaterial cache. The rim shader + params are
+# identical for every instance of the same mob type, so we share one
+# ShaderMaterial across all of them via next_pass. Previously each
+# spawn `.duplicate()`d the base material and built a fresh
+# ShaderMaterial, which with 10+ footmen loaded ~30 redundant Material
+# resources into VRAM.
+static var _rim_mat_cache: Dictionary = {}
+
+func _get_cached_rim_mat(shader: Shader) -> ShaderMaterial:
+	# Cache key bundles the shader + visual params so distinct rim
+	# tunings (e.g. boss vs. mob vs. demon) get distinct cached mats.
+	var key: String = "%s|%s|%.2f|%.2f" % [shader.resource_path, str(rim_color), rim_power, rim_strength]
+	if _rim_mat_cache.has(key):
+		return _rim_mat_cache[key]
+	var rim_mat := ShaderMaterial.new()
+	rim_mat.shader = shader
+	rim_mat.set_shader_parameter("rim_color", rim_color)
+	rim_mat.set_shader_parameter("rim_power", rim_power)
+	rim_mat.set_shader_parameter("rim_strength", rim_strength)
+	_rim_mat_cache[key] = rim_mat
+	return rim_mat
+
 func _apply_rim_recurse(node: Node, shader: Shader) -> void:
 	if node is MeshInstance3D:
 		var mi := node as MeshInstance3D
 		if mi.mesh:
+			var shared_rim: ShaderMaterial = _get_cached_rim_mat(shader)
 			for i in range(mi.mesh.get_surface_count()):
 				var src: Material = mi.get_surface_override_material(i)
 				if src == null:
 					src = mi.mesh.surface_get_material(i)
-				var rim_mat := ShaderMaterial.new()
-				rim_mat.shader = shader
-				rim_mat.set_shader_parameter("rim_color", rim_color)
-				rim_mat.set_shader_parameter("rim_power", rim_power)
-				rim_mat.set_shader_parameter("rim_strength", rim_strength)
 				if src:
+					# We still have to duplicate the BASE material so we
+					# can attach next_pass (next_pass is per-Material).
+					# But the rim shader itself is now shared, so we
+					# only pay the base-material dup, not the shader.
 					var src_dup: Material = src.duplicate()
-					src_dup.next_pass = rim_mat
+					src_dup.next_pass = shared_rim
 					mi.set_surface_override_material(i, src_dup)
 				else:
-					mi.set_surface_override_material(i, rim_mat)
+					mi.set_surface_override_material(i, shared_rim)
 	for c in node.get_children():
 		_apply_rim_recurse(c, shader)
 

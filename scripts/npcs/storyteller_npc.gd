@@ -18,6 +18,10 @@ const CLASS_GREETINGS := {
 
 const DEFAULT_GREETING := "The city hasn't seen someone like you in a long time. That's either an omen or an opportunity. In Ashurim, it's usually both."
 
+# Heaven-Rule walk-back: characters who have sacrificed the Demon get this
+# opening from the Storyteller. Overrides the class-line.
+const WALKED_BACK_GREETING := "You came back. I've seen people make a lot of choices in this hall — that one I respect more than most. The sword has decided you. It doesn't decide many."
+
 func _ready() -> void:
 	npc_id = &"storyteller"
 	display_name = "The Storyteller"
@@ -39,6 +43,10 @@ func _on_node_added(node: Node) -> void:
 
 func _set_greeting_for(player: Node) -> void:
 	if player == null:
+		return
+	# Heaven-Rule: walk-back overrides the class-greeting permanently.
+	if player.get("character_appearance") and player.character_appearance and player.character_appearance.lucifer_walked_back:
+		greeting = WALKED_BACK_GREETING
 		return
 	var class_id: StringName = &""
 	if player.get("stats") and player.stats != null and player.stats.get("class_def") and player.stats.class_def:
