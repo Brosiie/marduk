@@ -88,10 +88,12 @@ static func walk_back(player: Node) -> bool:
 	if player.get("inventory") and player.inventory:
 		_convert_demon_items_to_trinkets(player.inventory)
 
-	# === Step 6: Award the Mortal Returned title ===
+	# === Step 6: Award both Mortal Returned title variants ===
+	# Player picks one to display — see TitleRegistry._register_sacrifice_titles.
 	var title_registry: Node = player.get_node_or_null("/root/TitleRegistry")
 	if title_registry and title_registry.has_method("award"):
 		title_registry.award(&"the_mortal_returned")
+		title_registry.award(&"twice_walker")
 
 	# === Step 7: Rebuild Q/E/R/F kit with the restored class ===
 	if player.has_method("_build_ability_kit"):

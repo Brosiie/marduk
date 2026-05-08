@@ -35,12 +35,21 @@ func _ready() -> void:
 	offset_right = offset_left + PANEL_WIDTH
 	offset_bottom = offset_top + PANEL_HEIGHT
 
+	# Frame: dark slate with gold filigree edge — same language as the
+	# rest of the HUD. Old version was a transparent black rect that
+	# read as 'developer overlay' rather than 'UI element'.
 	var sb := StyleBoxFlat.new()
-	sb.bg_color = Color(0.04, 0.04, 0.06, 0.55)
-	sb.set_corner_radius_all(3)
-	sb.content_margin_left = 8
+	sb.bg_color = Color(0.05, 0.04, 0.06, 0.85)
+	sb.border_color = Color(0.55, 0.42, 0.20, 0.85)
+	sb.set_border_width_all(1)
+	sb.border_width_top = 2  # thicker top edge = bevel-from-above read
+	sb.set_corner_radius_all(4)
+	sb.shadow_color = Color(0, 0, 0, 0.55)
+	sb.shadow_size = 4
+	sb.shadow_offset = Vector2(0, 2)
+	sb.content_margin_left = 10
 	sb.content_margin_top = 6
-	sb.content_margin_right = 8
+	sb.content_margin_right = 10
 	sb.content_margin_bottom = 6
 	var panel := PanelContainer.new()
 	panel.anchor_right = 1.0
@@ -123,8 +132,13 @@ func log_event(text: String, color: Color = Color(0.9, 0.9, 0.9)) -> void:
 		_lines.remove_at(0)
 	var lbl := Label.new()
 	lbl.text = text
-	lbl.modulate = color
-	lbl.add_theme_font_size_override("font_size", 11)
+	lbl.add_theme_font_size_override("font_size", 12)
+	lbl.add_theme_color_override("font_color", color)
+	lbl.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.92))
+	lbl.add_theme_constant_override("outline_size", 3)
+	lbl.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.65))
+	lbl.add_theme_constant_override("shadow_offset_x", 1)
+	lbl.add_theme_constant_override("shadow_offset_y", 1)
 	lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_v.add_child(lbl)
 	_lines.append({"label": lbl, "age": 0.0})

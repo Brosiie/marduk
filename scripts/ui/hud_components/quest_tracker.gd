@@ -28,12 +28,18 @@ func _ready() -> void:
 	offset_right = offset_left + PANEL_WIDTH
 	offset_bottom = offset_top + 200.0
 
-	# Background panel
+	# Background panel — same gold-filigree language as the rest of
+	# the HUD. Old version was a transparent dark rect with a barely-
+	# visible 1px border. Now a polished slate panel with shadow.
 	var sb := StyleBoxFlat.new()
-	sb.bg_color = Color(0.05, 0.05, 0.08, 0.7)
-	sb.border_color = Color(0.95, 0.85, 0.55, 0.4)
+	sb.bg_color = Color(0.05, 0.04, 0.06, 0.85)
+	sb.border_color = Color(0.78, 0.62, 0.28, 0.95)
 	sb.set_border_width_all(1)
+	sb.border_width_top = 2
 	sb.set_corner_radius_all(4)
+	sb.shadow_color = Color(0, 0, 0, 0.55)
+	sb.shadow_size = 4
+	sb.shadow_offset = Vector2(0, 2)
 	sb.content_margin_left = PANEL_PAD
 	sb.content_margin_top = PANEL_PAD
 	sb.content_margin_right = PANEL_PAD
@@ -82,9 +88,19 @@ func refresh() -> void:
 		qname = focused.display_name if focused.has_method("get") else "Quest"
 	var header := Label.new()
 	header.text = qname
-	header.add_theme_font_size_override("font_size", 14)
-	header.modulate = Color(1.0, 0.85, 0.55)
+	header.add_theme_font_size_override("font_size", 16)
+	header.add_theme_color_override("font_color", Color(1.0, 0.92, 0.55))
+	header.add_theme_color_override("font_outline_color", Color(0.20, 0.05, 0.05, 0.95))
+	header.add_theme_constant_override("outline_size", 4)
+	header.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.85))
+	header.add_theme_constant_override("shadow_offset_x", 1)
+	header.add_theme_constant_override("shadow_offset_y", 2)
 	_v.add_child(header)
+	# Subtle gold separator line between header and objectives
+	var sep := ColorRect.new()
+	sep.color = Color(0.78, 0.62, 0.28, 0.55)
+	sep.custom_minimum_size = Vector2(0, 1)
+	_v.add_child(sep)
 	# Objectives list — pull live counters from QuestRegistry.get_progress
 	var objectives: Array = []
 	var quest_id: StringName = &""
@@ -108,12 +124,17 @@ func _objective_row(obj: Dictionary, current_count: int) -> Control:
 	var done: bool = current_count >= required
 	var bullet := Label.new()
 	bullet.text = "✓" if done else "•"
-	bullet.modulate = Color(0.45, 0.95, 0.55) if done else Color(0.65, 0.65, 0.7)
-	bullet.add_theme_font_size_override("font_size", 13)
+	bullet.add_theme_color_override("font_color", Color(0.45, 0.95, 0.55) if done else Color(0.85, 0.78, 0.55))
+	bullet.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.92))
+	bullet.add_theme_constant_override("outline_size", 3)
+	bullet.add_theme_font_size_override("font_size", 14)
 	row.add_child(bullet)
 	var lbl := Label.new()
 	lbl.text = "%s [%d / %d]" % [obj.get("description", ""), current_count, required]
-	lbl.add_theme_font_size_override("font_size", 12)
+	lbl.add_theme_font_size_override("font_size", 13)
+	lbl.add_theme_color_override("font_color", Color(0.95, 0.92, 0.85) if not done else Color(0.55, 0.85, 0.55))
+	lbl.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.85))
+	lbl.add_theme_constant_override("outline_size", 3)
 	lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	lbl.size_flags_horizontal = SIZE_EXPAND_FILL
 	row.add_child(lbl)

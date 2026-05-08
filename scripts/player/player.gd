@@ -83,6 +83,12 @@ var last_ability_time: float = 0.0
 var character_name: String = "Champion"
 @export var inventory: Inventory
 
+# Character appearance (race, gender, body, face, scars, gifts, apothecary saturation,
+# pre-Lucifer class snapshot for the Heaven Rule, etc). Populated by the character
+# creator at New Character or restored from save. Null until set; the AppearanceRegistry
+# only applies a non-null appearance, so absence is safe.
+@export var character_appearance: CharacterAppearance
+
 # Heaven sword permanent damage stack. Persisted via SaveFlags as `heaven_undead_kills`.
 # Each undead/demon kill adds 0.0001 to the multiplier (0.01% per kill, no cap).
 var _heaven_passive_heal_cd: float = 0.0
@@ -3052,9 +3058,33 @@ func use_potion(item: Item) -> bool:
 	if &"surge_hp" in item.unique_tags:
 		_hp_surge_until = now + SURGE_DURATION
 		consumed = true
-	if consumed and inventory:
-		inventory.remove_item(item.id, 1)
+	if consumed:
+		# Apothecary saturation: record the drink on character_appearance for the
+		# Tier 2 living-character system (CHARACTER_DESIGN.md § 8.5.5). Each type
+		# has a 0..1000 lifetime track; the dominant track tints the character.
+		# Resolved via item.id first (handles potion_champions_draught precisely),
+		# then by tag/field (catches custom potions defined outside the registry).
+		if character_appearance and character_appearance.has_method("record_potion_drink"):
+			var ptype: StringName = _classify_potion_for_saturation(item)
+			if ptype != &"":
+				character_appearance.record_potion_drink(ptype)
+		if inventory:
+			inventory.remove_item(item.id, 1)
 	return consumed
+
+# Maps an Item to its apothecary-saturation track. Returns &"" to skip.
+# Champion's Draught is checked first (most specific), then surge tags, then
+# the consumable-type fields.
+func _classify_potion_for_saturation(item: Item) -> StringName:
+	if String(item.id).begins_with("potion_champions"):
+		return &"champion"
+	if &"surge_hp" in item.unique_tags or item.heal_amount > 0.0:
+		return &"hp"
+	if &"surge_mana" in item.unique_tags or item.mana_amount > 0.0:
+		return &"mana"
+	if &"surge_stamina" in item.unique_tags or &"restore_stamina" in item.unique_tags:
+		return &"stamina"
+	return &""
 
 # === Berserker Rage Scaling ===
 # Returns a dict {damage_mult, atk_speed_mult, move_speed_mult} based on current rage.

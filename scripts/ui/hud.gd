@@ -92,6 +92,13 @@ func _ready() -> void:
 		minimap.set_script(mm_script)
 		minimap.name = "WowMinimap"
 		$Root.add_child(minimap)
+	# Buff/debuff bar (top right, under minimap)
+	var bb_script: GDScript = load("res://scripts/ui/hud_components/buff_bar.gd")
+	if bb_script:
+		var buffs := Control.new()
+		buffs.set_script(bb_script)
+		buffs.name = "BuffBar"
+		$Root.add_child(buffs)
 	# Quest tracker (top left, under bars)
 	var qt_script: GDScript = load("res://scripts/ui/hud_components/quest_tracker.gd")
 	if qt_script:

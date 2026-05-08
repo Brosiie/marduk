@@ -3,14 +3,34 @@ extends Node
 # Autoload: 60+ titles. Cool, humorous, lore-soaked. Awarded via Achievements.
 # Player picks one to display in their nameplate.
 
+signal title_unlocked(title_id: StringName)
+
 var titles: Dictionary = {}  # StringName -> Title
 
 func _ready() -> void:
 	_register_combat_titles()
 	_register_feat_titles()
+	_register_sacrifice_titles()
 	_register_humor_titles()
 	_register_profession_titles()
 	_register_meta_titles()
+
+# Single API for awarding a title to the active character. Idempotent —
+# re-awarding sets the SaveFlag again but only emits the unlock signal once.
+# Mirrors the pattern used by AchievementTracker._award.
+func award(title_id: StringName) -> bool:
+	if not titles.has(title_id):
+		push_warning("[TitleRegistry] award: unknown title_id %s" % title_id)
+		return false
+	var flag := StringName("title_unlocked_" + String(title_id))
+	if SaveFlags.has_permanent(flag):
+		return false  # already earned
+	SaveFlags.set_permanent(flag, true)
+	title_unlocked.emit(title_id)
+	return true
+
+func is_unlocked(title_id: StringName) -> bool:
+	return SaveFlags.has_permanent(StringName("title_unlocked_" + String(title_id)))
 
 func get_title(id: StringName) -> Title:
 	return titles.get(id)
@@ -109,6 +129,24 @@ func _register_feat_titles() -> void:
 
 	_make(&"title_apex_apex", "Apex of Apexes", "As Ranger Apex Predator, kill another transformed enemy.",
 		Title.Format.PREFIX, Color(0.4, 0.7, 0.4))
+
+# ----------------------------------------------------------------
+# SACRIFICE TITLES (the Heaven-Rule walked-back set)
+# Awarded by SacrificeRitual.walk_back when a Demon character chooses
+# to sacrifice the Demon form to claim Heaven. See CHARACTER_DESIGN.md
+# § 8.4 + DEMON_VISUAL_TRANSFORMATION.md § 18.7.
+# ----------------------------------------------------------------
+func _register_sacrifice_titles() -> void:
+	_make(&"the_mortal_returned", "The Mortal Returned",
+		"Walk back through Lucifer's gate. Sacrifice the Demon form to reclaim mortality.",
+		Title.Format.FULL_REPLACE, Color(0.95, 0.92, 0.80),
+		"What walks back through Lucifer's gate is no longer mortal — but you walked back anyway. The gate does not open twice. The sword has decided you. It does not decide many.")
+
+	# Display variant of the same earn. Player can pick either at the title-equip screen.
+	_make(&"twice_walker", "Twice-Walker",
+		"Sacrifice the Demon form via the Heaven Rule. Display variant of The Mortal Returned.",
+		Title.Format.SUFFIX, Color(0.85, 0.82, 0.65),
+		"You walked through the gate. You walked back. Two crossings of Lucifer's threshold — fewer have done it than have killed Tiamat.")
 
 # ----------------------------------------------------------------
 # HUMOR TITLES (the funny ones)
