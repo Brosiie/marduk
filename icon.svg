@@ -1,12 +1,137 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <!-- Marduk icon: Babylonian medallion. Sword-Vow katana standing
+       upright, jagged lightning bolt behind it (Marduk's storm), and
+       Tiamat's serpent coiled at the base. Gold + steel + crimson on
+       deep purple-black night sky. Reads at 16x16. -->
   <defs>
-    <radialGradient id="g" cx="50%" cy="40%" r="60%">
-      <stop offset="0%" stop-color="#f5d061"/>
-      <stop offset="100%" stop-color="#7a3b18"/>
+    <radialGradient id="bg" cx="50%" cy="42%" r="62%">
+      <stop offset="0%" stop-color="#1a0d2a"/>
+      <stop offset="60%" stop-color="#0a0612"/>
+      <stop offset="100%" stop-color="#000000"/>
     </radialGradient>
+    <radialGradient id="medallion" cx="50%" cy="38%" r="58%">
+      <stop offset="0%" stop-color="#fde58c"/>
+      <stop offset="55%" stop-color="#c69238"/>
+      <stop offset="100%" stop-color="#5a3410"/>
+    </radialGradient>
+    <linearGradient id="blade" x1="50%" y1="0%" x2="50%" y2="100%">
+      <stop offset="0%" stop-color="#fafbff"/>
+      <stop offset="50%" stop-color="#cbd2e2"/>
+      <stop offset="100%" stop-color="#7a8090"/>
+    </linearGradient>
+    <linearGradient id="bolt" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#fff8d8"/>
+      <stop offset="50%" stop-color="#ffd860"/>
+      <stop offset="100%" stop-color="#c98018"/>
+    </linearGradient>
+    <radialGradient id="serpent" cx="50%" cy="50%" r="60%">
+      <stop offset="0%" stop-color="#7a2020"/>
+      <stop offset="100%" stop-color="#3a0a0a"/>
+    </radialGradient>
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="1.4"/>
+    </filter>
   </defs>
-  <rect width="128" height="128" fill="#0a0612"/>
-  <circle cx="64" cy="64" r="48" fill="url(#g)" stroke="#000" stroke-width="2"/>
-  <path d="M64 26 L74 60 L108 60 L80 80 L90 116 L64 96 L38 116 L48 80 L20 60 L54 60 Z"
-        fill="#0a0612" stroke="#f5d061" stroke-width="2"/>
+
+  <!-- Background: night sky -->
+  <rect width="128" height="128" fill="url(#bg)"/>
+
+  <!-- Outer rings -->
+  <circle cx="64" cy="64" r="59" fill="none" stroke="#7a4f0a" stroke-width="0.8"/>
+  <circle cx="64" cy="64" r="56.5" fill="none" stroke="#1a0d04" stroke-width="0.5"/>
+
+  <!-- Inner medallion -->
+  <circle cx="64" cy="64" r="51" fill="url(#medallion)" stroke="#3a2210" stroke-width="0.8"/>
+
+  <!-- Cuneiform-style wedge notches on the rim (12 evenly spaced) -->
+  <g fill="#3a1d08" opacity="0.85">
+    <!-- Vertical wedges (top, bottom) -->
+    <path d="M64 16 L62 24 L66 24 Z"/>
+    <path d="M64 112 L62 104 L66 104 Z"/>
+    <!-- Horizontal wedges (left, right) -->
+    <path d="M16 64 L24 62 L24 66 Z"/>
+    <path d="M112 64 L104 62 L104 66 Z"/>
+    <!-- Diagonal wedges -->
+    <path d="M30 30 L36 34 L33 37 Z"/>
+    <path d="M98 30 L92 34 L95 37 Z"/>
+    <path d="M30 98 L33 91 L36 94 Z"/>
+    <path d="M98 98 L95 91 L92 94 Z"/>
+    <!-- Cardinal mid wedges -->
+    <path d="M88 18 L86 24 L90 25 Z"/>
+    <path d="M40 18 L42 24 L38 25 Z"/>
+    <path d="M88 110 L90 103 L86 104 Z"/>
+    <path d="M40 110 L38 103 L42 104 Z"/>
+  </g>
+
+  <!-- Lightning bolt: jagged zigzag behind the katana, glowing -->
+  <g filter="url(#glow)">
+    <path d="M76 22 L60 50 L72 52 L52 90 L66 64 L56 62 Z"
+          fill="url(#bolt)" opacity="0.55"/>
+  </g>
+  <path d="M76 22 L60 50 L72 52 L52 90 L66 64 L56 62 Z"
+        fill="url(#bolt)"
+        stroke="#7a4a0a"
+        stroke-width="0.4"
+        opacity="0.95"/>
+
+  <!-- Tiamat: coiled serpent at the base of the blade. S-curve with
+       two visible humps + a darker center stripe for scales. Stylised
+       so it reads as 'serpent under sword' at thumbnail size. -->
+  <path d="M30 100
+           Q44 88 56 96
+           Q66 102 76 96
+           Q88 90 96 96
+           Q100 100 96 102
+           Q88 106 76 102
+           Q66 96 56 102
+           Q44 108 30 102
+           Z"
+        fill="url(#serpent)"
+        stroke="#1a0404"
+        stroke-width="0.7"/>
+  <!-- Scale ridge along the back -->
+  <path d="M32 100 Q44 92 56 98 Q66 102 76 98 Q88 92 94 98"
+        fill="none" stroke="#a05050" stroke-width="0.5" opacity="0.6"/>
+  <!-- Serpent eye + fang glint -->
+  <circle cx="92" cy="98" r="1.6" fill="#fde08a"/>
+  <circle cx="92" cy="98" r="0.6" fill="#000"/>
+  <path d="M89 100 L91 102" stroke="#fff8d0" stroke-width="0.5"/>
+
+  <!-- Vertical katana (Sword-Vow) -->
+  <!-- Pommel cap -->
+  <rect x="61" y="22" width="6" height="2.5" fill="#3a2210" stroke="#0e0703" stroke-width="0.3"/>
+  <!-- Tsuka (handle) wrapped grip -->
+  <rect x="61" y="24.5" width="6" height="14" fill="#16080a"/>
+  <line x1="61" y1="27" x2="67" y2="28.5" stroke="#704028" stroke-width="0.4"/>
+  <line x1="61" y1="30" x2="67" y2="31.5" stroke="#704028" stroke-width="0.4"/>
+  <line x1="61" y1="33" x2="67" y2="34.5" stroke="#704028" stroke-width="0.4"/>
+  <line x1="61" y1="36" x2="67" y2="37.5" stroke="#704028" stroke-width="0.4"/>
+  <!-- Tsuba (crossguard) -->
+  <ellipse cx="64" cy="40" rx="10" ry="2.2" fill="#3a2210" stroke="#0e0703" stroke-width="0.4"/>
+  <ellipse cx="64" cy="40" rx="9" ry="1.5" fill="#5a3a1a" opacity="0.6"/>
+  <!-- Blade with subtle glow -->
+  <g filter="url(#glow)">
+    <path d="M62.5 41 L65.5 41 L65 84 L64 86 L63 84 Z"
+          fill="#fafbff" opacity="0.4"/>
+  </g>
+  <path d="M62.3 41 L65.7 41 L65.1 84 L64 86 L62.9 84 Z"
+        fill="url(#blade)"
+        stroke="#3a4050"
+        stroke-width="0.4"/>
+  <!-- Blade highlight stroke -->
+  <line x1="63.6" y1="42" x2="63.85" y2="83" stroke="#ffffff" stroke-width="0.4" opacity="0.85"/>
+
+  <!-- Gold sparks rising above the blade tip -->
+  <circle cx="64" cy="18" r="1.4" fill="#fde08a"/>
+  <circle cx="58" cy="20" r="0.8" fill="#fde08a" opacity="0.75"/>
+  <circle cx="70" cy="21" r="0.8" fill="#fde08a" opacity="0.75"/>
+  <circle cx="62" cy="14" r="0.5" fill="#fff8d0" opacity="0.6"/>
+  <circle cx="68" cy="14" r="0.5" fill="#fff8d0" opacity="0.6"/>
+
+  <!-- Final vignette -->
+  <radialGradient id="vignette" cx="50%" cy="50%" r="58%">
+    <stop offset="70%" stop-color="#000000" stop-opacity="0"/>
+    <stop offset="100%" stop-color="#000000" stop-opacity="0.55"/>
+  </radialGradient>
+  <rect width="128" height="128" fill="url(#vignette)" pointer-events="none"/>
 </svg>
