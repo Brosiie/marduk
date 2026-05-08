@@ -47,7 +47,7 @@ var rotate_camera_with_movement: bool = false
 
 # === Accessibility ===
 var screen_shake: float = 1.0       # 0.0 disables
-var hit_stop: float = 1.0           # 0.0 disables
+var hit_stop: float = 0.0           # 0.0 disables all slomo + hit-stop (Juice + CombatFeedback both respect this)
 var color_blind_mode: StringName = &"none"  # none / protanopia / deuteranopia / tritanopia
 var reduced_motion: bool = false
 var subtitle_size: int = 18
@@ -201,7 +201,7 @@ func load_settings() -> void:
 	show_objective_marker = bool(cfg.get_value("gameplay", "objective_marker", true))
 	hud_scale = float(cfg.get_value("gameplay", "hud_scale", 1.0))
 	screen_shake = float(cfg.get_value("a11y", "screen_shake", 1.0))
-	hit_stop = float(cfg.get_value("a11y", "hit_stop", 1.0))
+	hit_stop = float(cfg.get_value("a11y", "hit_stop", 0.0))
 	color_blind_mode = StringName(cfg.get_value("a11y", "color_blind", "none"))
 	reduced_motion = bool(cfg.get_value("a11y", "reduced_motion", false))
 	subtitle_size = int(cfg.get_value("a11y", "subtitle_size", 18))

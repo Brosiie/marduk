@@ -74,6 +74,14 @@ func _attach_nameplate() -> void:
 	# bigger plate; regular hostile mobs get red.
 	if has_node("WowNameplate"):
 		return
+	# Skip when this enemy has no resolvable identity. Without a mob_id
+	# (and no display_name on a Boss subclass), the nameplate would render
+	# Godot auto-names like "@CharacterBody3D@3184" floating above the
+	# actor — debug noise, not a UI feature.
+	var has_mob_id: bool = mob_id != &""
+	var has_display: bool = ("display_name" in self) and (str(get("display_name")) != "")
+	if not has_mob_id and not has_display:
+		return
 	var np_script: GDScript = load("res://scripts/ui/hud_components/wow_nameplate.gd")
 	if np_script == null:
 		return

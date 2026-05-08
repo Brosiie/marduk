@@ -55,9 +55,11 @@ func _ready() -> void:
 	_hp_fill.material_override = _hp_fill_mat
 	_hp_fill.position = Vector3(0, 0, 0.001)
 	add_child(_hp_fill)
-	# Name label
+	# Name label — hide entirely if we can't resolve a meaningful name
 	_name_label = Label3D.new()
-	_name_label.text = _read_actor_name()
+	var resolved_name := _read_actor_name()
+	_name_label.text = resolved_name
+	_name_label.visible = resolved_name != ""
 	_name_label.modulate = _color_for_hostility()
 	_name_label.outline_modulate = Color(0, 0, 0, 0.85)
 	_name_label.outline_size = 6
@@ -129,7 +131,18 @@ func _color_for_hostility() -> Color:
 
 func _read_actor_name() -> String:
 	if actor == null:
-		return "Unknown"
+		return ""
+	# 1) Explicit display_name (bosses, named NPCs)
 	if "display_name" in actor and actor.display_name != "":
 		return actor.display_name
-	return actor.name
+	# 2) MobRegistry lookup by mob_id (canonical "Ash-Step Raider" etc.)
+	if "mob_id" in actor and actor.mob_id != &"":
+		var reg := get_node_or_null("/root/MobRegistry")
+		if reg and reg.has_method("get_mob"):
+			var m = reg.get_mob(actor.mob_id)
+			if m and m.display_name != "":
+				return m.display_name
+	# 3) NEVER fall back to actor.name. Godot auto-names like
+	#    "@CharacterBody3D@3184" leak engine internals into the HUD.
+	#    Returning "" tells the caller to hide the label.
+	return ""

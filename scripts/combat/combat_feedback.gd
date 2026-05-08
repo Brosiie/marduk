@@ -25,12 +25,16 @@ func _ready() -> void:
 		_camera = get_node_or_null(camera_path)
 
 func _process(delta: float) -> void:
-	# Hit stop: pause physics briefly for impact emphasis
+	# Hit stop: pause physics briefly for impact emphasis. Gated on the
+	# GameSettings.hit_stop slider — default 0.0 means we never set
+	# Engine.time_scale here. Tracked timer still ticks down so the
+	# request signal fires for any system that wants visual-only feedback.
 	if _hit_stop_remaining > 0.0:
 		_hit_stop_remaining -= delta
-		Engine.time_scale = 0.05 if _hit_stop_remaining > 0.0 else 1.0
-		if _hit_stop_remaining <= 0.0:
-			Engine.time_scale = 1.0
+		if _slomo_enabled():
+			Engine.time_scale = 0.05 if _hit_stop_remaining > 0.0 else 1.0
+			if _hit_stop_remaining <= 0.0:
+				Engine.time_scale = 1.0
 
 	# Camera shake decays
 	if _shake_remaining > 0.0 and _camera:
@@ -97,6 +101,12 @@ func register_stance_break(position: Vector3) -> void:
 func hit_stop(seconds: float) -> void:
 	_hit_stop_remaining = max(_hit_stop_remaining, seconds)
 	hit_stop_request.emit(seconds)
+
+func _slomo_enabled() -> bool:
+	var gs := get_node_or_null("/root/GameSettings")
+	if gs == null:
+		return false
+	return float(gs.hit_stop) > 0.0
 
 func camera_shake(strength: float, duration: float) -> void:
 	if not _camera:

@@ -27,6 +27,9 @@ var _shake_baseline_offset: Vector3 = Vector3.ZERO
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS  # so shakes work during paused state
+	# Safety: defeat any leftover slowdown from a previous session that
+	# crashed mid-hit-stop. Engine.time_scale persists across scene reloads.
+	Engine.time_scale = 1.0
 	_canvas = CanvasLayer.new()
 	_canvas.layer = 100  # above HUD
 	add_child(_canvas)
@@ -56,11 +59,12 @@ func _ready() -> void:
 # every successful hit; the freeze is short enough that gameplay
 # isn't interrupted, but long enough to feel meaty.
 func hit_stop(duration: float = 0.06) -> void:
-	# Use scaled time so multiple stops don't compound destructively.
-	# We freeze via Engine.time_scale rather than pause so audio + UI
-	# tweens still play.
+	# Gated on GameSettings.hit_stop. Default is 0.0 (off) — slomo on every
+	# hit was reported as nauseating during boss fights. Re-enable in
+	# Settings → A11y → "Hit-stop intensity" if desired.
+	if not _slomo_enabled():
+		return
 	Engine.time_scale = 0.05
-	# Restore on a real-time timer (Time.create_timer with paused=false)
 	get_tree().create_timer(duration, false, true).timeout.connect(_restore_time_scale)
 
 func _restore_time_scale() -> void:
@@ -71,8 +75,20 @@ func _restore_time_scale() -> void:
 # fade). Different magnitudes for different moments; restores after
 # duration.
 func slowmo(scale: float = 0.35, duration: float = 0.4) -> void:
+	# Same kill-switch as hit_stop — boss arena cinematic + lodestone discovery
+	# both call this and the cumulative effect made movement feel weird.
+	if not _slomo_enabled():
+		return
 	Engine.time_scale = scale
 	get_tree().create_timer(duration, false, true).timeout.connect(_restore_time_scale)
+
+# Returns true only when the user has explicitly opted in to slomo via
+# Settings → A11y → "Hit-stop intensity" (>0 enables).
+func _slomo_enabled() -> bool:
+	var gs := get_node_or_null("/root/GameSettings")
+	if gs == null:
+		return false
+	return float(gs.hit_stop) > 0.0
 
 # --- Camera shake ---
 # Add jitter to the active Camera3D for `duration` seconds. Magnitude

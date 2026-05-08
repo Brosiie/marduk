@@ -95,6 +95,15 @@ func _ready() -> void:
 		cl.set_script(cl_script)
 		cl.name = "CombatLog"
 		$Root.add_child(cl)
+	# Bottom-right action bar — visible buttons for the menu tabs so new
+	# players can find inventory / settings / friends without memorizing
+	# hotkeys.
+	var ab2_script: GDScript = load("res://scripts/ui/hud_components/action_bar.gd")
+	if ab2_script:
+		var action_bar := Control.new()
+		action_bar.set_script(ab2_script)
+		action_bar.name = "ActionBar"
+		$Root.add_child(action_bar)
 	# Toast container for pickup notifications
 	_setup_toast_layer()
 	if player.has_signal("item_collected"):

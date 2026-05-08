@@ -17,6 +17,7 @@ const TABS := [
 	&"map",
 	&"codex",
 	&"achievements",
+	&"friends",
 	&"options",
 ]
 

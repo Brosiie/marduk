@@ -696,6 +696,7 @@ func _build_ability_kit() -> void:
 	_ability_kit.clear()
 	if not stats or not stats.class_def:
 		_ability_kit = _kit_default()
+		print("[Player] kit=default (no class), %d slots" % _ability_kit.size())
 		return
 	match stats.class_def.class_id:
 		&"ronin":                _ability_kit = _kit_ronin()
@@ -708,6 +709,11 @@ func _build_ability_kit() -> void:
 		&"paladin_guardian":     _ability_kit = _kit_paladin_guardian()
 		&"paladin_lightbringer": _ability_kit = _kit_paladin_light()
 		_:                       _ability_kit = _kit_default()
+	print("[Player] kit=%s, %d slots: %s" % [
+		str(stats.class_def.class_id),
+		_ability_kit.size(),
+		str(_ability_kit.map(func(k): return k.get("name", "(empty)") if k is Dictionary else "(non-dict)"))
+	])
 
 func _cast_ability_slot(slot: int) -> void:
 	if locked or stats == null:
@@ -1699,9 +1705,12 @@ func _perform_basic_attack() -> void:
 	collider.shape = b
 	var fwd := -mesh.global_transform.basis.z if mesh else -global_transform.basis.z
 	fwd.y = 0; fwd = fwd.normalized()
-	hb.position = global_position + fwd * (swing.range * 0.5)
-	hb.look_at(global_position + fwd * swing.range, Vector3.UP)
+	# Add to tree FIRST so look_at_from_position works (look_at on
+	# pre-tree node fires 'Node not inside tree' error). Set position
+	# + look_at via global helpers after add_child.
 	get_tree().current_scene.add_child(hb)
+	hb.global_position = global_position + fwd * (swing.range * 0.5)
+	hb.look_at(global_position + fwd * swing.range, Vector3.UP)
 
 	# Build rage / refresh combat timer
 	on_combat_event(2.0)

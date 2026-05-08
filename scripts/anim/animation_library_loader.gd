@@ -251,5 +251,16 @@ func _load_animation_from_fbx(path: String) -> Animation:
 		if anim != null:
 			break
 	inst.queue_free()
+	# CRITICAL: force loop_mode = LINEAR on movement/idle animations.
+	# Mixamo .glb files often import with loop_mode = NONE (play once
+	# then stop). When the character moves and we play marduk/walk,
+	# it ticks through one cycle and freezes on the final frame --
+	# which often resembles a T-pose. Looping these clips fixes the
+	# 'character T-poses when moving' bug.
+	if anim != null:
+		# We don't know the slot here so loop EVERYTHING; one-shot
+		# attacks/dodges/casts are explicitly stop()-controlled by
+		# game code so an extra loop wouldn't hurt them.
+		anim.loop_mode = Animation.LOOP_LINEAR
 	_ANIM_CACHE[path] = anim
 	return anim

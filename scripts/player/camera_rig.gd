@@ -27,6 +27,11 @@ var distance: float = 11.0
 var lock_target: Node3D = null
 const LOCK_YAW_SPEED: float = 4.0  # rad/sec
 
+# Mouse drag rotate: hold RMB or MMB and move mouse to spin the camera.
+# Standard ARPG control. Sensitivity in radians per pixel.
+const MOUSE_YAW_SENSITIVITY: float = 0.005
+var _mouse_dragging: bool = false
+
 func _ready() -> void:
 	add_to_group("camera_rig")
 	if follow_target_path:
@@ -44,6 +49,8 @@ func _process(delta: float) -> void:
 		yaw += rotate_speed * delta
 	if Input.is_action_pressed("cam_rotate_right"):
 		yaw -= rotate_speed * delta
+	# Mouse drag: while RMB or MMB is held, mouse motion spins yaw.
+	# Implemented in _input below; here we just continue applying yaw.
 	# Lock-on: smoothly auto-yaw so the lock target sits opposite the
 	# camera (player between camera and target = standard soulslike
 	# framing). Manual rotation still applies on top so the player can
@@ -64,3 +71,14 @@ func _process(delta: float) -> void:
 	if Input.is_action_just_released("zoom_out"):
 		distance = min(max_distance, distance + zoom_step)
 	spring.spring_length = lerp(spring.spring_length, distance, 8.0 * delta)
+
+# Mouse drag camera. RMB or MMB held = rotate yaw with mouse motion.
+# Standard ARPG control alongside Q/E and arrow-key rotation.
+func _input(event: InputEvent) -> void:
+	if event is InputEventMouseButton:
+		var mb := event as InputEventMouseButton
+		if mb.button_index == MOUSE_BUTTON_RIGHT or mb.button_index == MOUSE_BUTTON_MIDDLE:
+			_mouse_dragging = mb.pressed
+	elif event is InputEventMouseMotion and _mouse_dragging:
+		var mm := event as InputEventMouseMotion
+		yaw -= mm.relative.x * MOUSE_YAW_SENSITIVITY

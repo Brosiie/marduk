@@ -13,12 +13,13 @@ class_name CombatLog
 #   log_loot(item_name: String, rarity: int)
 #   log_level_up(new_level: int)
 
-const MAX_LINES: int = 14
-const LINE_FADE_AT: float = 8.0   # seconds before a line starts to fade
-const LINE_REMOVE_AT: float = 12.0
+const MAX_LINES: int = 5
+const LINE_FADE_AT: float = 6.0   # seconds before a line starts to fade
+const LINE_REMOVE_AT: float = 9.0
 
-const PANEL_WIDTH: float = 360.0
-const PANEL_HEIGHT: float = 220.0
+# Panel sized to be a peripheral feed, not a screen quadrant.
+const PANEL_WIDTH: float = 240.0
+const PANEL_HEIGHT: float = 105.0
 
 var _v: VBoxContainer
 var _lines: Array[Dictionary] = []  # {label: Label, age: float}
