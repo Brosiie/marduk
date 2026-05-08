@@ -69,6 +69,13 @@ var _resolved_idle: String = ""
 var _resolved_walk: String = ""
 var _resolved_attack: String = ""
 var _resolved_die: String = ""
+var _resolved_hit: String = ""
+# When a one-shot anim (attack / hit / death) is playing, suppress the
+# state-driven _update_anim so it doesn't immediately overwrite back
+# to idle/walk on the next physics frame. Cleared via animation_finished.
+var _one_shot_lock_until: float = 0.0
+# Cached so we know which anim was the one-shot triggering the lock.
+var _last_one_shot: String = ""
 
 func _load_marduk_animation_library() -> void:
 	var loader_script: GDScript = load("res://scripts/anim/animation_library_loader.gd")
@@ -108,14 +115,43 @@ func _load_marduk_animation_library() -> void:
 	_resolved_idle = _resolve_first(["marduk/idle", "marduk/unarmed_idle", "marduk/katana_idle"])
 	_resolved_walk = _resolve_first(["marduk/walk", "marduk/walk_back", "marduk/walk_left"])
 	_resolved_attack = _resolve_first(["marduk/attack_basic"])
-	_resolved_die = _resolve_first(["marduk/death", "marduk/death_forward"])
+	_resolved_die = _resolve_first(["marduk/death", "marduk/death_forward", "marduk/death_react_forward"])
+	_resolved_hit = _resolve_first(["marduk/hit_react_left", "marduk/hit_react_right", "marduk/hit_react"])
 	# Probe what got resolved so Bond can see in the log whether the
 	# alias chain matched anything in the merged library.
-	print("[EnemyAnim] %s resolved idle=%s walk=%s attack=%s die=%s" % [name, _resolved_idle, _resolved_walk, _resolved_attack, _resolved_die])
+	print("[EnemyAnim] %s resolved idle=%s walk=%s attack=%s die=%s hit=%s" % [name, _resolved_idle, _resolved_walk, _resolved_attack, _resolved_die, _resolved_hit])
+	# Hook animation_finished so the one-shot lock auto-clears the
+	# instant the anim ends, falling cleanly back into the state-
+	# driven loop instead of holding a frozen final-frame pose.
+	if not _anim_player_ref.animation_finished.is_connected(_on_anim_finished):
+		_anim_player_ref.animation_finished.connect(_on_anim_finished)
 	# Loop the idle so the mob isn't T-posing on spawn
 	if _resolved_idle != "" and _anim_player_ref.has_animation(_resolved_idle):
 		_anim_player_ref.play(_resolved_idle)
 		print("[EnemyAnim] %s playing %s" % [name, _resolved_idle])
+
+# Fire a one-shot anim (hit_react / attack swing / death) and lock the
+# state-driven anim updater for at most `max_lock_s` so the one-shot
+# can play to completion. The lock auto-releases on animation_finished,
+# but we hard-cap the duration in case the AnimationPlayer never fires
+# the signal (asset oddity, manual stop()s elsewhere, etc).
+func _play_one_shot(anim_name: String, max_lock_s: float = 1.5) -> void:
+	if _anim_player_ref == null or anim_name == "":
+		return
+	if not _anim_player_ref.has_animation(anim_name):
+		return
+	_anim_player_ref.stop()
+	_anim_player_ref.play(anim_name)
+	_last_one_shot = anim_name
+	_one_shot_lock_until = Time.get_ticks_msec() / 1000.0 + max_lock_s
+
+func _on_anim_finished(anim_name: String) -> void:
+	# Only release the lock if the FINISHED anim is the one we're
+	# tracking — other animations finishing (e.g. an idle clip looping
+	# wraps once on first play) shouldn't unlock a pending hit-react.
+	if anim_name == _last_one_shot:
+		_one_shot_lock_until = 0.0
+		_last_one_shot = ""
 
 func _find_anim_player_recursive(node: Node) -> AnimationPlayer:
 	if node is AnimationPlayer:
@@ -143,8 +179,15 @@ func _resolve_first(candidates: Array) -> String:
 
 # Per-frame anim driver: walk during chase, idle when stopped, attack
 # anim during the strike commit, death anim when dead.
+# Suppressed entirely while a one-shot (hit_react / attack swing /
+# death) is in flight, otherwise it'd snap back to idle/walk on the
+# very next physics frame and the player would never see the
+# windup-to-hit transition complete.
 func _update_anim() -> void:
 	if _anim_player_ref == null:
+		return
+	var now: float = Time.get_ticks_msec() / 1000.0
+	if now < _one_shot_lock_until:
 		return
 	var want: String = ""
 	match state:
@@ -307,6 +350,11 @@ func _attack() -> void:
 	if _attack_timer > 0.0:
 		state = State.CHASE
 		return
+	# Fire the attack swing anim. Lock so _update_anim doesn't yank
+	# back to walk mid-swing. Without this you'd see the mob's body
+	# hit the player but the SWING animation never visually played.
+	if _resolved_attack != "":
+		_play_one_shot(_resolved_attack, 0.6)
 	# Whiff check: target must still be inside attack_range when the
 	# strike commits. If the player dodged out, no damage. This is
 	# what makes mob telegraphs MEAN something.
@@ -466,6 +514,13 @@ func take_damage(amount: float, source: Node = null) -> void:
 		juice.shake(0.05 + hp_pct * 0.30, 0.20)
 		if is_crit:
 			juice.flash(Color(1.0, 0.95, 0.55), 0.20, 0.18)
+	# Hit-react anim flashes on every non-lethal hit. Now that the
+	# library actually binds, fire it. Dodge/lethal hits skip — the
+	# death anim takes priority, and reactions stutter combat anyway
+	# if the mob was about to die. Lock 0.4s so the reaction plays
+	# without _update_anim snapping back to walk mid-flinch.
+	if hp > 0.0 and _resolved_hit != "":
+		_play_one_shot(_resolved_hit, 0.4)
 	if hp <= 0.0:
 		# Cinematic death blow on a crit-kill
 		if is_crit and juice:
@@ -516,6 +571,28 @@ func _die(killer: Node) -> void:
 		var cycle: int = prestige_node.current_prestige_level() if prestige_node else 0
 		var drops: Array[Item] = loot_table.roll(cycle)
 		_spawn_pickups(drops)
+	# Play the death anim BEFORE queue_free so the player sees the mob
+	# crumple instead of vanishing mid-air. Lock duration matches anim
+	# length where we can read it; otherwise default 1.6s covers
+	# Mixamo Standing Death Forward (~1.4s with a 200ms grace).
+	# Disable physics during the death anim so the body doesn't slide
+	# when no input is keeping it up.
+	set_physics_process(false)
+	if _anim_player_ref and _resolved_die != "":
+		_play_one_shot(_resolved_die, 2.0)
+		var death_len: float = 1.6
+		if _anim_player_ref.has_animation(_resolved_die):
+			var anim: Animation = _anim_player_ref.get_animation(_resolved_die)
+			if anim:
+				death_len = max(0.8, anim.length + 0.2)
+		# Disconnect the nameplate before the body fades so it doesn't
+		# linger floating mid-air after queue_free.
+		var np: Node = get_node_or_null("WowNameplate")
+		if np:
+			np.queue_free()
+		await get_tree().create_timer(death_len).timeout
+		if not is_instance_valid(self):
+			return
 	queue_free()
 
 # Drop ItemPickup nodes in a small ring around the enemy's death position.

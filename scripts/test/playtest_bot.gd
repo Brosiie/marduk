@@ -95,10 +95,14 @@ func _run() -> void:
 	# Phase 7: aggro a mob (find one, walk toward it)
 	await _scenario_mob_aggro()
 
-	# Phase 8: HUD presence
+	# Phase 8: combat — damage a mob, observe hit_react anim, kill it
+	# observe death anim. Verifies the new one-shot anim wiring.
+	await _scenario_mob_damage_and_death()
+
+	# Phase 9: HUD presence
 	_scenario_hud_presence()
 
-	# Phase 9: meshes + skeletons
+	# Phase 10: meshes + skeletons
 	_scenario_mesh_integrity()
 
 	_finish()
@@ -279,6 +283,57 @@ func _scenario_mob_aggro() -> void:
 			_fail("mob_anim", "%s T-POSING (no current_animation)" % mob.name)
 		else:
 			_pass("mob_anim", "%s playing '%s'" % [mob.name, current])
+
+func _scenario_mob_damage_and_death() -> void:
+	var enemies := get_tree().get_nodes_in_group("enemy")
+	if enemies.is_empty():
+		_findings.append("(skip mob_damage: no enemies)")
+		return
+	var mob = enemies[0]
+	if not is_instance_valid(mob):
+		_findings.append("(skip mob_damage: first enemy is no longer valid)")
+		return
+	# Apply a non-lethal hit and look for the hit_react anim swapping
+	# in. The mob's anim_player.current_animation should briefly carry
+	# a 'hit_react' substring before snapping back to idle/walk.
+	var mob_ap: AnimationPlayer = null
+	for n in mob.find_children("*", "AnimationPlayer", true, false):
+		mob_ap = n
+		break
+	if mob_ap == null:
+		_fail("hit_react", "mob has no AnimationPlayer")
+		return
+	var hp_before: float = float(mob.hp) if "hp" in mob else 0.0
+	# Apply 5% of max HP — small enough to never lethal-kill, big enough
+	# to register as a take_damage call
+	var dmg: float = max(1.0, float(mob.max_hp if "max_hp" in mob else 100) * 0.05)
+	mob.take_damage(dmg, _player)
+	if "hp" in mob:
+		var hp_after: float = float(mob.hp)
+		if hp_after < hp_before:
+			_pass("damage_applies", "hp %.1f -> %.1f after take_damage" % [hp_before, hp_after])
+		else:
+			_fail("damage_applies", "hp unchanged after take_damage (%.1f)" % hp_after)
+	# Sample the anim within 100ms — that's well inside the lock window
+	await _wait(0.10)
+	var played: String = String(mob_ap.current_animation)
+	if played.find("hit_react") >= 0 or played.find("hit") >= 0:
+		_pass("hit_react_anim", "playing '%s' after damage" % played)
+	else:
+		_fail("hit_react_anim", "mob did not switch to hit_react after damage (current='%s')" % played)
+	# Now kill it. Look for the death anim to play, then the mob to be
+	# freed after the anim completes.
+	if "max_hp" in mob:
+		mob.take_damage(float(mob.max_hp) * 1.5, _player)
+	await _wait(0.10)
+	if not is_instance_valid(mob):
+		_fail("death_anim", "mob freed instantly (no death anim time)")
+		return
+	var death_played: String = String(mob_ap.current_animation)
+	if death_played.find("death") >= 0:
+		_pass("death_anim", "playing '%s' on lethal hit" % death_played)
+	else:
+		_fail("death_anim", "no death anim after lethal hit (current='%s')" % death_played)
 
 func _scenario_hud_presence() -> void:
 	var huds := get_tree().get_nodes_in_group("hud")
