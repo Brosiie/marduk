@@ -46,6 +46,7 @@ func _ready() -> void:
 	_install_low_hp_vignette()
 	_install_combo_label()
 	_polish_bars()
+	_install_class_portrait()
 	player.hp_changed.connect(_on_hp)
 	player.mana_changed.connect(_on_mana)
 	player.resource_changed.connect(_on_resource)
@@ -299,6 +300,247 @@ func _refresh_value_label(bar: ProgressBar, kind: String) -> void:
 	if lbl == null:
 		return
 	lbl.text = "%d / %d" % [int(bar.value), int(bar.max_value)]
+
+# Round portrait/class crest in the top-left, anchoring the HP/Mana/XP
+# stack. Without it the bars float in the upper-left corner with no
+# visual anchor — Bond called this "cluttered". The portrait is a 70px
+# disc with a class-themed glyph and a gold filigree ring; the bars
+# slide right by 78px so they read as rooted to it instead of orphans.
+func _install_class_portrait() -> void:
+	if not player or not player.stats or not player.stats.class_def:
+		return
+	if $Root.get_node_or_null("ClassPortrait"):
+		return
+	var portrait := Control.new()
+	portrait.name = "ClassPortrait"
+	portrait.anchor_left = 0.0
+	portrait.anchor_top = 0.0
+	portrait.anchor_right = 0.0
+	portrait.anchor_bottom = 0.0
+	portrait.offset_left = 18.0
+	portrait.offset_top = 18.0
+	portrait.offset_right = 90.0
+	portrait.offset_bottom = 90.0
+	portrait.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	$Root.add_child(portrait)
+	# Gold ring background (the filigree frame)
+	var ring := Panel.new()
+	ring.anchor_right = 1.0
+	ring.anchor_bottom = 1.0
+	var ring_sb := StyleBoxFlat.new()
+	ring_sb.bg_color = Color(0.06, 0.04, 0.06, 1.0)
+	ring_sb.border_color = Color(0.78, 0.62, 0.28, 1.0)
+	ring_sb.set_border_width_all(3)
+	# Round corner radius equal to half-width => circle
+	ring_sb.set_corner_radius_all(36)
+	ring_sb.shadow_color = Color(0, 0, 0, 0.7)
+	ring_sb.shadow_size = 8
+	ring_sb.shadow_offset = Vector2(0, 4)
+	ring.add_theme_stylebox_override("panel", ring_sb)
+	portrait.add_child(ring)
+	# Inner element-tinted disc — the class color shows through here
+	var disc := Panel.new()
+	disc.anchor_left = 0.0
+	disc.anchor_top = 0.0
+	disc.anchor_right = 1.0
+	disc.anchor_bottom = 1.0
+	disc.offset_left = 6
+	disc.offset_top = 6
+	disc.offset_right = -6
+	disc.offset_bottom = -6
+	var disc_sb := StyleBoxFlat.new()
+	disc_sb.bg_color = _class_portrait_color().darkened(0.45)
+	disc_sb.border_color = _class_portrait_color().lightened(0.25)
+	disc_sb.set_border_width_all(1)
+	disc_sb.set_corner_radius_all(30)
+	disc.add_theme_stylebox_override("panel", disc_sb)
+	portrait.add_child(disc)
+	# Class glyph at center — uses the same procedural icon system as
+	# the ability bar so the portrait reads as 'part of the same set'.
+	var glyph := TextureRect.new()
+	glyph.texture = _class_glyph_texture()
+	glyph.expand_mode = TextureRect.EXPAND_FIT_WIDTH_PROPORTIONAL
+	glyph.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	glyph.anchor_right = 1.0
+	glyph.anchor_bottom = 1.0
+	glyph.offset_left = 12
+	glyph.offset_top = 12
+	glyph.offset_right = -12
+	glyph.offset_bottom = -12
+	glyph.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	disc.add_child(glyph)
+	# Slide the bar stack right so it doesn't overlap the portrait.
+	var bars: Control = $Root.get_node_or_null("Bars")
+	if bars:
+		bars.offset_left = 100.0
+		bars.offset_top = 18.0
+
+# Pick a base color for the portrait disc based on class identity.
+# Used by both the ring/disc tinting and the glyph painter so the
+# portrait reads as a coherent class crest.
+func _class_portrait_color() -> Color:
+	if not player or not player.stats or not player.stats.class_def:
+		return Color(0.55, 0.45, 0.35, 1)
+	match player.stats.class_def.class_id:
+		&"berserker":            return Color(0.85, 0.30, 0.20, 1)  # crimson
+		&"assassin":             return Color(0.55, 0.20, 0.65, 1)  # shadow purple
+		&"ronin":                return Color(0.45, 0.70, 1.00, 1)  # water blue (default style)
+		&"ranger":               return Color(0.45, 0.85, 0.40, 1)  # forest green
+		&"mage":                 return Color(0.55, 0.40, 0.95, 1)  # arcane violet
+		&"chaos_druid":          return Color(0.20, 0.85, 0.60, 1)  # nature teal
+		&"demon":                return Color(0.65, 0.20, 0.10, 1)  # hellfire
+		&"paladin_guardian":     return Color(1.00, 0.85, 0.30, 1)  # holy gold
+		&"paladin_lightbringer": return Color(0.95, 0.92, 0.65, 1)  # silver light
+	return Color(0.85, 0.75, 0.50, 1)
+
+# Procedural class crest texture — small 64x64 image with the class's
+# canonical glyph (sword for ronin, flame for berserker, etc.).
+# Painted once, cached as a static var so HUD recreation is free.
+static var _crest_cache: Dictionary = {}
+func _class_glyph_texture() -> Texture2D:
+	if not player or not player.stats or not player.stats.class_def:
+		return null
+	var cid: StringName = player.stats.class_def.class_id
+	if _crest_cache.has(cid):
+		return _crest_cache[cid]
+	var img := Image.create(64, 64, false, Image.FORMAT_RGBA8)
+	var c: Color = _class_portrait_color().lightened(0.55).lerp(Color.WHITE, 0.25)
+	# Each class gets its own glyph drawn into the 64x64 image.
+	# Reuse the wow_ability_bar drawing primitives where possible by
+	# loading the script and calling its static-style draw helpers.
+	# For simplicity we inline a small subset here.
+	match cid:
+		&"berserker":            _draw_axe(img, c)
+		&"assassin":             _draw_dagger(img, c)
+		&"ronin":                _draw_katana(img, c)
+		&"ranger":               _draw_bow(img, c)
+		&"mage":                 _draw_staff(img, c)
+		&"chaos_druid":          _draw_leaf(img, c)
+		&"demon":                _draw_horns(img, c)
+		&"paladin_guardian":     _draw_shield_cross(img, c)
+		&"paladin_lightbringer": _draw_sun(img, c)
+		_:                       _draw_diamond(img, c)
+	var tex: Texture2D = ImageTexture.create_from_image(img)
+	_crest_cache[cid] = tex
+	return tex
+
+# --- Class glyph drawing primitives (64x64 grid) ---
+# Each one paints into `img` at 64x64. Centered, simple, recognizable
+# at a glance. The portrait downstream tints these via its parent
+# Panel's StyleBoxFlat so we only need the silhouette here.
+
+func _draw_katana(img: Image, c: Color) -> void:
+	# Diagonal blade upper-right -> lower-left + crossguard + dot pommel
+	for i in range(-22, 23):
+		var x: int = clamp(32 + i, 1, 62)
+		var y: int = clamp(32 - i, 1, 62)
+		_pset(img, x, y, c)
+		if x + 1 < 63 and y - 1 > 0:
+			_pset(img, x + 1, y - 1, c.lightened(0.3))
+	# Crossguard
+	for off in range(-7, 8):
+		_pset(img, 22 + off, 42 + off, Color(0.92, 0.72, 0.30))
+
+func _draw_axe(img: Image, c: Color) -> void:
+	# Vertical haft + curved head
+	for y in range(8, 56):
+		_pset(img, 32, y, Color(0.30, 0.20, 0.10))  # haft
+		_pset(img, 33, y, Color(0.30, 0.20, 0.10))
+	for dy in range(-12, 13):
+		var w: int = int(14 - abs(dy) * 0.4)
+		for dx in range(0, w):
+			_pset(img, 34 + dx, 22 + dy, c)
+
+func _draw_dagger(img: Image, c: Color) -> void:
+	# Short blade pointing up
+	for y in range(8, 36):
+		_pset(img, 32, y, c)
+		_pset(img, 33, y, c.lightened(0.4))
+		_pset(img, 31, y, c.darkened(0.3))
+	# Crossguard
+	for x in range(24, 41):
+		_pset(img, x, 38, Color(0.78, 0.62, 0.28))
+	# Grip
+	for y in range(40, 56):
+		_pset(img, 31, y, Color(0.18, 0.10, 0.08))
+		_pset(img, 32, y, Color(0.18, 0.10, 0.08))
+
+func _draw_bow(img: Image, c: Color) -> void:
+	# C-shaped curve + string
+	for t in range(0, 36):
+		var theta: float = float(t) / 36.0 * PI
+		var bx: int = 22 + int(sin(theta) * 18)
+		var by: int = 12 + t
+		_pset(img, bx, by, c)
+		_pset(img, bx + 1, by, c)
+	# String (vertical line)
+	for y in range(14, 50):
+		_pset(img, 28, y, c.lightened(0.4))
+
+func _draw_staff(img: Image, c: Color) -> void:
+	# Vertical staff + glowing orb at top
+	for y in range(20, 60):
+		_pset(img, 32, y, Color(0.28, 0.18, 0.12))
+		_pset(img, 33, y, Color(0.28, 0.18, 0.12))
+	# Orb
+	for dy in range(-8, 9):
+		for dx in range(-8, 9):
+			if dx * dx + dy * dy <= 64:
+				_pset(img, 32 + dx, 14 + dy, c)
+
+func _draw_leaf(img: Image, c: Color) -> void:
+	# Pointed leaf shape
+	for y in range(8, 56):
+		var t: float = float(y - 8) / 48.0
+		var w: int = int(sin(t * PI) * 14)
+		for dx in range(-w, w + 1):
+			_pset(img, 32 + dx, y, c if (dx + y) % 3 != 0 else c.darkened(0.3))
+
+func _draw_horns(img: Image, c: Color) -> void:
+	# Demon horns curving outward
+	for t in range(0, 24):
+		var lx: int = 30 - t / 2
+		var rx: int = 34 + t / 2
+		var y: int = 40 - t
+		_pset(img, lx, y, c)
+		_pset(img, rx, y, c)
+		_pset(img, lx + 1, y, c.darkened(0.3))
+		_pset(img, rx - 1, y, c.darkened(0.3))
+
+func _draw_shield_cross(img: Image, c: Color) -> void:
+	# Shield silhouette + cross
+	for y in range(10, 56):
+		var t: float = float(y - 10) / 46.0
+		var w: int = int(lerp(20.0, 4.0, t * t))
+		for dx in range(-w, w + 1):
+			_pset(img, 32 + dx, y, c.darkened(0.2))
+	# Vertical cross
+	for y in range(16, 46):
+		_pset(img, 32, y, Color(1.0, 0.92, 0.55))
+	for x in range(22, 43):
+		_pset(img, x, 28, Color(1.0, 0.92, 0.55))
+
+func _draw_sun(img: Image, c: Color) -> void:
+	# Center disc + 8 rays
+	for dy in range(-9, 10):
+		for dx in range(-9, 10):
+			if dx * dx + dy * dy <= 81:
+				_pset(img, 32 + dx, 32 + dy, c)
+	for i in range(8):
+		var ang: float = float(i) * PI / 4.0
+		for r in range(12, 24):
+			_pset(img, 32 + int(cos(ang) * r), 32 + int(sin(ang) * r), c.lightened(0.3))
+
+func _draw_diamond(img: Image, c: Color) -> void:
+	for dx in range(-20, 21):
+		for dy in range(-20, 21):
+			if abs(dx) + abs(dy) <= 20:
+				_pset(img, 32 + dx, 32 + dy, c)
+
+func _pset(img: Image, x: int, y: int, c: Color) -> void:
+	if x < 0 or x >= 64 or y < 0 or y >= 64:
+		return
+	img.set_pixel(x, y, c)
 
 # Combo HUD widget: anchored right-center, font scales with stack count.
 # Color crossfades from white -> yellow -> orange -> red as the combo

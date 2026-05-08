@@ -2171,6 +2171,10 @@ func take_damage(amount: float, source: Node = null) -> void:
 			ab.play_cue(&"block", global_position, -8.0, 1.0)
 	stats.hp = max(0.0, stats.hp - amount)
 	hp_changed.emit(stats.hp, stats.max_hp)
+	# Combat scar: if this hit took >= 25% max HP, the ScarManager records it.
+	var scar_mgr: Node = get_node_or_null("ScarManager")
+	if scar_mgr and scar_mgr.has_method("record_hit_taken"):
+		scar_mgr.record_hit_taken(amount, stats.max_hp, source, 0)
 	# Combo broken: any time the player takes a non-i-frame, non-guard-
 	# absorbed hit the combo resets. Encourages aggressive but safe play.
 	if _combo_count > 0:
