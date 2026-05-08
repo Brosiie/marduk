@@ -886,6 +886,44 @@ func _build_boss_bar() -> Control:
 	_attach_value_label(hp, "%d / %d", "boss_hp")
 	v.add_child(hp)
 
+	# Cast bar — shown only while boss is winding up an attack. Reads
+	# the boss's _current_pattern and _pattern_state in _process.
+	# Without this the player has to guess from ground decals what's
+	# coming. With it: 'IRON CHARGE' under a draining bar = clear
+	# 'sidestep NOW' read.
+	var cast_row := Control.new()
+	cast_row.name = "CastRow"
+	cast_row.custom_minimum_size = Vector2(700, 26)
+	cast_row.visible = false
+	v.add_child(cast_row)
+	var cast_label := Label.new()
+	cast_label.name = "CastLabel"
+	cast_label.add_theme_font_size_override("font_size", 16)
+	cast_label.add_theme_color_override("font_color", Color(1.0, 0.85, 0.55, 1))
+	cast_label.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.95))
+	cast_label.add_theme_constant_override("outline_size", 4)
+	cast_label.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.85))
+	cast_label.add_theme_constant_override("shadow_offset_x", 2)
+	cast_label.add_theme_constant_override("shadow_offset_y", 2)
+	cast_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	cast_label.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
+	cast_label.offset_top = -2
+	cast_label.offset_bottom = 18
+	cast_row.add_child(cast_label)
+	var cast_bar := ProgressBar.new()
+	cast_bar.name = "CastBar"
+	cast_bar.custom_minimum_size = Vector2(700, 8)
+	cast_bar.show_percentage = false
+	cast_bar.max_value = 1.0
+	cast_bar.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
+	cast_bar.offset_top = -8
+	cast_bar.offset_bottom = 0
+	# Reuse the polished bar style for visual coherence — orange fill
+	# so the cast bar reads as 'incoming danger' regardless of the
+	# attack's element.
+	_apply_bar_style(cast_bar, Color(1.0, 0.55, 0.18), Color(1.0, 0.78, 0.40), Color(0.50, 0.20, 0.06))
+	cast_row.add_child(cast_bar)
+
 	var bar_script: GDScript = load("res://scripts/ui/hud_components/boss_bar.gd")
 	if bar_script:
 		root.set_script(bar_script)
