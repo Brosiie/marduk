@@ -74,6 +74,11 @@ func apply(character_root: Node, role: String, role_id: StringName) -> void:
 	var slot_map: Dictionary = _build_slot_map(role, role_id)
 	var bound: Array[String] = []
 	var missing: Array[String] = []
+	# Cache shared slot map so we can fall back per-slot when role-specific
+	# files are missing on disk.
+	var tree_ref := Engine.get_main_loop() as SceneTree
+	var registry: Node = tree_ref.root.get_node_or_null("AnimationRegistry") if tree_ref else null
+	var shared_map: Dictionary = (registry.get_shared_slot_map() if registry else {})
 
 	# Process slots one at a time, yielding to the renderer between
 	# each. This is what unblocks the loading screen — the renderer
@@ -91,6 +96,17 @@ func apply(character_root: Node, role: String, role_id: StringName) -> void:
 		# in their values so they pass through unchanged.
 		var abs_path: String = _resolve_anim_path(rel_path, role)
 		var anim := _load_animation_from_fbx(abs_path)
+		# Shared fallback: if a role-specific override file is missing on
+		# disk (e.g. mob slot 'attack_basic' points at
+		# 'usurper_footman/spear_thrust.glb' which Bond hasn't downloaded
+		# yet), fall back to the SHARED slot so we still bind something.
+		# Without this, the override silently REPLACES the shared anim
+		# and the slot ends up unbound — mobs spawn with no attack anim
+		# and fall back to idle when striking.
+		if anim == null and shared_map.has(slot):
+			var shared_rel: String = shared_map[slot]
+			var shared_abs: String = _resolve_anim_path(shared_rel, "shared")
+			anim = _load_animation_from_fbx(shared_abs)
 		if anim != null:
 			lib.add_animation(slot, anim)
 			bound.append(String(slot))
@@ -103,8 +119,17 @@ func apply(character_root: Node, role: String, role_id: StringName) -> void:
 		# M-series; every 3 keeps the loop tight.
 		if tree and i % 3 == 2:
 			await tree.process_frame
+			# After awaiting, the original character_root or its
+			# anim_player may have been freed (mob died mid-load,
+			# scene unloaded, etc). Bail out gracefully to avoid
+			# 'Cannot call method on previously freed instance'.
+			if not is_instance_valid(character_root) or not is_instance_valid(anim_player):
+				return
 
-	# Merge / replace the named library on the player.
+	# Merge / replace the named library on the player. Guard once more
+	# in case the final state changed during the last yield.
+	if not is_instance_valid(anim_player):
+		return
 	if anim_player.has_animation_library(ANIM_LIB_NAME):
 		anim_player.remove_animation_library(ANIM_LIB_NAME)
 	anim_player.add_animation_library(ANIM_LIB_NAME, lib)

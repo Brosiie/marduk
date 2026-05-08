@@ -193,6 +193,10 @@ func _ready() -> void:
 	# in class color. Critical for keeping the character readable
 	# against volumetric-fogged backgrounds.
 	_apply_character_rim()
+	# Reparent the KatanaSocket onto a BoneAttachment3D pinned to the
+	# right hand so the sword tracks Kachujin's hand during animations
+	# instead of staying frozen at a fixed mesh-root offset.
+	call_deferred("_attach_katana_to_hand_bone")
 	# Force-fresh HP/mana so HUD doesn't show stale values from the ProgressBar defaults
 	stats.hp = stats.max_hp
 	stats.mana = stats.max_mana
@@ -525,11 +529,17 @@ func _resolve_anim_alias_map() -> void:
 	_resolved_anims.clear()
 	if not anim_player:
 		return
-	var available: PackedStringArray = anim_player.get_animation_list()
+	# Use has_animation() not `alias in get_animation_list()`. The list
+	# returns PackedStringArray entries that don't compare equal to plain
+	# String aliases via the `in` operator in Godot 4.6 — the lookup
+	# silently misses every alias and the player T-poses despite the
+	# library being fully bound. has_animation() does the right hash
+	# lookup. THIS is what made Bond's Kachujin freeze on every anim
+	# transition the moment Mixamo overrides loaded.
 	for slot_name in ANIM_ALIASES.keys():
 		var aliases: Array = ANIM_ALIASES[slot_name]
 		for alias in aliases:
-			if alias in available:
+			if anim_player.has_animation(String(alias)):
 				_resolved_anims[slot_name] = String(alias)
 				break
 
@@ -808,7 +818,11 @@ func _cast_ability_slot(slot: int) -> void:
 	hb.team = &"player"
 	var collider := CollisionShape3D.new()
 	hb.add_child(collider)
-	var fwd := -mesh.global_transform.basis.z if mesh else -global_transform.basis.z
+	# +mesh.basis.z (not -basis.z) because Mixamo meshes are +Z-forward
+	# and _apply_horizontal rotates mesh so its +Z axis points at the
+	# input/lock direction. Using -basis.z would fire attacks BEHIND
+	# the visible character.
+	var fwd := mesh.global_transform.basis.z if mesh else global_transform.basis.z
 	fwd.y = 0; fwd = fwd.normalized()
 	match swing.target_mode:
 		Ability.TargetMode.AOE_AROUND_SELF:
@@ -902,7 +916,9 @@ func _spawn_cast_burst(element: int) -> void:
 	quad.material = smat
 	burst.draw_pass_1 = quad
 	get_tree().current_scene.add_child(burst)
-	var fwd := -mesh.global_transform.basis.z if mesh else -global_transform.basis.z
+	# Mesh is +Z-forward; use +basis.z so the breath/aura spawns IN FRONT
+	# of the character, not behind it.
+	var fwd := mesh.global_transform.basis.z if mesh else global_transform.basis.z
 	fwd.y = 0
 	if fwd.length_squared() > 0.001:
 		fwd = fwd.normalized()
@@ -990,8 +1006,8 @@ func _spawn_mouth_puff(color: Color, style: StringName) -> void:
 	smat.billboard_keep_scale = true
 	quad.material = smat
 	puff.draw_pass_1 = quad
-	# Position at head + forward
-	var fwd := -mesh.global_transform.basis.z
+	# Position at head + forward. Mesh is +Z-forward (Mixamo).
+	var fwd := mesh.global_transform.basis.z
 	fwd.y = 0
 	if fwd.length_squared() > 0.001:
 		fwd = fwd.normalized()
@@ -1123,6 +1139,84 @@ var _class_aura: GPUParticles3D = null
 # a next_pass rim-lit material so the character silhouette glows in
 # class-buff color. Non-destructive: the original material renders
 # unchanged, the rim is added on top.
+# Find the player's Skeleton3D, pick the right-hand bone (Mixamo
+# convention 'mixamorig_RightHand'), spawn a BoneAttachment3D, and
+# reparent the existing KatanaSocket under it. The katana now tracks
+# every hand keyframe in every anim -- swings actually swing.
+#
+# Run via call_deferred from _ready so the Mixamo .glb scene tree
+# is fully attached when we walk it.
+func _attach_katana_to_hand_bone() -> void:
+	if mesh == null:
+		return
+	var skeleton: Skeleton3D = _find_skeleton_recursive(mesh)
+	if skeleton == null:
+		push_warning("[Player] No Skeleton3D found under mesh; katana stays at fixed offset")
+		return
+	# Pick the right-hand bone. Mixamo standard:
+	#   mixamorig_RightHand
+	# Some imports use ':' instead of '_' separator. Try both.
+	var hand_bone_idx: int = skeleton.find_bone("mixamorig_RightHand")
+	if hand_bone_idx < 0:
+		hand_bone_idx = skeleton.find_bone("mixamorig:RightHand")
+	if hand_bone_idx < 0:
+		# Fall back to any bone with 'hand' in its name
+		for i in range(skeleton.get_bone_count()):
+			var bn: String = skeleton.get_bone_name(i).to_lower()
+			if "righthand" in bn or "hand_r" in bn or "hand.r" in bn:
+				hand_bone_idx = i
+				break
+	if hand_bone_idx < 0:
+		push_warning("[Player] No right-hand bone found in skeleton")
+		return
+	# Find the existing KatanaSocket and reparent it under a new
+	# BoneAttachment3D pinned to the hand bone.
+	var socket: Node3D = mesh.get_node_or_null("KatanaSocket")
+	if socket == null:
+		return
+	var attachment := BoneAttachment3D.new()
+	attachment.name = "RightHandAttachment"
+	attachment.bone_idx = hand_bone_idx
+	attachment.bone_name = skeleton.get_bone_name(hand_bone_idx)
+	skeleton.add_child(attachment)
+	var old_parent: Node = socket.get_parent()
+	if old_parent:
+		old_parent.remove_child(socket)
+	attachment.add_child(socket)
+	# Strip the inherited tsuka tilt on KatanaMesh first. The 45deg
+	# rotation from sword_vow_ruins.tscn was relative to a free-floating
+	# socket on MeshRoot; under the bone it would compound with the
+	# bone's pose and twist the blade off-axis. Reset to identity so
+	# the SOCKET transform alone determines orientation.
+	var katana_mesh: Node3D = socket.get_node_or_null("KatanaMesh")
+	if katana_mesh:
+		katana_mesh.transform = Transform3D.IDENTITY
+	# Mixamo right-hand bone local frame (T-pose):
+	#   +Y = along finger length (out from wrist)
+	#   +X = thumb direction (out from palm side of hand)
+	#   +Z = top-of-hand (knuckles up when palm down)
+	# Procedural katana extends along its OWN local +Y (grip at origin,
+	# blade tip at far +Y). For samurai grip: blade extends forward
+	# through the palm in roughly the bone's +Y direction (along fingers).
+	# Identity rotation already lines the blade with bone +Y, but the
+	# grip needs to seat in the palm — slide along +Y by ~5cm so the
+	# blade clears the fingers, and tip the blade ~10deg outward via
+	# small Z rotation so the cutting edge faces forward in idle.
+	socket.transform = Transform3D(
+		Basis().rotated(Vector3.FORWARD, deg_to_rad(-10)),
+		Vector3(0.0, 0.05, 0.0)
+	)
+	print("[Player] Katana attached to bone '%s' (idx %d)" % [skeleton.get_bone_name(hand_bone_idx), hand_bone_idx])
+
+func _find_skeleton_recursive(node: Node) -> Skeleton3D:
+	if node is Skeleton3D:
+		return node
+	for c in node.get_children():
+		var f := _find_skeleton_recursive(c)
+		if f != null:
+			return f
+	return null
+
 func _apply_character_rim() -> void:
 	if mesh == null:
 		return
@@ -1436,10 +1530,11 @@ func _perform_dodge() -> void:
 		return
 	if has_stamina:
 		resource_value = max(0.0, resource_value - DODGE_STAMINA_COST)
-	# Direction: current input dir if moving, else mesh forward
+	# Direction: current input dir if moving, else mesh forward.
+	# Mesh is +Z-forward (Mixamo) so use +basis.z, not -basis.z.
 	var dir: Vector3 = input_dir
 	if dir.length_squared() < 0.001 and mesh:
-		dir = -mesh.global_transform.basis.z
+		dir = mesh.global_transform.basis.z
 	dir.y = 0
 	if dir.length_squared() < 0.001:
 		return
@@ -1470,7 +1565,9 @@ func _perform_dodge() -> void:
 func _classify_dodge_dir(world_dir: Vector3) -> String:
 	if mesh == null:
 		return "dodge_forward"
-	var forward: Vector3 = -mesh.global_transform.basis.z
+	# +basis.z (mesh is +Z-forward Mixamo). Without this, dodge
+	# directional anims swap front/back constantly.
+	var forward: Vector3 = mesh.global_transform.basis.z
 	forward.y = 0.0
 	if forward.length_squared() < 0.001:
 		return "dodge_forward"
@@ -1728,7 +1825,9 @@ func _perform_basic_attack() -> void:
 	var b := BoxShape3D.new()
 	b.size = Vector3(swing.radius * 2.0, 2.0, swing.range)
 	collider.shape = b
-	var fwd := -mesh.global_transform.basis.z if mesh else -global_transform.basis.z
+	# +basis.z (mesh is +Z-forward Mixamo). With -basis.z the basic-attack
+	# hitbox spawned BEHIND the player and the swing felt "weightless".
+	var fwd := mesh.global_transform.basis.z if mesh else global_transform.basis.z
 	fwd.y = 0; fwd = fwd.normalized()
 	# Add to tree FIRST so look_at_from_position works (look_at on
 	# pre-tree node fires 'Node not inside tree' error). Set position

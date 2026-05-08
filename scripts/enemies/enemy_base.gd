@@ -61,12 +61,105 @@ func _ready() -> void:
 # Merges the slot animations declared in AnimationRegistry for this mob_id
 # into the spawned mesh's AnimationPlayer. Silent no-op if anim files
 # aren't on disk yet.
+#
+# The role here ("mob") is overridden by BossBase to "boss" so each
+# pulls from its own slot table.
+var _anim_player_ref: AnimationPlayer = null
+var _resolved_idle: String = ""
+var _resolved_walk: String = ""
+var _resolved_attack: String = ""
+var _resolved_die: String = ""
+
 func _load_marduk_animation_library() -> void:
 	var loader_script: GDScript = load("res://scripts/anim/animation_library_loader.gd")
 	if loader_script == null:
+		print("[EnemyAnim] loader script missing: %s" % name)
 		return
 	var loader = loader_script.new()
-	loader.apply(self, "mob", mob_id)
+	# Async coroutine; wait for completion then resolve aliases. Without
+	# the await the alias resolution would run BEFORE anims bind.
+	# Duck-typed boss check: BossBase declares `boss_id`; EnemyBase
+	# can't reference it directly without circular import. We probe
+	# the property via `in` and fetch via `get()` to avoid forward
+	# references.
+	var role: String = "mob"
+	var role_id: StringName = mob_id
+	if "boss_id" in self:
+		role = "boss"
+		role_id = StringName(get("boss_id"))
+	print("[EnemyAnim] %s starting load role=%s id=%s" % [name, role, role_id])
+	await loader.apply(self, role, role_id)
+	if not is_instance_valid(self):
+		return
+	_anim_player_ref = _find_anim_player_recursive(self)
+	if _anim_player_ref == null:
+		print("[EnemyAnim] %s NO AnimationPlayer found after load" % name)
+		return
+	var ap_anims: PackedStringArray = _anim_player_ref.get_animation_list()
+	print("[EnemyAnim] %s found AP with %d anims" % [name, ap_anims.size()])
+	# Sample first 8 anim names so the log shows the actual format
+	# (qualified vs bare). This tells us whether to look for
+	# "marduk/idle" or just "idle".
+	var sample: Array = []
+	for i in range(min(8, ap_anims.size())):
+		sample.append(String(ap_anims[i]))
+	print("[EnemyAnim] %s sample names: %s" % [name, str(sample)])
+	# Resolve aliases against what's actually in the library
+	_resolved_idle = _resolve_first(["marduk/idle", "marduk/unarmed_idle", "marduk/katana_idle"])
+	_resolved_walk = _resolve_first(["marduk/walk", "marduk/walk_back", "marduk/walk_left"])
+	_resolved_attack = _resolve_first(["marduk/attack_basic"])
+	_resolved_die = _resolve_first(["marduk/death", "marduk/death_forward"])
+	# Probe what got resolved so Bond can see in the log whether the
+	# alias chain matched anything in the merged library.
+	print("[EnemyAnim] %s resolved idle=%s walk=%s attack=%s die=%s" % [name, _resolved_idle, _resolved_walk, _resolved_attack, _resolved_die])
+	# Loop the idle so the mob isn't T-posing on spawn
+	if _resolved_idle != "" and _anim_player_ref.has_animation(_resolved_idle):
+		_anim_player_ref.play(_resolved_idle)
+		print("[EnemyAnim] %s playing %s" % [name, _resolved_idle])
+
+func _find_anim_player_recursive(node: Node) -> AnimationPlayer:
+	if node is AnimationPlayer:
+		return node
+	for c in node.get_children():
+		var f := _find_anim_player_recursive(c)
+		if f != null:
+			return f
+	return null
+
+func _resolve_first(candidates: Array) -> String:
+	if _anim_player_ref == null:
+		return ""
+	# Use has_animation() instead of `in get_animation_list()`. The list
+	# returns PackedStringArray entries that don't compare equal to plain
+	# String candidates with the `in` operator in Godot 4.6 — the lookup
+	# silently misses every alias and EVERY mob/boss ends up T-posing
+	# despite the library being fully bound. has_animation() does its
+	# own internal hash lookup with proper string equivalence.
+	for c in candidates:
+		var s: String = String(c)
+		if _anim_player_ref.has_animation(s):
+			return s
+	return ""
+
+# Per-frame anim driver: walk during chase, idle when stopped, attack
+# anim during the strike commit, death anim when dead.
+func _update_anim() -> void:
+	if _anim_player_ref == null:
+		return
+	var want: String = ""
+	match state:
+		State.DEAD:
+			want = _resolved_die
+		State.ATTACK:
+			want = _resolved_attack if _resolved_attack != "" else _resolved_idle
+		State.CHASE:
+			# Only switch to walk if actually moving (e.g. archers stand to shoot)
+			var horiz: float = Vector2(velocity.x, velocity.z).length()
+			want = _resolved_walk if horiz > 0.5 else _resolved_idle
+		_:
+			want = _resolved_idle
+	if want != "" and _anim_player_ref.current_animation != want and _anim_player_ref.has_animation(want):
+		_anim_player_ref.play(want)
 
 func _attach_nameplate() -> void:
 	# Lazily attach a WoW-style nameplate (HP bar mesh + name label +
@@ -130,6 +223,10 @@ func _physics_process(delta: float) -> void:
 	if not is_on_floor():
 		velocity.y -= gravity * delta
 	move_and_slide()
+	# Drive the mob's animation based on state. Without this every
+	# mob/boss T-poses despite having 28+ anims loaded into their
+	# AnimationPlayer.
+	_update_anim()
 
 func _acquire_target() -> void:
 	if target and is_instance_valid(target):
@@ -175,7 +272,13 @@ func _chase(_delta: float) -> void:
 	var dir := to.normalized()
 	velocity.x = dir.x * move_speed
 	velocity.z = dir.z * move_speed
-	look_at(global_position + dir, Vector3.UP)
+	# Mixamo meshes are +Z-forward (toes point +Z in rest pose). Godot's
+	# look_at() points the node's -Z at the target, which would make the
+	# imported mesh visually face AWAY. We rotate via atan2 directly so
+	# the body's +Z (the mesh's forward) points at the player. Without
+	# this, every mob/boss spins to face away the moment they aggro —
+	# THE "boss fight inverts the boss and the player" bug.
+	rotation.y = atan2(dir.x, dir.z)
 
 # Windup: spawns the telegraph decal, holds for attack_windup seconds,
 # then commits to ATTACK regardless of player position. If the player

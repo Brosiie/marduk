@@ -230,7 +230,9 @@ func _execute_pattern(p: BossAttackPattern) -> void:
 	var collider := CollisionShape3D.new()
 	hb.add_child(collider)
 
-	var fwd := -global_transform.basis.z
+	# +basis.z (not -basis.z) because Mixamo meshes are +Z-forward and
+	# enemy_base._chase rotates the body so +Z points at the target.
+	var fwd := global_transform.basis.z
 	fwd.y = 0
 	fwd = fwd.normalized()
 
@@ -469,7 +471,8 @@ func _spawn_telegraph(p: BossAttackPattern) -> void:
 	# For shapes that have a forward direction (CONE, LINE), rotate the
 	# decal so its +X axis aligns with the boss-to-target direction.
 	if p.shape == BossAttackPattern.Shape.FORWARD_CONE or p.shape == BossAttackPattern.Shape.LINE:
-		var dir: Vector3 = (target.global_position - global_position) if target else -global_transform.basis.z
+		# Fallback uses +basis.z (Mixamo +Z-forward) when no target.
+		var dir: Vector3 = (target.global_position - global_position) if target else global_transform.basis.z
 		dir.y = 0
 		if dir.length_squared() > 0.001:
 			decal.rotation.y = atan2(dir.x, dir.z) - PI * 0.5
