@@ -432,6 +432,15 @@ func _scenario_hud_presence() -> void:
 	_pass("hud_present", "components: %s" % str(found))
 
 func _scenario_mesh_integrity() -> void:
+	# The player can get freed mid-test if the boss killed them during
+	# the boss-fight scenario's 12s window (and the death-respawn
+	# pipeline queue_freed and re-spawned). Re-locate via the group
+	# rather than holding the stale ref.
+	if not is_instance_valid(_player):
+		_player = get_tree().get_first_node_in_group("player")
+		if _player == null:
+			_fail("mesh_present", "player freed mid-test and no respawn available")
+			return
 	var mesh: Node3D = _player.get("mesh")
 	if mesh == null:
 		_fail("mesh_present", "player.mesh is null")

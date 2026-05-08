@@ -42,16 +42,40 @@ static func spawn(target: Node3D, amount: float, is_crit: bool = false, element:
 	if target == null or not is_instance_valid(target):
 		return null
 	var floater := DamageFloater.new()
-	# Crits get a 'CRIT!' prefix + bigger fonts + brighter color so the
-	# visual reads INSTANTLY. Non-crits stay readable but unobtrusive.
-	floater.text = ("CRIT %d!" % int(round(amount))) if is_crit else ("%d" % int(round(amount)))
-	floater.font_size = 48 if is_crit else 24
-	floater.outline_size = 12 if is_crit else 4
-	floater.outline_modulate = Color(0, 0, 0, 0.9)
+	# Damage tiers — three sizes based on raw damage and crit flag so
+	# small chip damage doesn't dominate the screen and big hits
+	# really LAND. Tiers mirror Diablo / PoE conventions.
+	#   tier 0 (chip):      under 15 damage         -> 18pt, no prefix
+	#   tier 1 (normal):    15-50, non-crit         -> 26pt, no prefix
+	#   tier 2 (heavy):     >=50 damage non-crit    -> 36pt, no prefix
+	#   tier 3 (crit):      any crit                -> 56pt, "CRIT" prefix
+	# Crit detection takes priority over numeric tier.
+	var tier: int = 0
+	if is_crit:
+		tier = 3
+	elif amount >= 50.0:
+		tier = 2
+	elif amount >= 15.0:
+		tier = 1
+	# Tier-driven label
+	if tier == 3:
+		floater.text = "CRIT %d!" % int(round(amount))
+	elif tier == 2:
+		floater.text = "%d!" % int(round(amount))  # heavy hit punctuated
+	else:
+		floater.text = "%d" % int(round(amount))
+	floater.font_size = [18, 26, 36, 56][tier]
+	floater.outline_size = [3, 5, 8, 14][tier]
+	floater.outline_modulate = Color(0, 0, 0, 0.92)
 	floater.modulate = ELEMENT_COLORS.get(element, ELEMENT_COLORS[&"physical"])
 	if is_crit:
 		# Crits lerp HARD toward bright gold and over-saturate
 		floater.modulate = floater.modulate.lerp(Color(1.0, 0.92, 0.50), 0.7)
+	# Tier 2+ gets a faint shadow offset for extra punch — text shadow
+	# doubles as a subtle motion-blur read when the number rises.
+	if tier >= 2:
+		floater.shaded = true
+		floater.modulate = floater.modulate.lightened(0.15)
 	floater.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	floater.no_depth_test = true
 	floater.fixed_size = true
