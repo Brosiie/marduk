@@ -1,0 +1,38 @@
+[gd_resource type="BreathingForm" format=3]
+
+[resource]
+id = &"water_1"
+display_name = "Flowing Cut"
+description = "First Form of Water Breathing. A fluid forward slash that flows into the next form. The foundation of the water chain."
+cost_resource = &"stamina"
+mana_cost = 12.0
+cooldown = 0.4
+cast_time = 0.20
+target_mode = 0
+range = 2.4
+radius = 1.4
+damage_type = 0
+base_damage = 22.0
+attribute_scaling = 0.55
+crit_bonus_chance = 0.0
+
+style_id = &"water"
+form_number = 1
+animation_name = &"marduk/attack_basic"
+vfx_color = Color(0.45, 0.72, 1.0, 1.0)
+trail_intensity = 0.7
+sound_id = &"water_slash_1"
+
+stance_charge_cost = 0
+stance_charge_gain_on_hit = 1
+min_player_level = 1
+prereq_form_id = &""
+
+# just-frame window: 0.12s. Tight but fair on a fast slash. Rewards rhythm.
+perfect_window_seconds = 0.12
+perfect_bonus_mult = 1.5
+miss_punishment_seconds = 0.0
+
+chain_predecessor = &""
+chain_window = 0.0
+chain_bonus_mult = 1.0

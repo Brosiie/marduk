@@ -132,6 +132,15 @@ func _paint_all() -> void:
 	var kit: Array = []
 	if _player and "_ability_kit" in _player:
 		kit = _player._ability_kit
+	# Fallback: if the player exists with a class assigned but the kit
+	# is somehow empty (race during scene-load, deferred class assign,
+	# script load order), force-rebuild. Cheap, idempotent, prevents
+	# the bar from staying blank when class+kit fall out of sync.
+	if _player and kit.is_empty():
+		var class_set: bool = _player.has_method("get") and _player.stats and _player.stats.class_def != null
+		if class_set and _player.has_method("_build_ability_kit"):
+			_player._build_ability_kit()
+			kit = _player._ability_kit
 	# Class color for the active-ability border. Read once per paint.
 	var class_color: Color = _read_class_color()
 	for i in range(_slot_nodes.size()):

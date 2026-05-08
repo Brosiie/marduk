@@ -1,0 +1,40 @@
+[gd_resource type="BreathingForm" format=3]
+
+[resource]
+id = &"water_2"
+display_name = "Still Water Redirect"
+description = "Second Form of Water Breathing. A deflect-counter; the blade draws inward and redirects an incoming blow back at the attacker. Rewards patience."
+cost_resource = &"stamina"
+mana_cost = 10.0
+cooldown = 0.55
+cast_time = 0.28
+target_mode = 0
+range = 2.0
+radius = 1.0
+damage_type = 0
+base_damage = 18.0
+attribute_scaling = 0.65
+crit_bonus_chance = 0.05
+
+style_id = &"water"
+form_number = 2
+animation_name = &"marduk/katana_blocking"
+vfx_color = Color(0.30, 0.55, 0.90, 1.0)
+trail_intensity = 0.5
+sound_id = &"water_redirect_2"
+
+stance_charge_cost = 0
+stance_charge_gain_on_hit = 2
+min_player_level = 2
+prereq_form_id = &"water_1"
+
+# Deflect timing is the skill expression; no additional just-frame overlay.
+perfect_window_seconds = 0.0
+perfect_bonus_mult = 1.5
+miss_punishment_seconds = 0.0
+
+# 1.8s window: learnable cadence, not a reflex test.
+# 1.35x bonus: meaningful but leaves room for the W3 payoff.
+chain_predecessor = &"water_1"
+chain_window = 1.8
+chain_bonus_mult = 1.35

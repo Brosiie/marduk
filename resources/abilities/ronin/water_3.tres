@@ -1,0 +1,40 @@
+[gd_resource type="BreathingForm" format=3]
+
+[resource]
+id = &"water_3"
+display_name = "Rising Tide"
+description = "Third Form of Water Breathing. A rising arc slash that launches into the air and crashes down in an AoE burst. The chain capstone — devastating after Flowing Cut and Still Water Redirect."
+cost_resource = &"stamina"
+mana_cost = 20.0
+cooldown = 0.85
+cast_time = 0.38
+target_mode = 2
+range = 0.0
+radius = 2.6
+damage_type = 0
+base_damage = 38.0
+attribute_scaling = 0.70
+crit_bonus_chance = 0.08
+
+style_id = &"water"
+form_number = 3
+animation_name = &"marduk/katana_jump_attack"
+vfx_color = Color(0.20, 0.45, 0.85, 1.0)
+trail_intensity = 1.2
+sound_id = &"water_tide_3"
+
+stance_charge_cost = 0
+stance_charge_gain_on_hit = 0
+min_player_level = 3
+prereq_form_id = &"water_2"
+
+# 0.20s just-frame on the big AoE swing. Generous enough to feel earned.
+# 0.4s whiff lock: punishes spam, rewards read.
+perfect_window_seconds = 0.20
+perfect_bonus_mult = 1.5
+miss_punishment_seconds = 0.40
+
+# Full 3-form chain pays out 1.60x. Stacks with W2 chain bonus already applied.
+chain_predecessor = &"water_2"
+chain_window = 1.8
+chain_bonus_mult = 1.60

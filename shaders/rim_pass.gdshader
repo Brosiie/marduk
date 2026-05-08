@@ -1,5 +1,9 @@
 shader_type spatial;
-render_mode blend_add, depth_draw_never, depth_test_disabled, unshaded, cull_back;
+// Mix-blend so the base mesh (texture, lighting, hamon, etc.) renders
+// THROUGH the rim instead of being washed out by additive overlay.
+// depth_draw_never keeps the rim from interfering with shadows/depth
+// passes; depth_test stays ON so the rim respects mesh occlusion.
+render_mode blend_mix, depth_draw_never, unshaded, cull_back;
 
 // Additive rim-light next_pass. Runs on top of a character's base
 // material so the original albedo + lighting is untouched -- this
@@ -24,5 +28,9 @@ void fragment() {
 	if (pulse_speed > 0.0) {
 		pulse = 1.0 - pulse_amount + pulse_amount * (0.5 + 0.5 * sin(TIME * pulse_speed));
 	}
-	ALBEDO = rim_color.rgb * rim * rim_strength * pulse;
+	ALBEDO = rim_color.rgb;
+	// Cap alpha at 0.5 so the base mesh always shows through. The rim
+	// is a HALO around silhouette pixels, not a replacement for the
+	// character's body.
+	ALPHA = clamp(rim * rim_strength * pulse, 0.0, 0.5);
 }

@@ -247,7 +247,7 @@ func _clear_attack_telegraph() -> void:
 # Hostile crimson by default; bosses override with bigger strength.
 @export var rim_color: Color = Color(0.92, 0.18, 0.20, 1.0)
 @export var rim_power: float = 2.2
-@export var rim_strength: float = 1.3
+@export var rim_strength: float = 0.65
 
 func _apply_enemy_rim() -> void:
 	var rim_shader: Shader = load("res://shaders/rim_pass.gdshader")

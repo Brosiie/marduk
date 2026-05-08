@@ -1106,7 +1106,9 @@ func _apply_character_rim() -> void:
 	var rim_shader: Shader = load("res://shaders/rim_pass.gdshader")
 	if rim_shader == null:
 		return
-	_apply_rim_recursive(mesh, rim_shader, color, 2.4, 1.4)
+	# Power 2.4 keeps the rim tight to the silhouette; strength 0.7
+	# keeps it readable without dominating the base material.
+	_apply_rim_recursive(mesh, rim_shader, color, 2.4, 0.7)
 
 func _apply_rim_recursive(node: Node, shader: Shader, color: Color, power: float, strength: float) -> void:
 	if node is MeshInstance3D:
