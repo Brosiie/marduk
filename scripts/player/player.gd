@@ -357,6 +357,9 @@ func _auto_assign_class_from_scene() -> void:
 		stats.hp = stats.max_hp
 		stats.mana = stats.max_mana
 	print("[Player] auto-assigned class %s from zone %s" % [class_id, zone_id])
+	# Build the ability kit NOW that class is set. Without this the
+	# ability bar slots stay empty and Q/E/R/F do nothing.
+	_build_ability_kit()
 	# Auto-accept the matching prologue quest so the player starts with
 	# a real objective in the quest tracker, not 'Visit Ashurim plaza'.
 	# Quest IDs follow the convention &"prologue_<class>".
@@ -443,11 +446,41 @@ func _load_marduk_animation_library_deferred() -> void:
 	if anim_player == null:
 		anim_player = _find_animation_player(self)
 	_resolve_anim_alias_map()
-	# Loop the idle once anims are resolved
+	# Diagnostic: report what we ACTUALLY have so the T-pose
+	# problem is debuggable.
+	if anim_player:
+		var avail: PackedStringArray = anim_player.get_animation_list()
+		print("[Player] anim_player has %d anims, sample: %s" % [
+			avail.size(),
+			str(avail.slice(0, min(5, avail.size())))
+		])
+		print("[Player] resolved aliases: idle=%s walk=%s run=%s attack=%s dodge=%s" % [
+			_resolved_anims.get("idle", "(none)"),
+			_resolved_anims.get("walk", "(none)"),
+			_resolved_anims.get("run", "(none)"),
+			_resolved_anims.get("attack", "(none)"),
+			_resolved_anims.get("dodge", "(none)"),
+		])
+	else:
+		push_warning("[Player] anim_player is NULL after deferred load")
+	# Loop the idle once anims are resolved. Try multiple fallbacks
+	# so the character isn't T-posing if our alias resolution missed.
 	if anim_player:
 		var idle_name: String = _resolved_anims.get("idle", "")
-		if idle_name != "" and anim_player.has_animation(idle_name):
+		if idle_name == "" or not anim_player.has_animation(idle_name):
+			# Fallback: walk the available list and pick the first
+			# anim whose name contains 'idle' or just play the first
+			# anim available so the character moves.
+			var fallback: String = ""
+			for n in anim_player.get_animation_list():
+				if String(n).to_lower().find("idle") >= 0:
+					fallback = String(n); break
+			if fallback == "" and anim_player.get_animation_list().size() > 0:
+				fallback = String(anim_player.get_animation_list()[0])
+			idle_name = fallback
+		if idle_name != "":
 			anim_player.play(idle_name)
+			print("[Player] playing idle: %s" % idle_name)
 	# Hide the loading screen with a soft fade
 	if _loading_screen and is_instance_valid(_loading_screen) and _loading_screen.has_method("hide_now"):
 		_loading_screen.hide_now(0.7)

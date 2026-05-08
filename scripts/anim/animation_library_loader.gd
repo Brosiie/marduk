@@ -85,7 +85,11 @@ func apply(character_root: Node, role: String, role_id: StringName) -> void:
 	for i in range(slot_keys.size()):
 		var slot = slot_keys[i]
 		var rel_path: String = slot_map[slot]
-		var abs_path := "res://assets/animations/%s" % rel_path
+		# Path resolution: registry values like "ronin/katana_idle.glb"
+		# need a role-prefix because actual files live under classes/,
+		# mobs/, bosses/, npcs/. SHARED_SLOTS already include "shared/"
+		# in their values so they pass through unchanged.
+		var abs_path: String = _resolve_anim_path(rel_path, role)
 		var anim := _load_animation_from_fbx(abs_path)
 		if anim != null:
 			lib.add_animation(slot, anim)
@@ -180,6 +184,28 @@ func _find_glb_root(node: Node) -> Node:
 		# Skeleton3D is at the very top of the instance; fall back to it.
 		return rootnode
 	return scene_root
+
+# Map a registry-relative path to the actual on-disk path. The
+# registry was authored before we organized files into classes/
+# mobs/ bosses/ npcs/ subfolders. So a value like "ronin/katana.glb"
+# needs to become "classes/ronin/katana.glb" at load time.
+# Shared slots already include "shared/" so they pass through.
+const ROLE_PREFIX := {
+	"class": "classes",
+	"mob":   "mobs",
+	"boss":  "bosses",
+	"npc":   "npcs",
+}
+
+func _resolve_anim_path(rel_path: String, role: String) -> String:
+	# Already-prefixed paths (start with shared/, classes/, mobs/, etc.)
+	# are returned as-is.
+	for prefix in ["shared/", "classes/", "mobs/", "bosses/", "npcs/"]:
+		if rel_path.begins_with(prefix):
+			return "res://assets/animations/%s" % rel_path
+	# Otherwise prepend role prefix
+	var role_dir: String = ROLE_PREFIX.get(role, "shared")
+	return "res://assets/animations/%s/%s" % [role_dir, rel_path]
 
 func _find_skeleton(node: Node) -> Skeleton3D:
 	if node is Skeleton3D:
