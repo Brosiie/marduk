@@ -102,38 +102,102 @@ func _build() -> void:
 	tsuba_mesh.bottom_radius = TSUBA_RADIUS
 	tsuba_mesh.height = TSUBA_THICKNESS
 	tsuba.mesh = tsuba_mesh
+	# Darker patinated iron core — real tsuba are deeply blackened
+	# steel, not the medium gray we had. Lower roughness on the rim
+	# below makes the polished gold edge stand out against this.
 	var tmat := StandardMaterial3D.new()
-	tmat.albedo_color = Color(0.22, 0.20, 0.18, 1)
-	tmat.metallic = 0.55
-	tmat.roughness = 0.45
+	tmat.albedo_color = Color(0.10, 0.09, 0.08, 1)
+	tmat.metallic = 0.65
+	tmat.roughness = 0.55
 	tsuba.material_override = tmat
 	tsuba.position = Vector3(0, TSUKA_LENGTH + TSUBA_THICKNESS * 0.5, 0)
 	add_child(tsuba)
 
-	# Blade - long thin BoxMesh extending from tsuba
+	# Polished rim — slightly larger cylinder behind the tsuba so we
+	# see a thin gold ring around the edge. Two-tone tsuba is what
+	# real katana have; one-tone reads as a hockey-puck guard.
+	var tsuba_rim := MeshInstance3D.new()
+	tsuba_rim.name = "TsubaRim"
+	var rim_mesh := CylinderMesh.new()
+	rim_mesh.top_radius = TSUBA_RADIUS + 0.006
+	rim_mesh.bottom_radius = TSUBA_RADIUS + 0.006
+	rim_mesh.height = TSUBA_THICKNESS * 0.92
+	tsuba_rim.mesh = rim_mesh
+	var rmat2 := StandardMaterial3D.new()
+	rmat2.albedo_color = Color(0.78, 0.62, 0.28, 1)
+	rmat2.metallic = 0.95
+	rmat2.roughness = 0.18
+	tsuba_rim.material_override = rmat2
+	tsuba_rim.position = Vector3(0, TSUKA_LENGTH + TSUBA_THICKNESS * 0.5, 0)
+	add_child(tsuba_rim)
+	# Move the dark core forward 0.001 so the rim shows through behind
+	tsuba.position.z = 0.0005
+
+	# Habaki (blade collar) - small bright cylinder between tsuba and
+	# blade. Real katana have this brass-colored band; without it the
+	# blade meets the guard with a hard seam. Tiny detail but it makes
+	# the silhouette read as 'real katana' instead of 'box on a stick'.
+	var habaki := MeshInstance3D.new()
+	habaki.name = "Habaki"
+	var hab_mesh := CylinderMesh.new()
+	hab_mesh.top_radius = BLADE_WIDTH * 0.55
+	hab_mesh.bottom_radius = TSUBA_RADIUS * 0.45
+	hab_mesh.height = 0.024
+	habaki.mesh = hab_mesh
+	var hbmat := StandardMaterial3D.new()
+	hbmat.albedo_color = Color(0.78, 0.62, 0.30, 1)  # warm brass
+	hbmat.metallic = 0.85
+	hbmat.roughness = 0.30
+	habaki.material_override = hbmat
+	habaki.position = Vector3(0, TSUKA_LENGTH + TSUBA_THICKNESS + 0.012, 0)
+	add_child(habaki)
+
+	# Blade - long thin BoxMesh extending from tsuba. Slightly narrower
+	# at the base, slightly wider at the middle (illusion via 3 segments
+	# rather than a single box that looks slab-flat). The middle 80% is
+	# the main blade; we tip it with a tapered kissaki.
 	var blade := MeshInstance3D.new()
 	blade.name = "Blade"
 	var blade_mesh := BoxMesh.new()
-	blade_mesh.size = Vector3(BLADE_THICKNESS, BLADE_LENGTH, BLADE_WIDTH)
+	blade_mesh.size = Vector3(BLADE_THICKNESS, BLADE_LENGTH * 0.85, BLADE_WIDTH)
 	blade.mesh = blade_mesh
 	blade.material_override = _blade_mat()
-	blade.position = Vector3(0, TSUKA_LENGTH + TSUBA_THICKNESS + BLADE_LENGTH * 0.5, 0)
+	blade.position = Vector3(0, TSUKA_LENGTH + TSUBA_THICKNESS + BLADE_LENGTH * 0.425 + 0.024, 0)
 	# Slight forward tilt for the iconic katana curve illusion
 	blade.rotation = Vector3(deg_to_rad(-2.5), 0, 0)
 	add_child(blade)
 
+	# Kissaki (tapered tip). A second BoxMesh at the top that we
+	# narrow via scale-z so the silhouette ends in a point instead of
+	# a flat slab. Real katana taper to ~30% width at the kissaki.
+	var kissaki := MeshInstance3D.new()
+	kissaki.name = "Kissaki"
+	var ki_mesh := BoxMesh.new()
+	ki_mesh.size = Vector3(BLADE_THICKNESS * 0.85, BLADE_LENGTH * 0.15, BLADE_WIDTH * 0.85)
+	kissaki.mesh = ki_mesh
+	kissaki.material_override = _blade_mat()
+	# Position above the main blade, oriented along the same tilt
+	kissaki.position = Vector3(0, TSUKA_LENGTH + TSUBA_THICKNESS + BLADE_LENGTH * 0.925 + 0.024, 0)
+	kissaki.rotation = blade.rotation
+	# Scale Z down to taper the tip (0.85 -> 0.30 along Y is the visual
+	# illusion since BoxMesh is uniform; we simulate via two nested
+	# child instances). For 1-mesh approach, scale.z directly.
+	kissaki.scale.z = 0.55
+	add_child(kissaki)
+
 	# Hamon (tempering wave) accent: thin lighter strip down one side
+	# of the blade. Mirror-polish so it catches highlight at swing-time.
 	var hamon := MeshInstance3D.new()
 	hamon.name = "Hamon"
 	var hamon_mesh := BoxMesh.new()
-	hamon_mesh.size = Vector3(BLADE_THICKNESS * 0.4, BLADE_LENGTH * 0.95, BLADE_WIDTH * 1.01)
+	hamon_mesh.size = Vector3(BLADE_THICKNESS * 0.4, BLADE_LENGTH * 0.80, BLADE_WIDTH * 1.01)
 	hamon.mesh = hamon_mesh
 	var hmat := StandardMaterial3D.new()
 	hmat.albedo_color = Color(0.92, 0.96, 1.0, 1)
 	hmat.metallic = 1.0
 	hmat.roughness = 0.04  # mirror finish so it catches the sun
 	hamon.material_override = hmat
-	hamon.position = Vector3(BLADE_THICKNESS * 0.31, TSUKA_LENGTH + TSUBA_THICKNESS + BLADE_LENGTH * 0.475, 0)
+	hamon.position = Vector3(BLADE_THICKNESS * 0.31, TSUKA_LENGTH + TSUBA_THICKNESS + BLADE_LENGTH * 0.42 + 0.024, 0)
 	hamon.rotation = blade.rotation
 	add_child(hamon)
 
