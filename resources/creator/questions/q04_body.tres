@@ -1,0 +1,35 @@
+[gd_resource type="CreatorQuestion" load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://scripts/player/creator_choice.gd" id="1_choice"]
+
+[sub_resource type="Resource" id="c_lean"]
+script = ExtResource("1_choice")
+choice_id = &"body_lean"
+text = "Lean. Quick. The fights I lose are the ones I should have run from."
+storyteller_response = "Smart frame for a smart fighter. Don't take a hit you can sidestep."
+sets_body_type = 0
+pushes_stat_lean = {&"dexterity": 1}
+
+[sub_resource type="Resource" id="c_athletic"]
+script = ExtResource("1_choice")
+choice_id = &"body_athletic"
+text = "Athletic. I can run all day. I can swing all day."
+storyteller_response = "The middle frame. Most champions ended up here. Most also died here."
+sets_body_type = 1
+
+[sub_resource type="Resource" id="c_stocky"]
+script = ExtResource("1_choice")
+choice_id = &"body_stocky"
+text = "Stocky. I'd rather not move than move wrong."
+storyteller_response = "Heavy frame. The blows you take, you take. You take fewer than the lean ones think."
+sets_body_type = 2
+pushes_stat_lean = {&"vitality": 1, &"dexterity": -1}
+
+[resource]
+question_id = &"q04_body"
+question_order = 40
+prompt = "What does your body owe you?"
+subtext = "(determines body type and a small stat lean push)"
+choices = [SubResource("c_lean"), SubResource("c_athletic"), SubResource("c_stocky")]
+required = true
+category = "body"

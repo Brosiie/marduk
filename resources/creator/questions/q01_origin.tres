@@ -1,0 +1,52 @@
+[gd_resource type="CreatorQuestion" load_steps=6 format=3]
+
+[ext_resource type="Script" path="res://scripts/player/creator_choice.gd" id="1_choice"]
+
+[sub_resource type="Resource" id="c_anunnaki"]
+script = ExtResource("1_choice")
+choice_id = &"origin_babilim"
+text = "Babilim. The court, the Inkstone, the high pillars."
+storyteller_response = "Then you came up tall. The right people noticed. The wrong people noticed too."
+sets_race = &"anunnaki"
+biographical_tags = [&"origin_court", &"literate"]
+
+[sub_resource type="Resource" id="c_steppes"]
+script = ExtResource("1_choice")
+choice_id = &"origin_steppes"
+text = "The ash-steppes. East of the Bone Mountains."
+storyteller_response = "I can see the wind in your face. You were taught to fight before you were taught to read."
+sets_race = &"ash_born"
+biographical_tags = [&"origin_steppes", &"warrior_raised"]
+
+[sub_resource type="Resource" id="c_coast"]
+script = ExtResource("1_choice")
+choice_id = &"origin_coast"
+text = "The Bay, or the Wastes. Salt water either way."
+storyteller_response = "Reed-walker stock. The temple of breaths sits on your coast. You may have heard it."
+sets_race = &"reed_walker"
+biographical_tags = [&"origin_coast", &"sea_lung"]
+
+[sub_resource type="Resource" id="c_mountains"]
+script = ExtResource("1_choice")
+choice_id = &"origin_mountains"
+text = "The Bone Mountains. Forge-cities, deep stone."
+storyteller_response = "Mountain-Forged. Your hands have known a hammer. The pillars remember the people who built them."
+sets_race = &"mountain_forged"
+biographical_tags = [&"origin_mountains", &"hammer_hands"]
+
+[sub_resource type="Resource" id="c_wound"]
+script = ExtResource("1_choice")
+choice_id = &"origin_wound"
+text = "The Verdant Wound. The frontier my grandparents fled into."
+storyteller_response = "Wound-Marked. The corruption has touched you. It is not your fault. It rarely is."
+sets_race = &"wound_marked"
+biographical_tags = [&"origin_wound", &"touched"]
+
+[resource]
+question_id = &"q01_origin"
+question_order = 10
+prompt = "Where did your people come from?"
+subtext = "(determines race — your physical heritage and stat lean)"
+choices = [SubResource("c_anunnaki"), SubResource("c_steppes"), SubResource("c_coast"), SubResource("c_mountains"), SubResource("c_wound")]
+required = true
+category = "race"

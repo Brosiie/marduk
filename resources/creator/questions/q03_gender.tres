@@ -1,0 +1,26 @@
+[gd_resource type="CreatorQuestion" load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/player/creator_choice.gd" id="1_choice"]
+
+[sub_resource type="Resource" id="c_male"]
+script = ExtResource("1_choice")
+choice_id = &"gender_male"
+text = "Male."
+storyteller_response = ""
+sets_gender = &"male"
+
+[sub_resource type="Resource" id="c_female"]
+script = ExtResource("1_choice")
+choice_id = &"gender_female"
+text = "Female."
+storyteller_response = ""
+sets_gender = &"female"
+
+[resource]
+question_id = &"q03_gender"
+question_order = 30
+prompt = "What name will history remember you by — his, or hers?"
+subtext = "(determines gender — visual mesh + voice pack; no stat impact)"
+choices = [SubResource("c_male"), SubResource("c_female")]
+required = true
+category = "gender"

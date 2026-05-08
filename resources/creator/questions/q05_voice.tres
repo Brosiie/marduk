@@ -1,0 +1,36 @@
+[gd_resource type="CreatorQuestion" load_steps=6 format=3]
+
+[ext_resource type="Script" path="res://scripts/player/creator_choice.gd" id="1_choice"]
+
+[sub_resource type="Resource" id="c_v0"]
+script = ExtResource("1_choice")
+choice_id = &"voice_measured"
+text = "Measured. I think before I speak. Most of the time."
+sets_voice_pack = 0
+
+[sub_resource type="Resource" id="c_v1"]
+script = ExtResource("1_choice")
+choice_id = &"voice_clipped"
+text = "Clipped. I waste no syllables."
+sets_voice_pack = 1
+
+[sub_resource type="Resource" id="c_v2"]
+script = ExtResource("1_choice")
+choice_id = &"voice_warm"
+text = "Warm. The kind of voice that can sing if it wants to."
+sets_voice_pack = 2
+
+[sub_resource type="Resource" id="c_v3"]
+script = ExtResource("1_choice")
+choice_id = &"voice_low"
+text = "Low. Carries through walls. People stop listening when I start."
+sets_voice_pack = 3
+
+[resource]
+question_id = &"q05_voice"
+question_order = 50
+prompt = "How do you sound when you speak?"
+subtext = "(determines voice pack — race-tinted accent layered on top)"
+choices = [SubResource("c_v0"), SubResource("c_v1"), SubResource("c_v2"), SubResource("c_v3")]
+required = true
+category = "face"

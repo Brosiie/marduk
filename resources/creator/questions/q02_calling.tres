@@ -1,0 +1,76 @@
+[gd_resource type="CreatorQuestion" load_steps=10 format=3]
+
+[ext_resource type="Script" path="res://scripts/player/creator_choice.gd" id="1_choice"]
+
+[sub_resource type="Resource" id="c_berserker"]
+script = ExtResource("1_choice")
+choice_id = &"call_berserker"
+text = "An axe. A two-handed one. Heavy enough to be honest."
+storyteller_response = "A Berserker. Rage will pay your bills. The body will pay the rage."
+sets_class_id = &"berserker"
+biographical_tags = [&"weapon_axe"]
+
+[sub_resource type="Resource" id="c_assassin"]
+script = ExtResource("1_choice")
+choice_id = &"call_assassin"
+text = "A pair of daggers. Light. Reverse-grip when they're working."
+storyteller_response = "An Assassin. Quiet work. The shadows will have you. You will not have them back."
+sets_class_id = &"assassin"
+biographical_tags = [&"weapon_dagger", &"hooded"]
+
+[sub_resource type="Resource" id="c_ronin"]
+script = ExtResource("1_choice")
+choice_id = &"call_ronin"
+text = "A katana. The grip wraps in cobalt. I count when I breathe."
+storyteller_response = "A Ronin. The breath has a count. Most people don't notice. You did."
+sets_class_id = &"ronin"
+biographical_tags = [&"weapon_katana", &"breath_counter"]
+
+[sub_resource type="Resource" id="c_ranger"]
+script = ExtResource("1_choice")
+choice_id = &"call_ranger"
+text = "A bow. The string is calloused into my fingers."
+storyteller_response = "A Ranger. The forest will give you everything except company. You won't miss it."
+sets_class_id = &"ranger"
+biographical_tags = [&"weapon_bow"]
+
+[sub_resource type="Resource" id="c_mage"]
+script = ExtResource("1_choice")
+choice_id = &"call_mage"
+text = "A staff. A book in the other hand most days. Rarely either."
+storyteller_response = "A Mage. The Inkstone took you in. Whether they let you out is a different question."
+sets_class_id = &"mage"
+biographical_tags = [&"weapon_staff", &"literate"]
+
+[sub_resource type="Resource" id="c_druid"]
+script = ExtResource("1_choice")
+choice_id = &"call_druid"
+text = "Whatever I held, the Wound rewrote into bone-and-vine. So: nothing, and everything."
+storyteller_response = "A Chaos Druid. The Wound chose you back. Don't tell the Inquisition."
+sets_class_id = &"chaos_druid"
+biographical_tags = [&"wound_druid"]
+
+[sub_resource type="Resource" id="c_pal_g"]
+script = ExtResource("1_choice")
+choice_id = &"call_pal_guardian"
+text = "A shield first, a hammer second. The order matters."
+storyteller_response = "A Paladin Guardian. The Crown will love you for it. The Crown loves what serves it."
+sets_class_id = &"paladin_guardian"
+biographical_tags = [&"weapon_shield", &"crown_oath"]
+
+[sub_resource type="Resource" id="c_pal_l"]
+script = ExtResource("1_choice")
+choice_id = &"call_pal_light"
+text = "A two-handed maul with a sun-disc on the head. A cape, no tabard."
+storyteller_response = "A Paladin Lightbringer. Dawn-light follows you in. You probably don't see it. Most don't."
+sets_class_id = &"paladin_lightbringer"
+biographical_tags = [&"weapon_maul", &"sun_oath"]
+
+[resource]
+question_id = &"q02_calling"
+question_order = 20
+prompt = "What is the weapon you've held longest?"
+subtext = "(determines class — your trained discipline; the Demon class is unlocked separately)"
+choices = [SubResource("c_berserker"), SubResource("c_assassin"), SubResource("c_ronin"), SubResource("c_ranger"), SubResource("c_mage"), SubResource("c_druid"), SubResource("c_pal_g"), SubResource("c_pal_l")]
+required = true
+category = "class"
