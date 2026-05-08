@@ -113,6 +113,14 @@ func _physics_process(_delta: float) -> void:
 		velocity = Vector3.ZERO
 		_play_anim_for_state(WanderState.PAUSING)
 		return
+	# Day/night schedule: at night villagers stop wandering and stand
+	# still (placeholder for going to bed). Resumes at dawn. Driven by
+	# the WorldClock autoload's is_night helper.
+	if _is_night_now():
+		velocity = Vector3.ZERO
+		_play_anim_for_state(WanderState.PAUSING)
+		move_and_slide()
+		return
 	var t := _now()
 	match _wander_state:
 		WanderState.PAUSING:
@@ -169,6 +177,14 @@ func _play_anim_for_state(s: int) -> void:
 
 func _now() -> float:
 	return Time.get_ticks_msec() / 1000.0
+
+# True if the world clock is in night phase. Defaults to false if no
+# WorldClock autoload (NPC keeps wandering as a safe fallback).
+func _is_night_now() -> bool:
+	var clock: Node = get_node_or_null("/root/WorldClock")
+	if clock and clock.has_method("is_night"):
+		return clock.is_night()
+	return false
 
 func _attach_npc_mesh() -> void:
 	# If a MeshRoot already exists with a child, leave it. Otherwise
