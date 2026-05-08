@@ -65,6 +65,11 @@ func _ready() -> void:
 	# read as a serious threat the moment the player sees them, even
 	# from far across the arena. Bigger than the player's class aura.
 	_spawn_boss_aura()
+	# Boss rim: brighter crimson + slow pulse so the silhouette
+	# THROBS as you fight. Override the inherited enemy rim defaults.
+	rim_color = Color(1.00, 0.20, 0.20, 1.0)
+	rim_power = 2.0
+	rim_strength = 2.0
 
 	# Inflate phase data
 	for d in phases_data:

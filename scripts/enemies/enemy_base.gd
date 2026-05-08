@@ -46,6 +46,10 @@ func _ready() -> void:
 	add_to_group("enemy")
 	_apply_prestige_scaling()
 	_attach_nameplate()
+	# Crimson rim-light pass on enemy meshes: separates them from the
+	# volumetric-fogged backgrounds and signals 'hostile' through color.
+	# Bosses override this with a stronger pulse in BossBase._ready.
+	call_deferred("_apply_enemy_rim")
 	# Reset Mixamo skeleton bones to rest pose so the skinned mesh
 	# renders correctly. Without this Mixamo characters appear
 	# invisible (skin collapses to a flat plane).
@@ -230,6 +234,41 @@ func _clear_attack_telegraph() -> void:
 # position. Parented to current_scene (not self) so it lives past
 # queue_free. Dark embers expand and fade for that satisfying 'soul
 # leaving the body' read.
+# Apply additive rim shader to all MeshInstance3Ds under self. Walks
+# the imported .glb's tree (Skeleton3D > MeshInstance3D for Mixamo).
+# Hostile crimson by default; bosses override with bigger strength.
+@export var rim_color: Color = Color(0.92, 0.18, 0.20, 1.0)
+@export var rim_power: float = 2.2
+@export var rim_strength: float = 1.3
+
+func _apply_enemy_rim() -> void:
+	var rim_shader: Shader = load("res://shaders/rim_pass.gdshader")
+	if rim_shader == null:
+		return
+	_apply_rim_recurse(self, rim_shader)
+
+func _apply_rim_recurse(node: Node, shader: Shader) -> void:
+	if node is MeshInstance3D:
+		var mi := node as MeshInstance3D
+		if mi.mesh:
+			for i in range(mi.mesh.get_surface_count()):
+				var src: Material = mi.get_surface_override_material(i)
+				if src == null:
+					src = mi.mesh.surface_get_material(i)
+				var rim_mat := ShaderMaterial.new()
+				rim_mat.shader = shader
+				rim_mat.set_shader_parameter("rim_color", rim_color)
+				rim_mat.set_shader_parameter("rim_power", rim_power)
+				rim_mat.set_shader_parameter("rim_strength", rim_strength)
+				if src:
+					var src_dup: Material = src.duplicate()
+					src_dup.next_pass = rim_mat
+					mi.set_surface_override_material(i, src_dup)
+				else:
+					mi.set_surface_override_material(i, rim_mat)
+	for c in node.get_children():
+		_apply_rim_recurse(c, shader)
+
 func _spawn_death_puff() -> void:
 	var puff := GPUParticles3D.new()
 	puff.name = "DeathPuff"

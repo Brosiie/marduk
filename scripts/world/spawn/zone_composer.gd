@@ -168,6 +168,38 @@ func _banner(asset: String, pos: Vector3, color: Color = Color(0.92, 0.92, 0.92,
 	_apply_wind_tint(inst, color, amplitude, 0.0)
 	return inst
 
+# Koi pond: a flat water plane with the water_pond.gdshader. Renders
+# rippling sin-noise waves + fresnel gold rim + cool depth gradient.
+# Adds a ReflectionProbe so the bridge + lanterns above actually
+# mirror in the water.
+func _spawn_koi_pond(center: Vector3, size_xz: Vector2) -> Node3D:
+	var pond := MeshInstance3D.new()
+	pond.name = "KoiPond"
+	var plane := PlaneMesh.new()
+	plane.size = size_xz
+	plane.subdivide_width = 24
+	plane.subdivide_depth = 8
+	pond.mesh = plane
+	var mat := ShaderMaterial.new()
+	mat.shader = load("res://shaders/water_pond.gdshader")
+	mat.set_shader_parameter("shallow_color", Color(0.55, 0.78, 0.82, 0.88))
+	mat.set_shader_parameter("deep_color", Color(0.10, 0.20, 0.32, 1.0))
+	mat.set_shader_parameter("fresnel_color", Color(1.0, 0.85, 0.55, 1.0))
+	pond.material_override = mat
+	add_child(pond)
+	pond.global_position = global_position + center
+	# Reflection probe so the bridge + lanterns mirror in the surface
+	var probe := ReflectionProbe.new()
+	probe.name = "PondReflection"
+	probe.size = Vector3(size_xz.x + 4, 8, size_xz.y + 4)
+	probe.update_mode = ReflectionProbe.UPDATE_ONCE  # bake at scene load
+	probe.intensity = 0.65
+	probe.box_projection = true
+	probe.cull_mask = 0xFFFFFFFF
+	add_child(probe)
+	probe.global_position = global_position + center + Vector3(0, 1, 0)
+	return pond
+
 # Stone lantern (toro) — built from a tall narrow column piece + a tinted
 # torch on top so it reads as a paper lantern atop a stone pedestal. No
 # dedicated Kenney piece; this composition is the closest read.
@@ -451,13 +483,17 @@ func _build_sword_vow_ruins() -> void:
 	for z in range(-int(size / 2) + 4, int(size / 2) + 1, 2):
 		_spawn("floor_tile_small_decorated.gltf.glb", Vector3(0, 0.05, z))
 
-	# --- Wooden arched bridge over a "dry stream" of stones in middle ---
-	# The bridge is the eye-magnet centerpiece. Stone scatter underneath
-	# reads as a stream bed even without water.
+	# --- Wooden arched bridge over a koi pond in middle ---
+	# The bridge is the eye-magnet centerpiece. Now spans an actual
+	# water plane with the water_pond shader (rippling waves +
+	# fresnel rim + lantern-glow tint).
 	_nat("bridge_wood.glb", Vector3(0, 0.1, 0), 0.0, 1.4)
-	# Stones running perpendicular under the bridge (the "stream")
-	for x_step in range(-6, 7, 2):
-		_nat(["cliff_blockHalf_stone.glb"].pick_random(), Vector3(float(x_step), 0, 0), randf() * 360.0, randf_range(0.6, 0.9))
+	# Stones edging the pond banks (tells you water sits between them)
+	for x_step in range(-8, 9, 2):
+		_nat(["cliff_blockHalf_stone.glb"].pick_random(), Vector3(float(x_step), 0, -2.5), randf() * 360.0, randf_range(0.5, 0.8))
+		_nat(["cliff_blockHalf_stone.glb"].pick_random(), Vector3(float(x_step), 0, 2.5), randf() * 360.0, randf_range(0.5, 0.8))
+	# Water plane sitting just below the bridge
+	_spawn_koi_pond(Vector3(0, 0.05, 0), Vector2(18, 5))
 
 	# --- Cherry blossom grove perimeter (instead of generic trees) ---
 	# Tinted to soft pink. We use the _fall variants because they have

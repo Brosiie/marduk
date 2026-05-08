@@ -188,6 +188,11 @@ func _ready() -> void:
 	# matching the class buff palette (Ronin gold, Mage blue, etc).
 	# Spawned once class is set; reads as 'this character is powered'.
 	_spawn_class_aura()
+	# Character rim lighting: applies an additive next_pass shader to
+	# every MeshInstance3D under the player so the silhouette glows
+	# in class color. Critical for keeping the character readable
+	# against volumetric-fogged backgrounds.
+	_apply_character_rim()
 	# Force-fresh HP/mana so HUD doesn't show stale values from the ProgressBar defaults
 	stats.hp = stats.max_hp
 	stats.mana = stats.max_mana
@@ -897,6 +902,44 @@ func _trigger_battle_cry() -> void:
 # tells the world 'this character is a Ronin' (gold motes) or 'this
 # is a Mage' (blue arcane wisps). Spawned once class is known.
 var _class_aura: GPUParticles3D = null
+
+# Walks every MeshInstance3D under the player mesh root and gives it
+# a next_pass rim-lit material so the character silhouette glows in
+# class-buff color. Non-destructive: the original material renders
+# unchanged, the rim is added on top.
+func _apply_character_rim() -> void:
+	if mesh == null:
+		return
+	var color: Color = _class_buff_color()
+	var rim_shader: Shader = load("res://shaders/rim_pass.gdshader")
+	if rim_shader == null:
+		return
+	_apply_rim_recursive(mesh, rim_shader, color, 2.4, 1.4)
+
+func _apply_rim_recursive(node: Node, shader: Shader, color: Color, power: float, strength: float) -> void:
+	if node is MeshInstance3D:
+		var mi := node as MeshInstance3D
+		if mi.mesh:
+			for i in range(mi.mesh.get_surface_count()):
+				# Source material: prefer override, fall back to mesh-level
+				var src: Material = mi.get_surface_override_material(i)
+				if src == null:
+					src = mi.mesh.surface_get_material(i)
+				# Build the rim pass
+				var rim_mat := ShaderMaterial.new()
+				rim_mat.shader = shader
+				rim_mat.set_shader_parameter("rim_color", color)
+				rim_mat.set_shader_parameter("rim_power", power)
+				rim_mat.set_shader_parameter("rim_strength", strength)
+				if src:
+					var src_dup: Material = src.duplicate()
+					src_dup.next_pass = rim_mat
+					mi.set_surface_override_material(i, src_dup)
+				else:
+					# No source: just override with rim shader directly
+					mi.set_surface_override_material(i, rim_mat)
+	for c in node.get_children():
+		_apply_rim_recursive(c, shader, color, power, strength)
 
 func _spawn_class_aura() -> void:
 	if _class_aura and is_instance_valid(_class_aura):
