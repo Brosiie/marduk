@@ -1,137 +1,234 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
-  <!-- Marduk icon: Babylonian medallion. Sword-Vow katana standing
-       upright, jagged lightning bolt behind it (Marduk's storm), and
-       Tiamat's serpent coiled at the base. Gold + steel + crimson on
-       deep purple-black night sky. Reads at 16x16. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+  <!-- Marduk emblem: Babylonian struck-medallion. Sword-Vow katana
+       upright at center, jagged storm-bolt arcing behind it,
+       Tiamat's serpent coiled at the base biting its own tail.
+       Cuneiform border, gold inlay, deep night-sky background. -->
   <defs>
-    <radialGradient id="bg" cx="50%" cy="42%" r="62%">
-      <stop offset="0%" stop-color="#1a0d2a"/>
-      <stop offset="60%" stop-color="#0a0612"/>
+    <!-- Background: deep purple-black night sky -->
+    <radialGradient id="bg" cx="50%" cy="42%" r="65%">
+      <stop offset="0%" stop-color="#1f1133"/>
+      <stop offset="55%" stop-color="#0a0612"/>
       <stop offset="100%" stop-color="#000000"/>
     </radialGradient>
-    <radialGradient id="medallion" cx="50%" cy="38%" r="58%">
-      <stop offset="0%" stop-color="#fde58c"/>
-      <stop offset="55%" stop-color="#c69238"/>
-      <stop offset="100%" stop-color="#5a3410"/>
+    <!-- Medallion: layered gold with depth -->
+    <radialGradient id="medallion" cx="50%" cy="35%" r="62%">
+      <stop offset="0%" stop-color="#ffeaa6"/>
+      <stop offset="35%" stop-color="#e8b94a"/>
+      <stop offset="75%" stop-color="#a47018"/>
+      <stop offset="100%" stop-color="#3a2008"/>
     </radialGradient>
-    <linearGradient id="blade" x1="50%" y1="0%" x2="50%" y2="100%">
-      <stop offset="0%" stop-color="#fafbff"/>
-      <stop offset="50%" stop-color="#cbd2e2"/>
-      <stop offset="100%" stop-color="#7a8090"/>
+    <radialGradient id="inlay" cx="50%" cy="48%" r="50%">
+      <stop offset="0%" stop-color="#3a1d08" stop-opacity="0"/>
+      <stop offset="85%" stop-color="#3a1d08" stop-opacity="0"/>
+      <stop offset="100%" stop-color="#3a1d08" stop-opacity="0.6"/>
+    </radialGradient>
+    <!-- Blade: cold steel with directional highlight -->
+    <linearGradient id="blade" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#5a626a"/>
+      <stop offset="35%" stop-color="#dde3f0"/>
+      <stop offset="50%" stop-color="#fafbff"/>
+      <stop offset="65%" stop-color="#cbd2e2"/>
+      <stop offset="100%" stop-color="#3a4048"/>
     </linearGradient>
-    <linearGradient id="bolt" x1="0%" y1="0%" x2="0%" y2="100%">
+    <!-- Lightning: electric pale-gold core with hot edge -->
+    <linearGradient id="bolt" x1="50%" y1="0%" x2="50%" y2="100%">
       <stop offset="0%" stop-color="#fff8d8"/>
-      <stop offset="50%" stop-color="#ffd860"/>
-      <stop offset="100%" stop-color="#c98018"/>
+      <stop offset="40%" stop-color="#ffd860"/>
+      <stop offset="100%" stop-color="#c87018"/>
     </linearGradient>
-    <radialGradient id="serpent" cx="50%" cy="50%" r="60%">
-      <stop offset="0%" stop-color="#7a2020"/>
-      <stop offset="100%" stop-color="#3a0a0a"/>
-    </radialGradient>
+    <!-- Serpent: deep crimson with iridescent scale highlight -->
+    <linearGradient id="serpent" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#a82828"/>
+      <stop offset="50%" stop-color="#5a1418"/>
+      <stop offset="100%" stop-color="#2a0808"/>
+    </linearGradient>
+    <!-- Soft glow filter for blade + bolt -->
     <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
-      <feGaussianBlur stdDeviation="1.4"/>
+      <feGaussianBlur stdDeviation="2.4"/>
+    </filter>
+    <filter id="glowSmall" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="1.2"/>
     </filter>
   </defs>
 
-  <!-- Background: night sky -->
-  <rect width="128" height="128" fill="url(#bg)"/>
+  <!-- Background -->
+  <rect width="256" height="256" fill="url(#bg)"/>
 
-  <!-- Outer rings -->
-  <circle cx="64" cy="64" r="59" fill="none" stroke="#7a4f0a" stroke-width="0.8"/>
-  <circle cx="64" cy="64" r="56.5" fill="none" stroke="#1a0d04" stroke-width="0.5"/>
+  <!-- Outer rings (struck medallion edge) -->
+  <circle cx="128" cy="128" r="120" fill="none" stroke="#b08838" stroke-width="1.2"/>
+  <circle cx="128" cy="128" r="116" fill="none" stroke="#0e0703" stroke-width="0.6"/>
 
   <!-- Inner medallion -->
-  <circle cx="64" cy="64" r="51" fill="url(#medallion)" stroke="#3a2210" stroke-width="0.8"/>
+  <circle cx="128" cy="128" r="106" fill="url(#medallion)" stroke="#1f0e04" stroke-width="1.2"/>
 
-  <!-- Cuneiform-style wedge notches on the rim (12 evenly spaced) -->
+  <!-- Cuneiform-inspired border ring: 24 wedges around the inside rim,
+       alternating sizes for a struck-coin feel -->
   <g fill="#3a1d08" opacity="0.85">
-    <!-- Vertical wedges (top, bottom) -->
-    <path d="M64 16 L62 24 L66 24 Z"/>
-    <path d="M64 112 L62 104 L66 104 Z"/>
-    <!-- Horizontal wedges (left, right) -->
-    <path d="M16 64 L24 62 L24 66 Z"/>
-    <path d="M112 64 L104 62 L104 66 Z"/>
-    <!-- Diagonal wedges -->
-    <path d="M30 30 L36 34 L33 37 Z"/>
-    <path d="M98 30 L92 34 L95 37 Z"/>
-    <path d="M30 98 L33 91 L36 94 Z"/>
-    <path d="M98 98 L95 91 L92 94 Z"/>
-    <!-- Cardinal mid wedges -->
-    <path d="M88 18 L86 24 L90 25 Z"/>
-    <path d="M40 18 L42 24 L38 25 Z"/>
-    <path d="M88 110 L90 103 L86 104 Z"/>
-    <path d="M40 110 L38 103 L42 104 Z"/>
+    <g transform="translate(128 128)">
+      <!-- 24-fold rotational pattern via 15deg increments -->
+      <g><path d="M0 -98 L-3 -88 L3 -88 Z" transform="rotate(0)"/></g>
+      <g><path d="M0 -96 L-2 -90 L2 -90 Z" transform="rotate(15)"/></g>
+      <g><path d="M0 -98 L-3 -88 L3 -88 Z" transform="rotate(30)"/></g>
+      <g><path d="M0 -96 L-2 -90 L2 -90 Z" transform="rotate(45)"/></g>
+      <g><path d="M0 -98 L-3 -88 L3 -88 Z" transform="rotate(60)"/></g>
+      <g><path d="M0 -96 L-2 -90 L2 -90 Z" transform="rotate(75)"/></g>
+      <g><path d="M0 -98 L-3 -88 L3 -88 Z" transform="rotate(90)"/></g>
+      <g><path d="M0 -96 L-2 -90 L2 -90 Z" transform="rotate(105)"/></g>
+      <g><path d="M0 -98 L-3 -88 L3 -88 Z" transform="rotate(120)"/></g>
+      <g><path d="M0 -96 L-2 -90 L2 -90 Z" transform="rotate(135)"/></g>
+      <g><path d="M0 -98 L-3 -88 L3 -88 Z" transform="rotate(150)"/></g>
+      <g><path d="M0 -96 L-2 -90 L2 -90 Z" transform="rotate(165)"/></g>
+      <g><path d="M0 -98 L-3 -88 L3 -88 Z" transform="rotate(180)"/></g>
+      <g><path d="M0 -96 L-2 -90 L2 -90 Z" transform="rotate(195)"/></g>
+      <g><path d="M0 -98 L-3 -88 L3 -88 Z" transform="rotate(210)"/></g>
+      <g><path d="M0 -96 L-2 -90 L2 -90 Z" transform="rotate(225)"/></g>
+      <g><path d="M0 -98 L-3 -88 L3 -88 Z" transform="rotate(240)"/></g>
+      <g><path d="M0 -96 L-2 -90 L2 -90 Z" transform="rotate(255)"/></g>
+      <g><path d="M0 -98 L-3 -88 L3 -88 Z" transform="rotate(270)"/></g>
+      <g><path d="M0 -96 L-2 -90 L2 -90 Z" transform="rotate(285)"/></g>
+      <g><path d="M0 -98 L-3 -88 L3 -88 Z" transform="rotate(300)"/></g>
+      <g><path d="M0 -96 L-2 -90 L2 -90 Z" transform="rotate(315)"/></g>
+      <g><path d="M0 -98 L-3 -88 L3 -88 Z" transform="rotate(330)"/></g>
+      <g><path d="M0 -96 L-2 -90 L2 -90 Z" transform="rotate(345)"/></g>
+    </g>
   </g>
 
-  <!-- Lightning bolt: jagged zigzag behind the katana, glowing -->
+  <!-- Inner ring border (slightly inset gold line) -->
+  <circle cx="128" cy="128" r="84" fill="none" stroke="#7a4a18" stroke-width="0.8" opacity="0.7"/>
+
+  <!-- LIGHTNING BOLT: jagged storm arc behind blade. Glow underlay
+       + sharp foreground stroke for the electric crackle look. -->
   <g filter="url(#glow)">
-    <path d="M76 22 L60 50 L72 52 L52 90 L66 64 L56 62 Z"
+    <path d="M152 50
+             L114 102
+             L138 108
+             L98 184
+             L132 134
+             L108 128 Z"
           fill="url(#bolt)" opacity="0.55"/>
   </g>
-  <path d="M76 22 L60 50 L72 52 L52 90 L66 64 L56 62 Z"
+  <path d="M152 50
+           L114 102
+           L138 108
+           L98 184
+           L132 134
+           L108 128 Z"
         fill="url(#bolt)"
-        stroke="#7a4a0a"
-        stroke-width="0.4"
+        stroke="#7a4a08"
+        stroke-width="1"
         opacity="0.95"/>
+  <!-- Bright internal core highlight -->
+  <path d="M148 56 L120 102 L130 108 L106 168"
+        fill="none"
+        stroke="#fffce0"
+        stroke-width="1.6"
+        opacity="0.85"/>
 
-  <!-- Tiamat: coiled serpent at the base of the blade. S-curve with
-       two visible humps + a darker center stripe for scales. Stylised
-       so it reads as 'serpent under sword' at thumbnail size. -->
-  <path d="M30 100
-           Q44 88 56 96
-           Q66 102 76 96
-           Q88 90 96 96
-           Q100 100 96 102
-           Q88 106 76 102
-           Q66 96 56 102
-           Q44 108 30 102
-           Z"
-        fill="url(#serpent)"
-        stroke="#1a0404"
-        stroke-width="0.7"/>
-  <!-- Scale ridge along the back -->
-  <path d="M32 100 Q44 92 56 98 Q66 102 76 98 Q88 92 94 98"
-        fill="none" stroke="#a05050" stroke-width="0.5" opacity="0.6"/>
-  <!-- Serpent eye + fang glint -->
-  <circle cx="92" cy="98" r="1.6" fill="#fde08a"/>
-  <circle cx="92" cy="98" r="0.6" fill="#000"/>
-  <path d="M89 100 L91 102" stroke="#fff8d0" stroke-width="0.5"/>
-
-  <!-- Vertical katana (Sword-Vow) -->
-  <!-- Pommel cap -->
-  <rect x="61" y="22" width="6" height="2.5" fill="#3a2210" stroke="#0e0703" stroke-width="0.3"/>
-  <!-- Tsuka (handle) wrapped grip -->
-  <rect x="61" y="24.5" width="6" height="14" fill="#16080a"/>
-  <line x1="61" y1="27" x2="67" y2="28.5" stroke="#704028" stroke-width="0.4"/>
-  <line x1="61" y1="30" x2="67" y2="31.5" stroke="#704028" stroke-width="0.4"/>
-  <line x1="61" y1="33" x2="67" y2="34.5" stroke="#704028" stroke-width="0.4"/>
-  <line x1="61" y1="36" x2="67" y2="37.5" stroke="#704028" stroke-width="0.4"/>
-  <!-- Tsuba (crossguard) -->
-  <ellipse cx="64" cy="40" rx="10" ry="2.2" fill="#3a2210" stroke="#0e0703" stroke-width="0.4"/>
-  <ellipse cx="64" cy="40" rx="9" ry="1.5" fill="#5a3a1a" opacity="0.6"/>
-  <!-- Blade with subtle glow -->
-  <g filter="url(#glow)">
-    <path d="M62.5 41 L65.5 41 L65 84 L64 86 L63 84 Z"
-          fill="#fafbff" opacity="0.4"/>
+  <!-- TIAMAT: ouroboros-style serpent coiled at the base. Two
+       overlapping S-curves with scale ridge + multiple eyes + fang.
+       Stylised so it reads as 'serpent under sword' at thumbnail. -->
+  <g>
+    <!-- Outer body: thick S-curve from left to right -->
+    <path d="M48 200
+             Q70 178 96 192
+             Q120 204 148 192
+             Q176 178 198 192
+             Q210 200 198 208
+             Q176 220 148 208
+             Q120 200 96 208
+             Q70 220 48 208
+             Q40 204 48 200 Z"
+          fill="url(#serpent)"
+          stroke="#1a0404"
+          stroke-width="1.2"/>
+    <!-- Scale ridge along the back -->
+    <path d="M52 200 Q72 184 96 196 Q120 204 148 196 Q172 184 196 200"
+          fill="none" stroke="#d56060" stroke-width="1.4" opacity="0.55"/>
+    <!-- Cross-hatch scale pattern -->
+    <g stroke="#7a2020" stroke-width="0.6" opacity="0.5" fill="none">
+      <path d="M58 196 L60 204"/>
+      <path d="M70 192 L72 206"/>
+      <path d="M84 196 L86 206"/>
+      <path d="M98 200 L100 208"/>
+      <path d="M112 198 L114 207"/>
+      <path d="M126 198 L128 208"/>
+      <path d="M140 198 L142 207"/>
+      <path d="M154 198 L156 208"/>
+      <path d="M168 196 L170 206"/>
+      <path d="M182 194 L184 204"/>
+    </g>
+    <!-- Serpent head (right side): clearer with eye + fang -->
+    <ellipse cx="194" cy="200" rx="9" ry="5" fill="#5a1418" stroke="#1a0404" stroke-width="0.8"/>
+    <circle cx="195" cy="198" r="2.4" fill="#fde08a"/>
+    <circle cx="195.5" cy="198.2" r="1" fill="#0a0a0a"/>
+    <!-- Tongue forking out -->
+    <path d="M203 200 L208 197 M203 200 L208 203"
+          stroke="#a02020" stroke-width="1.2" fill="none"/>
+    <!-- Tail tip on the left -->
+    <ellipse cx="46" cy="204" rx="4" ry="2.4" fill="#3a0a0a"/>
   </g>
-  <path d="M62.3 41 L65.7 41 L65.1 84 L64 86 L62.9 84 Z"
+
+  <!-- KATANA: pommel + handle wrap + tsuba + blade with glow.
+       Coordinates centered around (128, blade-extends-from-44-to-178). -->
+  <!-- Pommel cap (kashira) -->
+  <rect x="122" y="40" width="12" height="5" rx="1.2" fill="#3a2210" stroke="#0e0703" stroke-width="0.6"/>
+  <!-- Tsuka (handle) wrapped grip -->
+  <rect x="122" y="45" width="12" height="28" fill="#1a0a0a"/>
+  <!-- Diagonal grip wrap pattern (8 stripes) -->
+  <g stroke="#7a4828" stroke-width="0.7" fill="none" opacity="0.85">
+    <line x1="122" y1="48" x2="134" y2="51"/>
+    <line x1="122" y1="52" x2="134" y2="55"/>
+    <line x1="122" y1="56" x2="134" y2="59"/>
+    <line x1="122" y1="60" x2="134" y2="63"/>
+    <line x1="122" y1="64" x2="134" y2="67"/>
+    <line x1="122" y1="68" x2="134" y2="71"/>
+    <line x1="134" y1="48" x2="122" y2="51"/>
+    <line x1="134" y1="52" x2="122" y2="55"/>
+    <line x1="134" y1="56" x2="122" y2="59"/>
+    <line x1="134" y1="60" x2="122" y2="63"/>
+    <line x1="134" y1="64" x2="122" y2="67"/>
+    <line x1="134" y1="68" x2="122" y2="71"/>
+  </g>
+  <!-- Menuki ornament: small gold rivet midway down the grip -->
+  <circle cx="128" cy="59" r="1.6" fill="#fde08a" stroke="#3a2210" stroke-width="0.4"/>
+
+  <!-- Tsuba (crossguard) -->
+  <ellipse cx="128" cy="76" rx="22" ry="4" fill="#3a2210" stroke="#0e0703" stroke-width="0.8"/>
+  <ellipse cx="128" cy="76" rx="20" ry="2.6" fill="#7a5230" opacity="0.6"/>
+  <ellipse cx="128" cy="76" rx="6" ry="1.6" fill="#0e0703"/>
+
+  <!-- Blade: glow underlay + sharp foreground -->
+  <g filter="url(#glowSmall)">
+    <path d="M124 78 L132 78 L131 168 L128 174 L125 168 Z"
+          fill="#fafbff" opacity="0.5"/>
+  </g>
+  <path d="M123.5 78 L132.5 78 L131.4 168 L128 174 L124.6 168 Z"
         fill="url(#blade)"
         stroke="#3a4050"
-        stroke-width="0.4"/>
-  <!-- Blade highlight stroke -->
-  <line x1="63.6" y1="42" x2="63.85" y2="83" stroke="#ffffff" stroke-width="0.4" opacity="0.85"/>
+        stroke-width="0.6"/>
+  <!-- Blade hi (white spine highlight) -->
+  <line x1="127.5" y1="80" x2="127.85" y2="166" stroke="#ffffff" stroke-width="0.8" opacity="0.85"/>
+  <!-- Hamon (tempering wave pattern) -->
+  <path d="M125 88 Q127 92 125 96 Q123 100 125 104 Q127 108 125 112
+           Q123 116 125 120 Q127 124 125 128 Q123 132 125 136
+           Q127 140 125 144 Q123 148 125 152 Q127 156 125 160 Q123 164 125 168"
+        fill="none" stroke="#a0a8b8" stroke-width="0.5" opacity="0.6"/>
 
   <!-- Gold sparks rising above the blade tip -->
-  <circle cx="64" cy="18" r="1.4" fill="#fde08a"/>
-  <circle cx="58" cy="20" r="0.8" fill="#fde08a" opacity="0.75"/>
-  <circle cx="70" cy="21" r="0.8" fill="#fde08a" opacity="0.75"/>
-  <circle cx="62" cy="14" r="0.5" fill="#fff8d0" opacity="0.6"/>
-  <circle cx="68" cy="14" r="0.5" fill="#fff8d0" opacity="0.6"/>
+  <circle cx="128" cy="32" r="2.4" fill="#fde08a"/>
+  <circle cx="118" cy="36" r="1.4" fill="#fde08a" opacity="0.75"/>
+  <circle cx="138" cy="38" r="1.4" fill="#fde08a" opacity="0.75"/>
+  <circle cx="124" cy="22" r="0.9" fill="#fff8d0" opacity="0.6"/>
+  <circle cx="132" cy="22" r="0.9" fill="#fff8d0" opacity="0.6"/>
+  <circle cx="128" cy="14" r="0.7" fill="#fff8d0" opacity="0.5"/>
+
+  <!-- Inlay shadow at edges for depth -->
+  <circle cx="128" cy="128" r="106" fill="url(#inlay)"/>
 
   <!-- Final vignette -->
-  <radialGradient id="vignette" cx="50%" cy="50%" r="58%">
-    <stop offset="70%" stop-color="#000000" stop-opacity="0"/>
-    <stop offset="100%" stop-color="#000000" stop-opacity="0.55"/>
+  <radialGradient id="vignette" cx="50%" cy="50%" r="60%">
+    <stop offset="65%" stop-color="#000000" stop-opacity="0"/>
+    <stop offset="100%" stop-color="#000000" stop-opacity="0.5"/>
   </radialGradient>
-  <rect width="128" height="128" fill="url(#vignette)" pointer-events="none"/>
+  <rect width="256" height="256" fill="url(#vignette)" pointer-events="none"/>
 </svg>

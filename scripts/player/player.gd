@@ -412,12 +412,29 @@ func _spawn_loading_screen() -> void:
 	if _loading_screen.has_method("set_subtitle"):
 		_loading_screen.call_deferred("set_subtitle", sub)
 
-# Wraps _load_marduk_animation_library to dismiss the loading screen
-# after the lib is built. Called via call_deferred from _ready so the
-# loading screen has at least one frame to render before we start
-# blocking on .glb loads.
+# Async wrapper that drives the AnimationLibraryLoader's coroutine.
+# Yields between slot loads so the renderer can paint the LoadingScreen
+# every ~300ms during the load. Connect the loader's progress signal
+# to the LoadingScreen so the player sees real progress text.
 func _load_marduk_animation_library_deferred() -> void:
-	_load_marduk_animation_library()
+	# Wait one frame so the loading screen has rendered before we
+	# start blocking on .glb loads.
+	await get_tree().process_frame
+	# Hand off the loader's signals to the LoadingScreen if available
+	var loader_script: GDScript = load("res://scripts/anim/animation_library_loader.gd")
+	if loader_script == null:
+		return
+	var loader = loader_script.new()
+	if _loading_screen and is_instance_valid(_loading_screen):
+		if _loading_screen.has_method("on_anim_progress"):
+			loader.slot_loaded.connect(_loading_screen.on_anim_progress)
+	# Run the async load; await its completion so we can hide the
+	# loading screen at the right moment.
+	if stats and stats.class_def:
+		await loader.apply(self, "class", StringName(stats.class_def.class_id))
+	else:
+		await loader.apply(self, "class", &"")
+	# Re-find the AnimationPlayer (the loader may have created one)
 	if anim_player == null:
 		anim_player = _find_animation_player(self)
 	_resolve_anim_alias_map()

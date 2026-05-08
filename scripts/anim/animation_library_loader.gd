@@ -1,6 +1,10 @@
 class_name AnimationLibraryLoader
 extends RefCounted
 
+# Progress signals so LoadingScreen can show a slot-by-slot bar.
+signal slot_loaded(current: int, total: int, slot_name: String)
+signal apply_complete(bound: int, missing: int)
+
 # AnimationLibraryLoader — pulls Mixamo .fbx animation files off disk,
 # extracts their Animation resources, and merges them into a character's
 # AnimationPlayer under canonical slot names from AnimationRegistry.
@@ -37,6 +41,17 @@ const VERBOSE_MISSING := false
 # the difference between 30+s of boot stall and ~2s.
 static var _ANIM_CACHE: Dictionary = {}
 
+# Public API. Async coroutine that loads slots one at a time, yielding
+# to the renderer between each. Caller can await the result if it
+# wants to know when binding is done; ignoring is fine too.
+#
+#   await AnimationLibraryLoader.new().apply(player, "class", &"ronin")
+#
+# Yielding between slot loads is THE fix for "loading screen never
+# appears" -- on M-series Macs each .glb load takes ~250-400ms and
+# without yielding the renderer is starved through all 36 slots.
+# With one yield per slot, the loading screen paints fresh frames
+# every ~300ms and the world feels responsive instead of frozen.
 func apply(character_root: Node, role: String, role_id: StringName) -> void:
 	var anim_player: AnimationPlayer = _find_anim_player(character_root)
 	if anim_player == null:
@@ -47,11 +62,6 @@ func apply(character_root: Node, role: String, role_id: StringName) -> void:
 		# despite having animations on disk.
 		anim_player = AnimationPlayer.new()
 		anim_player.name = "AnimationPlayer"
-		# Anim tracks reference bones via NodePath like
-		# "Skeleton3D:mixamorig:Hips". The player needs to be at a sibling
-		# level of the imported scene's RootNode/Skeleton3D for those paths
-		# to resolve. Adding under the first imported scene root works for
-		# Mixamo's standard hierarchy: Root Scene > RootNode > Skeleton3D.
 		var glb_root := _find_glb_root(character_root)
 		if glb_root != null:
 			glb_root.add_child(anim_player)
@@ -62,14 +72,18 @@ func apply(character_root: Node, role: String, role_id: StringName) -> void:
 
 	var lib := AnimationLibrary.new()
 	var slot_map: Dictionary = _build_slot_map(role, role_id)
-
-	# Track binding outcomes so we can print one summary line per character
-	# instead of N missing-slot warnings. This makes "did Kachujin's anims
-	# bind correctly?" answerable from a single console line.
 	var bound: Array[String] = []
 	var missing: Array[String] = []
 
-	for slot in slot_map.keys():
+	# Process slots one at a time, yielding to the renderer between
+	# each. This is what unblocks the loading screen — the renderer
+	# gets a frame after every slot, so it can paint the LoadingScreen
+	# overlay, the bg shader pulses, the tip text rotates, etc. while
+	# we crank through .glb loads in the background.
+	var tree := Engine.get_main_loop() as SceneTree
+	var slot_keys: Array = slot_map.keys()
+	for i in range(slot_keys.size()):
+		var slot = slot_keys[i]
 		var rel_path: String = slot_map[slot]
 		var abs_path := "res://assets/animations/%s" % rel_path
 		var anim := _load_animation_from_fbx(abs_path)
@@ -78,15 +92,20 @@ func apply(character_root: Node, role: String, role_id: StringName) -> void:
 			bound.append(String(slot))
 		else:
 			missing.append(String(slot))
+		# Emit progress so callers (LoadingScreen) can render a bar
+		emit_signal("slot_loaded", i + 1, slot_keys.size(), String(slot))
+		# Yield to the renderer every few slots; balances 'fast load'
+		# vs 'visible progress'. Yielding every slot is too slow on
+		# M-series; every 3 keeps the loop tight.
+		if tree and i % 3 == 2:
+			await tree.process_frame
 
 	# Merge / replace the named library on the player.
 	if anim_player.has_animation_library(ANIM_LIB_NAME):
 		anim_player.remove_animation_library(ANIM_LIB_NAME)
 	anim_player.add_animation_library(ANIM_LIB_NAME, lib)
 
-	# One-line diagnostic so we can see at a glance how a character bound up.
-	# Format: [AnimLoader] ronin: 22 bound, 12 missing | embedded: 1
-	# Followed by the missing list for quick "what should I download next" view.
+	# Final diagnostic line
 	var embedded_count: int = 0
 	for embedded_lib_name in anim_player.get_animation_library_list():
 		if embedded_lib_name == ANIM_LIB_NAME:
@@ -96,6 +115,7 @@ func apply(character_root: Node, role: String, role_id: StringName) -> void:
 	print("[AnimLoader] %s/%s: %d bound, %d missing | embedded: %d" % [role, role_id, bound.size(), missing.size(), embedded_count])
 	if VERBOSE_MISSING and missing.size() > 0:
 		print("  missing slots: %s" % ", ".join(missing))
+	emit_signal("apply_complete", bound.size(), missing.size())
 
 # Returns shared_slots merged with role-specific slots; role-specific wins.
 # AnimationRegistry is registered as an autoload in project.godot, so it

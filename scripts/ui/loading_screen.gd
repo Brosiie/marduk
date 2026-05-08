@@ -35,6 +35,9 @@ const TIPS := [
 @onready var _subtitle: Label
 @onready var _tip: Label
 @onready var _dots: Label
+var _progress_bg: ColorRect
+var _progress_fill: ColorRect
+var _slot_label: Label
 var _t: float = 0.0
 var _tip_timer: float = 0.0
 var _dot_count: int = 1
@@ -139,6 +142,42 @@ void fragment() {
 	_tip.offset_bottom = 40
 	_root.add_child(_tip)
 
+	# Progress bar (built procedurally from two ColorRects)
+	_progress_bg = ColorRect.new()
+	_progress_bg.color = Color(0.10, 0.06, 0.18, 0.85)
+	_progress_bg.anchor_left = 0.5
+	_progress_bg.anchor_top = 0.86
+	_progress_bg.anchor_right = 0.5
+	_progress_bg.anchor_bottom = 0.86
+	_progress_bg.offset_left = -180
+	_progress_bg.offset_right = 180
+	_progress_bg.offset_top = -3
+	_progress_bg.offset_bottom = 3
+	_progress_bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_root.add_child(_progress_bg)
+	_progress_fill = ColorRect.new()
+	_progress_fill.color = Color(1.0, 0.85, 0.45, 0.95)
+	_progress_fill.anchor_left = 0.0
+	_progress_fill.anchor_top = 0.0
+	_progress_fill.anchor_right = 0.0  # animated to 1.0 as load progresses
+	_progress_fill.anchor_bottom = 1.0
+	_progress_fill.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_progress_bg.add_child(_progress_fill)
+
+	# Slot-name label below the progress bar (reads what's loading)
+	_slot_label = Label.new()
+	_slot_label.text = "preparing..."
+	_slot_label.add_theme_font_size_override("font_size", 11)
+	_slot_label.modulate = Color(0.65, 0.60, 0.55)
+	_slot_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_slot_label.anchor_left = 0.0
+	_slot_label.anchor_top = 0.89
+	_slot_label.anchor_right = 1.0
+	_slot_label.anchor_bottom = 0.89
+	_slot_label.offset_top = -8
+	_slot_label.offset_bottom = 12
+	_root.add_child(_slot_label)
+
 	# Animated dot loader at very bottom
 	_dots = Label.new()
 	_dots.text = "."
@@ -146,9 +185,9 @@ void fragment() {
 	_dots.modulate = Color(1.00, 0.85, 0.45)
 	_dots.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_dots.anchor_left = 0.0
-	_dots.anchor_top = 0.92
+	_dots.anchor_top = 0.93
 	_dots.anchor_right = 1.0
-	_dots.anchor_bottom = 0.92
+	_dots.anchor_bottom = 0.93
 	_dots.offset_top = -10
 	_dots.offset_bottom = 30
 	_root.add_child(_dots)
@@ -207,6 +246,17 @@ func _pick_random_tip() -> void:
 func set_subtitle(text: String) -> void:
 	if _subtitle:
 		_subtitle.text = text
+
+# Connected to AnimationLibraryLoader.slot_loaded signal so the bar
+# fills as slots stream in. current/total drive width; slot_name shows
+# under the bar so the player can see WHICH animation is loading.
+func on_anim_progress(current: int, total: int, slot_name: String) -> void:
+	if _progress_fill == null or total <= 0:
+		return
+	var pct: float = float(current) / float(total)
+	_progress_fill.anchor_right = pct
+	if _slot_label:
+		_slot_label.text = "binding %s  (%d / %d)" % [slot_name, current, total]
 
 # Public API: dismiss with a fade-out. CanvasLayer has no modulate
 # property so we fade the inner Control instead.
