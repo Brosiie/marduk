@@ -104,8 +104,11 @@ static func calc(attacker_stats, defender, ability: Ability, attacker_node: Node
 		dmg *= 1.0 + attacker_stats.spellpower
 
 	# Layer 7e: Hit chance roll (Accuracy attribute caps at 95%; if miss, return 0 damage)
-	if attacker_stats and attacker_stats.hit_chance < 1.0:
-		if randf() > attacker_stats.hit_chance:
+	# `hit_chance` lives on PlayerStats; bosses/mobs pass `self` (BossBase /
+	# EnemyBase) as attacker_stats and don't have it. Probe via `in` to
+	# avoid a Nil access.
+	if attacker_stats and "hit_chance" in attacker_stats and float(attacker_stats.hit_chance) < 1.0:
+		if randf() > float(attacker_stats.hit_chance):
 			r.damage = 0.0
 			return r
 
@@ -146,7 +149,9 @@ static func calc(attacker_stats, defender, ability: Ability, attacker_node: Node
 # Returns the StringName of the attacker stat the ability scales off of.
 # Physical abilities use the class's primary_attribute. Magical abilities use spell_attribute.
 static func _scaling_attr_for(ability: Ability, attacker_stats) -> StringName:
-	if not attacker_stats or not attacker_stats.class_def:
+	# Mobs/bosses don't carry class_def. Probe via `in` to avoid a
+	# 'class_def on a base object of type CharacterBody3D' Nil access.
+	if not attacker_stats or not ("class_def" in attacker_stats) or attacker_stats.class_def == null:
 		return &"strength"
 	if ability.damage_type == Ability.DamageType.PHYSICAL:
 		return attacker_stats.class_def.primary_attribute

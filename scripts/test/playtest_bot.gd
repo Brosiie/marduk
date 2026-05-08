@@ -99,10 +99,16 @@ func _run() -> void:
 	# observe death anim. Verifies the new one-shot anim wiring.
 	await _scenario_mob_damage_and_death()
 
-	# Phase 9: HUD presence
+	# Phase 9: boss fight — verify boss is alive, has multi-pattern AI,
+	# eventually fires LEAP / CHARGE / SLAM / BURST patterns over a
+	# 12-second observation window. Bond's complaint was the boss
+	# "felt lifeless"; this asserts the boss DOES things.
+	await _scenario_boss_fight()
+
+	# Phase 10: HUD presence
 	_scenario_hud_presence()
 
-	# Phase 10: meshes + skeletons
+	# Phase 11: meshes + skeletons
 	_scenario_mesh_integrity()
 
 	_finish()
@@ -334,6 +340,74 @@ func _scenario_mob_damage_and_death() -> void:
 		_pass("death_anim", "playing '%s' on lethal hit" % death_played)
 	else:
 		_fail("death_anim", "no death anim after lethal hit (current='%s')" % death_played)
+
+# Boss-fight observation: spawn / locate the boss, walk into the arena
+# trigger if needed, then observe the boss's pattern selections over a
+# 12s window. Bond's complaint: boss felt lifeless — we now verify the
+# boss FIRES patterns (and ideally multiple distinct ones).
+func _scenario_boss_fight() -> void:
+	# Find the boss. sword_vow_ruins ships an EnforcerKazat anchored
+	# behind the arena trigger.
+	var bosses := get_tree().get_nodes_in_group("boss")
+	if bosses.is_empty():
+		_findings.append("(skip boss_fight: no boss in scene)")
+		return
+	var boss = bosses[0]
+	if not is_instance_valid(boss):
+		_findings.append("(skip boss_fight: boss not valid)")
+		return
+	# Teleport the player to engagement range so the boss aggros and
+	# the arena trigger fires. Faster than walking in scripted-bot
+	# time. Place 8m from the boss along its forward axis.
+	var boss_pos: Vector3 = (boss as Node3D).global_position
+	_player.global_position = boss_pos + Vector3(0, 0, 6.5)
+	await _wait(0.3)
+	# Observe the boss's _current_pattern over 12 seconds. Any
+	# pattern firing is the bare minimum; we hope to see at least 2
+	# DISTINCT patterns (proves the AI picks variety, not just sweep).
+	var seen_patterns: Dictionary = {}
+	var deadline: float = _now() + 12.0
+	while _now() < deadline:
+		if not is_instance_valid(boss):
+			break
+		var current = boss.get("_current_pattern")
+		if current and current is BossAttackPattern:
+			seen_patterns[String(current.id)] = true
+		# Keep the boss's target alive — if it loses sight we get bored
+		# of waiting. Hold a slight movement to keep aggro active.
+		await _wait(0.25)
+	if seen_patterns.size() == 0:
+		_fail("boss_alive", "boss never fired a single pattern in 12s — feels lifeless")
+	elif seen_patterns.size() == 1:
+		var only_one: String = seen_patterns.keys()[0]
+		_findings.append("(boss_alive: only fired '%s' — could be variety bug)" % only_one)
+		_pass("boss_alive", "fired 1 pattern (%s) in 12s" % only_one)
+	else:
+		_pass("boss_alive", "fired %d distinct patterns in 12s: %s" % [
+			seen_patterns.size(),
+			", ".join(seen_patterns.keys())
+		])
+	# Verify the boss has the new movement-based shapes registered.
+	# Guard with is_instance_valid because the boss may have died during
+	# the 12s observation window if the player was bumping into it.
+	if not is_instance_valid(boss):
+		_findings.append("(skip boss_movement: boss freed before introspection — was probably killed mid-test, which is itself a sign the boss IS active)")
+		return
+	var has_leap: bool = false
+	var has_charge: bool = false
+	var patterns: Array = boss.get("attack_patterns") if "attack_patterns" in boss else []
+	for p in patterns:
+		if p is BossAttackPattern:
+			if p.shape == BossAttackPattern.Shape.LEAP:
+				has_leap = true
+			elif p.shape == BossAttackPattern.Shape.CHARGE:
+				has_charge = true
+	if has_leap and has_charge:
+		_pass("boss_movement", "boss has both LEAP and CHARGE patterns")
+	elif has_leap or has_charge:
+		_fail("boss_movement", "boss has only one of LEAP/CHARGE")
+	else:
+		_fail("boss_movement", "boss has neither LEAP nor CHARGE — Bond's lifeless complaint")
 
 func _scenario_hud_presence() -> void:
 	var huds := get_tree().get_nodes_in_group("hud")

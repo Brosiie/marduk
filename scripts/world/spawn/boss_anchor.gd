@@ -122,13 +122,31 @@ func _build_patterns(id: StringName) -> Array[BossAttackPattern]:
 			arr.append(_p(&"kazat_iron_swing", "Iron Swing",
 				BossAttackPattern.Shape.FORWARD_CONE,
 				1.0, 0.25, 0.7, 4.0, 90.0, 0, 4.0, 1.4, 0, 99, 8.0))
-			# Phase 1 (Iron Resolve, 66%-33%): Iron Charge unlocks. Forces
-			# the player to manage spacing.
-			arr.append(_p(&"kazat_charge_line", "Iron Charge",
-				BossAttackPattern.Shape.LINE,
-				0.6, 0.40, 1.2, 11.0, 120.0, 0, 9.0, 1.0, 1, 99, 4.0))
-			# Phase 2 (Iron Vow, 33%-0%): Ground Slam unlocks as Kazat
-			# stops fencing and starts smashing.
+			# Phase 0+: SKYBREAK overhead slam. AOE_GROUND tracks the
+			# player's feet — keeps them moving, not just dodging
+			# sideways. Gives the early fight rhythmic variety.
+			arr.append(_p(&"kazat_skybreak", "Skybreak",
+				BossAttackPattern.Shape.AOE_GROUND,
+				1.30, 0.30, 1.2, 7.0, 110.0, 0, 8.0, 2.0, 0, 99, 5.0))
+			# Phase 1 (Iron Resolve, 66%-33%): CHARGE replaces the
+			# legacy LINE. The boss now physically sprints across the
+			# arena during execute (1.0s = 9m/s). Sidestep, don't backpedal.
+			arr.append(_p(&"kazat_charge", "Iron Charge",
+				BossAttackPattern.Shape.CHARGE,
+				1.20, 1.00, 1.5, 9.0, 130.0, 0, 9.0, 1.2, 1, 99, 6.0))
+			# Phase 1+: IRON ROAR — AOE_AROUND_BOSS knockback to punish
+			# tail-hugging. Forces the player to space and re-engage.
+			arr.append(_p(&"kazat_iron_roar", "Iron Roar",
+				BossAttackPattern.Shape.AOE_AROUND_BOSS,
+				1.10, 0.30, 1.4, 9.0, 105.0, 0, 3.0, 3.0, 1, 99, 4.0))
+			# Phase 2 (Iron Vow, 33%-0%): LEAP unlocks. Boss arcs through
+			# the air to the player's last position and lands with a
+			# shockwave AOE. THE phase 2 'oh shit' moment.
+			arr.append(_p(&"kazat_leap", "Iron Crash",
+				BossAttackPattern.Shape.LEAP,
+				1.40, 0.55, 1.6, 11.0, 165.0, 0, 12.0, 3.5, 2, 99, 5.0))
+			# Phase 2 stomp keeps the legacy Iron Quake (AOE_AROUND_BOSS)
+			# as the in-melee answer when LEAP is on cooldown.
 			arr.append(_p(&"kazat_ground_slam", "Iron Quake",
 				BossAttackPattern.Shape.AOE_AROUND_BOSS,
 				1.4, 0.30, 1.0, 7.5, 160.0, 0, 6.0, 5.0, 2, 99, 5.0))

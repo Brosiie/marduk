@@ -78,29 +78,119 @@ func _build_patterns() -> Array[BossAttackPattern]:
 	sweep_fast.telegraph_color = Color(0.9, 0.25, 0.15, 0.55)
 	sweep_fast.dodge_window = 0.40
 
-	# LUNGE: Kazat charges forward 5m in a straight line.
-	# Phase 2 only. Massive punish if it connects; big recovery if it misses.
+	# LUNGE (legacy short-range stab): kept as a fallback when the boss
+	# is just slightly out of melee. The new CHARGE replaces it as the
+	# primary 'close the gap' move because CHARGE physically moves the
+	# boss while LINE just spawned a stationary hitbox.
 	var lunge := BossAttackPattern.new()
 	lunge.id = &"kazat_lunge"
-	lunge.display_name = "Iron Charge"
-	lunge.tell_description = "Kazat drops into a sprinting stance — sidestep, don't back-pedal."
+	lunge.display_name = "Iron Step"
+	lunge.tell_description = "Kazat dips his blade — short stab forward."
 	lunge.shape = BossAttackPattern.Shape.LINE
-	lunge.range = 5.5
-	lunge.radius = 1.0
-	lunge.windup_seconds = 1.1
-	lunge.execute_seconds = 0.35
+	lunge.range = 4.0
+	lunge.radius = 0.8
+	lunge.windup_seconds = 1.0
+	lunge.execute_seconds = 0.30
 	lunge.recovery_seconds = 1.0
-	lunge.cooldown = 7.0
-	lunge.base_damage = 38.0
+	lunge.cooldown = 6.0
+	lunge.base_damage = 32.0
 	lunge.damage_type = 0
-	lunge.priority_weight = 5.0
+	lunge.priority_weight = 3.0
 	lunge.min_phase = 1
 	lunge.max_phase = 99
-	lunge.ignores_reachability = false
 	lunge.telegraph_color = Color(0.75, 0.20, 0.10, 0.65)
-	lunge.dodge_window = 0.60
+	lunge.dodge_window = 0.55
 
-	return [sweep, sweep_fast, lunge]
+	# CHARGE: Kazat sprints in a straight line for 9m. The hitbox
+	# travels with the boss during execute_seconds (1.0s = 9m/s).
+	# Player must SIDESTEP — back-pedaling means getting run over for
+	# the full duration.
+	var charge := BossAttackPattern.new()
+	charge.id = &"kazat_charge"
+	charge.display_name = "Iron Charge"
+	charge.tell_description = "Kazat lowers his shoulder and roars — get out of the line."
+	charge.shape = BossAttackPattern.Shape.CHARGE
+	charge.range = 9.0
+	charge.radius = 1.2
+	charge.windup_seconds = 1.20
+	charge.execute_seconds = 1.00  # = movement duration
+	charge.recovery_seconds = 1.5
+	charge.cooldown = 9.0
+	charge.base_damage = 42.0
+	charge.damage_type = 0
+	charge.priority_weight = 6.0
+	charge.min_phase = 0
+	charge.max_phase = 99
+	charge.telegraph_color = Color(1.0, 0.30, 0.10, 0.70)
+	charge.dodge_window = 0.55
+
+	# LEAP: Kazat crouches, jumps in an arc to player's last position,
+	# lands with a shockwave AOE. Saves itself for phase 2 — desperation
+	# distance-closer.
+	var leap := BossAttackPattern.new()
+	leap.id = &"kazat_leap"
+	leap.display_name = "Iron Crash"
+	leap.tell_description = "Kazat crouches deep — he is leaping at you. Dodge AT the marker, not through it."
+	leap.shape = BossAttackPattern.Shape.LEAP
+	leap.range = 12.0
+	leap.radius = 3.5
+	leap.windup_seconds = 1.40
+	leap.execute_seconds = 0.55  # parabolic arc duration
+	leap.recovery_seconds = 1.6
+	leap.cooldown = 11.0
+	leap.base_damage = 50.0
+	leap.damage_type = 0
+	leap.priority_weight = 5.0
+	leap.min_phase = 1
+	leap.max_phase = 99
+	leap.telegraph_color = Color(1.0, 0.45, 0.18, 0.78)
+	leap.dodge_window = 0.55
+
+	# OVERHEAD SLAM: tracking AOE_GROUND at player's feet. Different
+	# read from the cone sweep — this one CHASES, so the player must
+	# MOVE rather than just dodge sideways.
+	var slam := BossAttackPattern.new()
+	slam.id = &"kazat_slam"
+	slam.display_name = "Skybreak"
+	slam.tell_description = "Kazat lifts the greatsword high — the marker chases your feet, keep moving."
+	slam.shape = BossAttackPattern.Shape.AOE_GROUND
+	slam.range = 8.0
+	slam.radius = 2.0
+	slam.windup_seconds = 1.30
+	slam.execute_seconds = 0.30
+	slam.recovery_seconds = 1.2
+	slam.cooldown = 7.0
+	slam.base_damage = 38.0
+	slam.damage_type = 0
+	slam.priority_weight = 4.0
+	slam.min_phase = 0
+	slam.max_phase = 99
+	slam.telegraph_color = Color(0.95, 0.30, 0.20, 0.65)
+	slam.dodge_window = 0.50
+
+	# IRON ROAR: AOE_AROUND_BOSS knock-back for when the player is
+	# camping behind / hugging the boss. Forces space, prevents
+	# tail-hugging exploit.
+	var burst := BossAttackPattern.new()
+	burst.id = &"kazat_burst"
+	burst.display_name = "Iron Roar"
+	burst.tell_description = "Kazat plants his feet — back away before the burst lands."
+	burst.shape = BossAttackPattern.Shape.AOE_AROUND_BOSS
+	burst.radius = 3.0
+	burst.range = 3.0
+	burst.windup_seconds = 1.10
+	burst.execute_seconds = 0.30
+	burst.recovery_seconds = 1.4
+	burst.cooldown = 9.0
+	burst.base_damage = 36.0
+	burst.damage_type = 0
+	burst.priority_weight = 4.0
+	burst.min_phase = 1
+	burst.max_phase = 99
+	burst.telegraph_color = Color(0.95, 0.30, 0.15, 0.70)
+	burst.dodge_window = 0.45
+
+	return [sweep, sweep_fast, lunge, charge, leap, slam, burst]
 
 func _die_custom() -> void:
 	# On death: drop Phase 1 demo loot inline (a bronze katana fitting for

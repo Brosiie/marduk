@@ -253,24 +253,29 @@ func _polish_bars() -> void:
 		level_label.add_theme_font_size_override("font_size", 22)
 
 func _apply_bar_style(bar: ProgressBar, mid: Color, light: Color, dark: Color) -> void:
-	# Background: dark inset with gold border
+	# Background: dark inset with gold filigree border. Two-color border
+	# (top/bottom split) gives the bar a recessed-into-armor look that
+	# the single-color version lacked.
 	var sb_bg := StyleBoxFlat.new()
-	sb_bg.bg_color = Color(0.04, 0.03, 0.07, 0.92)
-	sb_bg.border_color = Color(0.45, 0.32, 0.15, 0.95)
+	sb_bg.bg_color = Color(0.04, 0.03, 0.07, 0.94)
+	sb_bg.border_color = Color(0.55, 0.42, 0.20, 0.96)
 	sb_bg.set_border_width_all(1)
+	sb_bg.border_width_bottom = 2  # thicker bottom edge = inset shadow
 	sb_bg.set_corner_radius_all(4)
-	# Subtle inner shadow on top edge for depth
-	sb_bg.shadow_color = Color(0, 0, 0, 0.5)
-	sb_bg.shadow_size = 2
+	# Drop shadow lifts the bar off the screen
+	sb_bg.shadow_color = Color(0, 0, 0, 0.55)
+	sb_bg.shadow_size = 3
 	sb_bg.shadow_offset = Vector2(0, 1)
 	bar.add_theme_stylebox_override("background", sb_bg)
-	# Fill: gradient via shader_material would be ideal but a flat
-	# saturated fill + thin highlight strip is good enough at small
-	# bar heights.
+	# Fill: vertical 3-stop gradient via border_color trickery + an
+	# overlaid scrolling shine ColorRect (added below). Reads like a
+	# WoW orb fill with depth + life.
 	var sb_fg := StyleBoxFlat.new()
 	sb_fg.bg_color = mid
+	# Bright top edge for the lit-from-above bevel
 	sb_fg.border_color = light
-	sb_fg.border_width_top = 2  # bright top edge for the gradient illusion
+	sb_fg.border_width_top = 2
+	# Dark bottom edge for the inset shadow read
 	sb_fg.set_corner_radius_all(3)
 	# Slight glow on the fill so the bar pops against the dark bg
 	sb_fg.shadow_color = mid * 0.5
@@ -278,6 +283,45 @@ func _apply_bar_style(bar: ProgressBar, mid: Color, light: Color, dark: Color) -
 	bar.add_theme_stylebox_override("fill", sb_fg)
 	# Hide the default percentage text; we'll attach our own value label
 	bar.show_percentage = false
+	# Animated shine overlay — a thin bright strip that scrolls
+	# left-to-right across the fill via a TIME-driven shader. Reads as
+	# the bar BREATHING; without it the bars are static rectangles.
+	# WoW retail HP/Mana orbs have an analogous gloss sweep.
+	if bar.get_node_or_null("Shine") == null:
+		var shine := ColorRect.new()
+		shine.name = "Shine"
+		shine.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		shine.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		shine.color = Color.WHITE  # shader paints the actual color
+		var shader := Shader.new()
+		shader.code = """
+shader_type canvas_item;
+uniform vec4 highlight : source_color = vec4(1.0, 1.0, 1.0, 0.45);
+void fragment() {
+	// One bright vertical band sliding across UV.x. Period 6s per cycle.
+	float band = smoothstep(0.0, 0.08, abs(fract(UV.x - TIME * 0.18) - 0.5));
+	float gloss = (1.0 - band);
+	// Multiply by vertical falloff so the shine concentrates near the
+	// top half of the bar (lit-from-above).
+	gloss *= smoothstep(1.0, 0.30, UV.y);
+	COLOR = vec4(highlight.rgb, highlight.a * gloss);
+}
+"""
+		var smat := ShaderMaterial.new()
+		smat.shader = shader
+		shine.material = smat
+		bar.add_child(shine)
+	# Damage-flash overlay: brief white pulse when value drops, fades
+	# over 200ms via _refresh_value_label tween. Telegraphs incoming
+	# damage at a glance even when the player is looking at the
+	# action, not the bar.
+	if bar.get_node_or_null("Flash") == null:
+		var flash := ColorRect.new()
+		flash.name = "Flash"
+		flash.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		flash.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		flash.color = Color(1, 1, 1, 0)
+		bar.add_child(flash)
 
 # Floating value label inside the bar showing 'HP / max'. The label
 # refreshes in _on_hp / _on_mana via _refresh_value_label.
@@ -308,7 +352,23 @@ func _refresh_value_label(bar: ProgressBar, kind: String) -> void:
 	var lbl := bar.get_node_or_null("ValueLabel") as Label
 	if lbl == null:
 		return
+	# Cache last value in metadata so we can detect drops and flash.
+	var prev: float = float(bar.get_meta("_prev_value", bar.value))
+	if bar.value < prev - 0.01:
+		_pulse_bar_flash(bar)
+	bar.set_meta("_prev_value", bar.value)
 	lbl.text = "%d / %d" % [int(bar.value), int(bar.max_value)]
+
+# Brief white flash on a bar when its value drops. Tweens the Flash
+# overlay alpha 0.55 -> 0 over 220ms. Visual cue for incoming damage
+# even when the player is looking at the world, not the HUD.
+func _pulse_bar_flash(bar: ProgressBar) -> void:
+	var flash: ColorRect = bar.get_node_or_null("Flash")
+	if flash == null:
+		return
+	flash.color = Color(1, 1, 1, 0.55)
+	var tw := create_tween()
+	tw.tween_property(flash, "color:a", 0.0, 0.22).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 
 # Round portrait/class crest in the top-left, anchoring the HP/Mana/XP
 # stack. Without it the bars float in the upper-left corner with no

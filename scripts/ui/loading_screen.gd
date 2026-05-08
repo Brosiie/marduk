@@ -62,15 +62,32 @@ func _build_ui() -> void:
 	bg.color = Color(0.04, 0.03, 0.07, 1.0)
 	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_root.add_child(bg)
-	# Custom radial-gradient shader: lighter at center, darker at corners
+	# Animated radial-gradient + film-grain + slow vignette pulse.
+	# Old version was a static radial gradient — readable but flat. The
+	# new shader pulses the inner color slowly (breathing) and overlays
+	# a faint TIME-driven grain so the screen feels ALIVE the entire
+	# load. Without this the loading screen reads as a static png.
 	var shader := Shader.new()
 	shader.code = """
 shader_type canvas_item;
-uniform vec4 inner : source_color = vec4(0.10, 0.06, 0.18, 1.0);
+uniform vec4 inner : source_color = vec4(0.14, 0.06, 0.20, 1.0);
 uniform vec4 outer : source_color = vec4(0.02, 0.01, 0.04, 1.0);
+uniform vec4 accent : source_color = vec4(0.55, 0.18, 0.10, 1.0);
 void fragment() {
 	float d = distance(SCREEN_UV, vec2(0.5));
-	COLOR = mix(inner, outer, smoothstep(0.0, 0.85, d));
+	// Slow breathing on the inner glow size — makes the corona pulse
+	// over a 4s cycle. 0.5 * sin = +/- 0.5 amplitude around 0.85 base.
+	float pulse = 0.85 + 0.06 * sin(TIME * 1.6);
+	vec4 base = mix(inner, outer, smoothstep(0.0, pulse, d));
+	// Crimson accent at the outer ring so the screen edges glow
+	// red — frames Tiamat's heart-of-the-world theme.
+	float ring = smoothstep(0.55, 0.95, d) * (1.0 - smoothstep(0.95, 1.20, d));
+	base.rgb += accent.rgb * ring * 0.18;
+	// Per-pixel grain. screen_uv * 1024 and fract gives a deterministic
+	// noise-per-pixel that shifts via TIME — stops banding from showing.
+	float grain = fract(sin(dot(SCREEN_UV * 1024.0 + TIME * 0.7, vec2(12.9898, 78.233))) * 43758.5453);
+	base.rgb += (grain - 0.5) * 0.025;
+	COLOR = base;
 }
 """
 	var bg_mat := ShaderMaterial.new()
@@ -142,26 +159,67 @@ void fragment() {
 	_tip.offset_bottom = 40
 	_root.add_child(_tip)
 
-	# Progress bar (built procedurally from two ColorRects)
+	# Progress bar — beefier (8px tall, 480px wide) with a gold inset
+	# frame, dark recessed bg, and a moving shimmer overlay on the fill
+	# so the bar reads as 'energetically loading' rather than 'static
+	# orange rectangle'.
 	_progress_bg = ColorRect.new()
-	_progress_bg.color = Color(0.10, 0.06, 0.18, 0.85)
+	_progress_bg.color = Color(0.06, 0.04, 0.10, 0.92)
 	_progress_bg.anchor_left = 0.5
 	_progress_bg.anchor_top = 0.86
 	_progress_bg.anchor_right = 0.5
 	_progress_bg.anchor_bottom = 0.86
-	_progress_bg.offset_left = -180
-	_progress_bg.offset_right = 180
-	_progress_bg.offset_top = -3
-	_progress_bg.offset_bottom = 3
+	_progress_bg.offset_left = -240
+	_progress_bg.offset_right = 240
+	_progress_bg.offset_top = -6
+	_progress_bg.offset_bottom = 6
 	_progress_bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	# Gold filigree border via a child Panel underneath the ColorRect
+	# so the bar gets the same frame language as the in-game HUD bars.
+	var bar_frame := Panel.new()
+	bar_frame.anchor_left = 0.0
+	bar_frame.anchor_top = 0.0
+	bar_frame.anchor_right = 1.0
+	bar_frame.anchor_bottom = 1.0
+	bar_frame.offset_left = -2
+	bar_frame.offset_top = -2
+	bar_frame.offset_right = 2
+	bar_frame.offset_bottom = 2
+	bar_frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var frame_sb := StyleBoxFlat.new()
+	frame_sb.bg_color = Color(0, 0, 0, 0)  # transparent — we just want the border
+	frame_sb.border_color = Color(0.78, 0.62, 0.28, 0.95)
+	frame_sb.set_border_width_all(1)
+	frame_sb.set_corner_radius_all(4)
+	frame_sb.shadow_color = Color(0, 0, 0, 0.55)
+	frame_sb.shadow_size = 4
+	bar_frame.add_theme_stylebox_override("panel", frame_sb)
 	_root.add_child(_progress_bg)
+	_progress_bg.add_child(bar_frame)
 	_progress_fill = ColorRect.new()
-	_progress_fill.color = Color(1.0, 0.85, 0.45, 0.95)
+	_progress_fill.color = Color(1.0, 0.78, 0.32, 0.95)
 	_progress_fill.anchor_left = 0.0
 	_progress_fill.anchor_top = 0.0
 	_progress_fill.anchor_right = 0.0  # animated to 1.0 as load progresses
 	_progress_fill.anchor_bottom = 1.0
 	_progress_fill.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	# Moving shimmer band — a brighter strip slides left-to-right across
+	# the fill via a ShaderMaterial. Tells the player the load is
+	# THINKING, not stuck.
+	var shimmer_shader := Shader.new()
+	shimmer_shader.code = """
+shader_type canvas_item;
+void fragment() {
+	float band = smoothstep(0.0, 0.10, abs(fract(SCREEN_UV.x * 0.18 - TIME * 0.30) - 0.5));
+	float gloss = (1.0 - band) * 0.55;
+	vec3 base = vec3(1.0, 0.78, 0.32);
+	vec3 hot = vec3(1.0, 0.98, 0.78);
+	COLOR = vec4(mix(base, hot, gloss), 0.95);
+}
+"""
+	var shimmer_mat := ShaderMaterial.new()
+	shimmer_mat.shader = shimmer_shader
+	_progress_fill.material = shimmer_mat
 	_progress_bg.add_child(_progress_fill)
 
 	# Slot-name label below the progress bar (reads what's loading)

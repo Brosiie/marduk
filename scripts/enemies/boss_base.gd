@@ -46,6 +46,21 @@ var phases: Array = []
 var current_phase_index: int = 0
 var _in_transition: bool = false
 
+# Movement state for LEAP / CHARGE patterns. The standard pattern AI
+# is hitbox-only; these shapes additionally move the boss across the
+# arena during the execute window so the visual reads as an actual
+# leap/charge rather than 'boss stands still while a hitbox spawns'.
+var _move_pattern_active: bool = false
+var _move_pattern_kind: StringName = &""  # "leap" | "charge"
+var _move_start_pos: Vector3 = Vector3.ZERO
+var _move_end_pos: Vector3 = Vector3.ZERO
+var _move_t0: float = 0.0  # unix start time of the movement window
+var _move_duration: float = 0.0
+var _move_pattern: BossAttackPattern = null
+# Leap-specific: peak height of the parabolic arc (taller leap = bigger
+# read for the player to track and dodge under).
+const _LEAP_ARC_HEIGHT: float = 5.5
+
 signal phase_changed(phase_index: int, phase_name: String)
 signal boss_defeated(boss_id: StringName, killer: Node)
 
@@ -100,8 +115,119 @@ func take_damage(amount: float, source: Node = null) -> void:
 func _physics_process(delta: float) -> void:
 	if state == State.DEAD or _in_transition:
 		return
+	# LEAP/CHARGE patterns OWN the boss's transform during execute.
+	# We bypass the parent's _chase movement so the boss doesn't get
+	# tugged by chase logic mid-leap or mid-charge.
+	if _move_pattern_active:
+		_advance_move_pattern()
+		return
 	super._physics_process(delta)
 	_tick_attack_pattern_ai(delta)
+
+# Drives the per-frame motion for LEAP/CHARGE patterns. Both interpolate
+# along _move_start_pos -> _move_end_pos using a normalized 0..1 timer.
+# LEAP adds a parabolic Y arc; CHARGE stays grounded.
+func _advance_move_pattern() -> void:
+	var now: float = Time.get_ticks_msec() / 1000.0
+	var t: float = clamp((now - _move_t0) / max(0.001, _move_duration), 0.0, 1.0)
+	var horiz: Vector3 = _move_start_pos.lerp(_move_end_pos, t)
+	if _move_pattern_kind == &"leap":
+		# Parabolic Y: 0 -> peak -> 0 across the t window. y = 4*h*t*(1-t)
+		# is the standard symmetric arc.
+		horiz.y = _move_start_pos.y + 4.0 * _LEAP_ARC_HEIGHT * t * (1.0 - t)
+	global_position = horiz
+	if t >= 1.0:
+		_finish_move_pattern()
+
+# Called the frame after a LEAP/CHARGE finishes its travel. Spawns the
+# landing/impact hitbox and shockwave VFX, then releases the boss back
+# to the normal pattern AI.
+func _finish_move_pattern() -> void:
+	_move_pattern_active = false
+	if _move_pattern_kind == &"leap":
+		# Land hitbox: AOE around the landing point. Big damage if the
+		# player didn't move out of the marked decal.
+		_spawn_landing_shockwave(_move_pattern)
+		# Camera shake for landing impact
+		var juice = get_node_or_null("/root/Juice")
+		if juice and juice.has_method("shake"):
+			juice.shake(0.45, 0.30)
+		if juice and juice.has_method("hit_stop"):
+			juice.hit_stop(0.10)
+	# CHARGE damage was applied during the move via the LINE-shaped
+	# hitbox spawned in _execute_pattern; nothing extra to do here.
+	_move_pattern = null
+	_move_pattern_kind = &""
+
+# A wide ring AOE that reads as a stomp shockwave when the boss lands
+# from a leap. Damage applied via a Hitbox that lives for execute_seconds.
+func _spawn_landing_shockwave(p: BossAttackPattern) -> void:
+	if p == null:
+		return
+	# Hitbox
+	var hb := preload("res://scripts/combat/hitbox.gd").new()
+	var ab := Ability.new()
+	ab.id = p.id
+	ab.base_damage = p.base_damage
+	ab.damage_type = p.damage_type
+	ab.armor_pen = p.armor_pen
+	ab.target_mode = Ability.TargetMode.AOE_AROUND_SELF
+	ab.range = p.range
+	ab.radius = p.radius
+	hb.ability = ab
+	hb.attacker_stats = self
+	hb.lifetime = max(0.05, p.execute_seconds)
+	hb.team = &"enemy"
+	var collider := CollisionShape3D.new()
+	var s := SphereShape3D.new()
+	s.radius = p.radius
+	collider.shape = s
+	hb.add_child(collider)
+	get_tree().current_scene.add_child(hb)
+	hb.global_position = global_position
+	# Visual: expanding ring particles centered at the landing point.
+	# Spawned under current_scene so it survives the boss queue_free
+	# if the leap kills the boss somehow (it shouldn't, but defensive).
+	var ring := GPUParticles3D.new()
+	ring.name = "LeapShockwave"
+	ring.amount = 80
+	ring.lifetime = 0.6
+	ring.one_shot = true
+	ring.explosiveness = 1.0
+	ring.visibility_aabb = AABB(Vector3(-8, -1, -8), Vector3(16, 4, 16))
+	var pm := ParticleProcessMaterial.new()
+	pm.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_RING
+	pm.emission_ring_axis = Vector3(0, 1, 0)
+	pm.emission_ring_radius = 0.3
+	pm.emission_ring_inner_radius = 0.15
+	pm.emission_ring_height = 0.05
+	pm.direction = Vector3(0, 0.2, 0)
+	pm.spread = 25.0
+	pm.initial_velocity_min = 6.0
+	pm.initial_velocity_max = 9.0
+	pm.gravity = Vector3.ZERO
+	pm.tangential_accel_min = 2.0
+	pm.tangential_accel_max = 4.0
+	pm.scale_min = 0.2
+	pm.scale_max = 0.5
+	pm.color = Color(0.85, 0.35, 0.20)
+	ring.process_material = pm
+	var quad := QuadMesh.new()
+	quad.size = Vector2(0.5, 0.5)
+	var smat := StandardMaterial3D.new()
+	smat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	smat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	smat.albedo_color = Color(0.85, 0.35, 0.20, 0.9)
+	smat.emission_enabled = true
+	smat.emission = Color(1.0, 0.45, 0.20)
+	smat.emission_energy_multiplier = 2.5
+	smat.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
+	quad.material = smat
+	ring.draw_pass_1 = quad
+	get_tree().current_scene.add_child(ring)
+	ring.global_position = global_position + Vector3(0, 0.1, 0)
+	get_tree().create_timer(1.5).timeout.connect(func():
+		if is_instance_valid(ring): ring.queue_free())
 
 func _tick_attack_pattern_ai(_delta: float) -> void:
 	# Drive the boss attack pattern state machine: windup -> execute -> recovery -> idle.
@@ -184,6 +310,22 @@ func _select_pattern(now: float) -> BossAttackPattern:
 				BossAttackPattern.Shape.PROJECTILE:
 					if dist > p.range + 5.0:
 						continue
+				BossAttackPattern.Shape.LEAP:
+					# LEAP is an OPENING-distance attack — only useful
+					# when the player has run AWAY mid-fight. Skip if
+					# already in melee range (boss should sweep instead)
+					# and skip if outrun by more than 1.5x the leap range.
+					if dist < 4.0:
+						continue
+					if dist > p.range * 1.5:
+						continue
+				BossAttackPattern.Shape.CHARGE:
+					# Charge needs running room. Skip if too close
+					# (sidestep is trivial) or too far (boss never catches).
+					if dist < 5.0:
+						continue
+					if dist > p.range * 1.3:
+						continue
 		candidates.append(p)
 		weights.append(p.priority_weight)
 		total_weight += p.priority_weight
@@ -212,6 +354,72 @@ func _execute_pattern(p: BossAttackPattern) -> void:
 	# Telegraph served its purpose: the strike has begun. Hitbox now
 	# handles the actual damage; the decal is no longer informative.
 	_clear_telegraph()
+	# LEAP / CHARGE shapes hijack the boss transform during execute.
+	# We compute the start/end positions, set _move_pattern_active so
+	# _physics_process drives the body along an arc/line, and (for
+	# CHARGE) spawn a moving LINE-shaped hitbox that travels with the
+	# boss. The execute_seconds field doubles as movement duration so
+	# designers can tune leap/charge speed by changing one field.
+	if p.shape == BossAttackPattern.Shape.LEAP:
+		_move_pattern_active = true
+		_move_pattern_kind = &"leap"
+		_move_start_pos = global_position
+		var land_pos: Vector3 = target.global_position if target else (global_position + global_transform.basis.z * p.range)
+		# Cap landing distance to the pattern's range so the boss doesn't
+		# teleport across the map if the player ran far.
+		var dir_xz: Vector3 = land_pos - global_position
+		dir_xz.y = 0
+		if dir_xz.length() > p.range:
+			dir_xz = dir_xz.normalized() * p.range
+			land_pos = global_position + dir_xz
+		land_pos.y = global_position.y  # land at boss's current floor height
+		_move_end_pos = land_pos
+		_move_t0 = Time.get_ticks_msec() / 1000.0
+		_move_duration = max(0.20, p.execute_seconds)
+		_move_pattern = p
+		# Boss aura roar moment — slight camera flash so the leap reads
+		# as a Big Move, not a quiet sidestep.
+		var juice = get_node_or_null("/root/Juice")
+		if juice and juice.has_method("flash"):
+			juice.flash(Color(1.0, 0.55, 0.20), 0.18, 0.10)
+		return  # impact hitbox spawns in _finish_move_pattern
+	if p.shape == BossAttackPattern.Shape.CHARGE:
+		_move_pattern_active = true
+		_move_pattern_kind = &"charge"
+		_move_start_pos = global_position
+		var fwd: Vector3 = global_transform.basis.z
+		fwd.y = 0
+		if fwd.length_squared() < 0.001:
+			fwd = Vector3.FORWARD
+		fwd = fwd.normalized()
+		_move_end_pos = global_position + fwd * p.range
+		_move_t0 = Time.get_ticks_msec() / 1000.0
+		_move_duration = max(0.20, p.execute_seconds)
+		_move_pattern = p
+		# Spawn a LINE hitbox that moves with the boss for the duration.
+		# We attach it as a child of the boss so its global_position
+		# tracks the boss's position automatically across each frame.
+		var hb_charge := preload("res://scripts/combat/hitbox.gd").new()
+		var ab_charge := Ability.new()
+		ab_charge.id = p.id
+		ab_charge.base_damage = p.base_damage
+		ab_charge.damage_type = p.damage_type
+		ab_charge.armor_pen = p.armor_pen
+		ab_charge.target_mode = Ability.TargetMode.FORWARD_CONE
+		ab_charge.range = 1.5
+		ab_charge.radius = max(0.6, p.radius)
+		hb_charge.ability = ab_charge
+		hb_charge.attacker_stats = self
+		hb_charge.lifetime = _move_duration
+		hb_charge.team = &"enemy"
+		var col := CollisionShape3D.new()
+		var box := BoxShape3D.new()
+		box.size = Vector3(p.radius * 2.0, 2.0, 1.5)
+		col.shape = box
+		hb_charge.add_child(col)
+		add_child(hb_charge)
+		hb_charge.position = Vector3(0, 1.0, 0.8)  # in front of boss, chest-high
+		return
 	# Spawn a Hitbox shaped by the pattern. Hitbox handles damage resolution.
 	var hb := preload("res://scripts/combat/hitbox.gd").new()
 	var ab := Ability.new()
@@ -285,6 +493,8 @@ func _shape_to_target_mode(shape: int) -> int:
 		BossAttackPattern.Shape.AOE_GROUND: return Ability.TargetMode.GROUND_TARGETED
 		BossAttackPattern.Shape.LINE: return Ability.TargetMode.FORWARD_CONE
 		BossAttackPattern.Shape.PROJECTILE: return Ability.TargetMode.PROJECTILE
+		BossAttackPattern.Shape.LEAP: return Ability.TargetMode.GROUND_TARGETED
+		BossAttackPattern.Shape.CHARGE: return Ability.TargetMode.FORWARD_CONE
 		_: return Ability.TargetMode.AOE_AROUND_SELF
 
 func _check_phase_transition() -> void:
@@ -473,9 +683,15 @@ func _spawn_telegraph(p: BossAttackPattern) -> void:
 	# danger zone they can dodge out of.
 	get_tree().current_scene.add_child(decal)
 	decal.global_position = origin + Vector3(0, _TELEGRAPH_HEIGHT, 0)
-	# For shapes that have a forward direction (CONE, LINE), rotate the
-	# decal so its +X axis aligns with the boss-to-target direction.
-	if p.shape == BossAttackPattern.Shape.FORWARD_CONE or p.shape == BossAttackPattern.Shape.LINE:
+	# For shapes that have a forward direction (CONE, LINE, CHARGE),
+	# rotate the decal so its +X axis aligns with the boss-to-target
+	# direction.
+	var dir_shape: bool = (
+		p.shape == BossAttackPattern.Shape.FORWARD_CONE
+		or p.shape == BossAttackPattern.Shape.LINE
+		or p.shape == BossAttackPattern.Shape.CHARGE
+	)
+	if dir_shape:
 		# Fallback uses +basis.z (Mixamo +Z-forward) when no target.
 		var dir: Vector3 = (target.global_position - global_position) if target else global_transform.basis.z
 		dir.y = 0
@@ -506,6 +722,14 @@ func _telegraph_size_for(p: BossAttackPattern) -> Vector2:
 			return Vector2(p.range * 2.0, 2.0)
 		BossAttackPattern.Shape.ARENA_WIDE:
 			return Vector2(36.0, 36.0)
+		BossAttackPattern.Shape.LEAP:
+			# Big circle at the landing zone — same diameter as the
+			# shockwave radius so the player can read 'don't be in this
+			# circle when the boss lands'.
+			return Vector2(p.radius * 2.4, p.radius * 2.4)
+		BossAttackPattern.Shape.CHARGE:
+			# Long danger strip, same as LINE but scaled to charge range.
+			return Vector2(p.range * 2.0, max(2.0, p.radius * 2.0))
 	return Vector2(2.0, 2.0)
 
 # Where to PLACE the decal in world space.
@@ -515,6 +739,19 @@ func _telegraph_origin_for(p: BossAttackPattern) -> Vector3:
 			# Decal lands at the player's current location (where the
 			# attack will resolve)
 			return target.global_position if target else global_position
+		BossAttackPattern.Shape.LEAP:
+			# Decal centers on the LANDING zone (target's current
+			# position), capped at p.range from the boss.
+			if not target:
+				return global_position + global_transform.basis.z * p.range
+			var land: Vector3 = target.global_position
+			var d: Vector3 = land - global_position
+			d.y = 0
+			if d.length() > p.range:
+				d = d.normalized() * p.range
+				land = global_position + d
+				land.y = global_position.y
+			return land
 		_:
 			# Centered on the boss
 			return global_position
