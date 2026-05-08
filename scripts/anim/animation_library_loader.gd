@@ -25,7 +25,9 @@ extends RefCounted
 const ANIM_LIB_NAME := &"marduk"  # all merged anims live under "marduk/<slot>"
 
 # True = print a single warning per missing slot (debug). False = silent.
-const VERBOSE_MISSING := true
+# OFF by default because verbose loader logs slowed splash dismissal
+# from <1s to 60+s on first run with 36 slots x 4 texture conversions.
+const VERBOSE_MISSING := false
 
 func apply(character_root: Node, role: String, role_id: StringName) -> void:
 	var anim_player: AnimationPlayer = _find_anim_player(character_root)

@@ -210,21 +210,17 @@ func _ready() -> void:
 	# spawn a tinted capsule fallback so the player position is always visible.
 	# Also logs mesh AABB once for remote diagnostics.
 	_install_visibility_fallback()
-	# Merge shared + class-specific Mixamo anims onto the AnimationPlayer (silent if .fbx
-	# files are missing on disk; gameplay falls through to whatever the mesh ships with).
-	# NOTE: Mixamo character .glbs ship without an AnimationPlayer, so the loader
-	# creates one if missing. After the loader runs, re-find anim_player so we
-	# pick up the newly-created node.
-	_load_marduk_animation_library()
-	if anim_player == null:
-		anim_player = _find_animation_player(self)
-	# Resolve our generic animation aliases to whatever names the imported character uses.
-	_resolve_anim_alias_map()
-	# Loop the idle animation by default
-	if anim_player:
-		var idle_name: String = _resolved_anims.get("idle", "")
-		if idle_name != "" and anim_player.has_animation(idle_name):
-			anim_player.play(idle_name)
+	# Show the aesthetic loading screen during the slow async anim load.
+	# AnimationLibraryLoader has to load 36 .glbs (each ~16MB with
+	# embedded textures) which takes 30-60s on first run. Showing a
+	# pretty themed overlay reads as 'this is intentional' instead of
+	# 'frozen on Godot's default splash'.
+	_spawn_loading_screen()
+	# Merge shared + class-specific Mixamo anims onto the AnimationPlayer.
+	# DEFERRED to next frame so the loading screen renders first.
+	# Idle anim loop fires from inside _load_marduk_animation_library_deferred
+	# AFTER the alias map resolves -- guarantees the right anim plays.
+	call_deferred("_load_marduk_animation_library_deferred")
 
 var _resolved_anims: Dictionary = {}  # generic key -> actual animation name in this character
 
@@ -391,6 +387,49 @@ func _read_scene_zone_id(scene: Node) -> StringName:
 		if nested and "style_id" in nested:
 			return StringName(String(nested.style_id))
 	return &""
+
+# Loading screen handle so we can dismiss it once anims are loaded.
+var _loading_screen: CanvasLayer = null
+
+func _spawn_loading_screen() -> void:
+	var ls_script: GDScript = load("res://scripts/ui/loading_screen.gd")
+	if ls_script == null:
+		return
+	_loading_screen = ls_script.new()
+	# Subtitle: show the class-flavored prologue title if we have one
+	var sub: String = "An ARPG Forged in the Heart of Tiamat"
+	if stats and stats.class_def:
+		var ci_script: GDScript = load("res://scripts/world/class_intros.gd")
+		if ci_script and ci_script.has_method("intro_title_for"):
+			var title: String = ci_script.intro_title_for(stats.class_def.class_id)
+			if title != "":
+				sub = title
+	# Add to the SCENE tree, not the player, so it persists across
+	# the deferred load. CanvasLayer renders above HUD. Use deferred
+	# add because we're called from the scene's setup phase where
+	# direct add_child triggers 'parent busy setting up children'.
+	get_tree().current_scene.add_child.call_deferred(_loading_screen)
+	if _loading_screen.has_method("set_subtitle"):
+		_loading_screen.call_deferred("set_subtitle", sub)
+
+# Wraps _load_marduk_animation_library to dismiss the loading screen
+# after the lib is built. Called via call_deferred from _ready so the
+# loading screen has at least one frame to render before we start
+# blocking on .glb loads.
+func _load_marduk_animation_library_deferred() -> void:
+	_load_marduk_animation_library()
+	if anim_player == null:
+		anim_player = _find_animation_player(self)
+	_resolve_anim_alias_map()
+	# Loop the idle once anims are resolved
+	if anim_player:
+		var idle_name: String = _resolved_anims.get("idle", "")
+		if idle_name != "" and anim_player.has_animation(idle_name):
+			anim_player.play(idle_name)
+	# Hide the loading screen with a soft fade
+	if _loading_screen and is_instance_valid(_loading_screen) and _loading_screen.has_method("hide_now"):
+		_loading_screen.hide_now(0.7)
+		_loading_screen = null
 
 # Pulls the Mixamo .fbx animations declared in AnimationRegistry onto this
 # Player's AnimationPlayer under the canonical "marduk/<slot>" namespace.
