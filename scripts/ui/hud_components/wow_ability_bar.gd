@@ -12,9 +12,14 @@ class_name WowAbilityBar
 # The bar draws procedurally — no separate .tscn — so it can be added by
 # the HUD on _ready and instantly start working.
 
-const SLOT_PX: Vector2 = Vector2(48, 48)
-const SLOT_GAP: int = 4
+const SLOT_PX: Vector2 = Vector2(64, 64)  # was 48; 64 reads as Dragonflight, 48 as Vanilla
+const SLOT_GAP: int = 6
 const SLOT_COUNT: int = 12
+# Class color stays cached so the active-slot frame doesn't flicker
+# every paint when the player.gd helper returns the same value.
+const FRAME_GOLD: Color = Color(0.78, 0.62, 0.28, 1.0)
+const FRAME_GOLD_BRIGHT: Color = Color(1.00, 0.86, 0.45, 1.0)
+const FRAME_INNER_DARK: Color = Color(0.04, 0.03, 0.05, 0.96)
 
 # Hotkey labels per slot index.
 const HOTKEYS := ["Q", "E", "R", "F", "1", "2", "3", "4", "5", "6", "7", "8"]
@@ -71,14 +76,52 @@ func _ready() -> void:
 func _make_slot(idx: int) -> Control:
 	var s := Panel.new()
 	s.custom_minimum_size = SLOT_PX
-	# Frame
+	# OUTER frame: gold filigree look. We layer two stylebox panels —
+	# the outer is the gold border with shadow under it, the inner is
+	# the dark cell that holds the icon. Two panels read as 'beveled
+	# metal frame with depth' instead of 'flat colored rectangle'.
 	var sb := StyleBoxFlat.new()
-	sb.bg_color = Color(0.10, 0.10, 0.13, 0.95)
-	sb.border_color = Color(0.3, 0.3, 0.35)
-	sb.set_border_width_all(2)
-	sb.set_corner_radius_all(4)
+	sb.bg_color = FRAME_INNER_DARK
+	sb.border_color = FRAME_GOLD
+	# Top border 1px brighter for the lit-from-above bevel illusion;
+	# left/right borders match; bottom is darker to suggest shadow.
+	sb.border_width_top = 2
+	sb.border_width_left = 2
+	sb.border_width_right = 2
+	sb.border_width_bottom = 2
+	sb.set_corner_radius_all(6)
+	# Drop shadow behind the slot. Shadow_size 6 with offset (0,3) reads
+	# as 'lifted off the screen' — the previous flat panels looked
+	# pasted-on and cheap.
+	sb.shadow_color = Color(0, 0, 0, 0.65)
+	sb.shadow_size = 6
+	sb.shadow_offset = Vector2(0, 3)
+	# Subtle inner content margin so the icon doesn't paint over the
+	# bevel border itself.
+	sb.content_margin_top = 3
+	sb.content_margin_left = 3
+	sb.content_margin_right = 3
+	sb.content_margin_bottom = 3
 	s.add_theme_stylebox_override("panel", sb)
 	s.mouse_filter = Control.MOUSE_FILTER_PASS
+
+	# A thin TOP-EDGE highlight strip painted as a child ColorRect.
+	# This is the 'molten gold' line that catches light at the top of
+	# real-game ability frames (Diablo, Lost Ark). 1px tall, anchored
+	# to the top, slightly inset.
+	var hi := ColorRect.new()
+	hi.name = "HighlightStrip"
+	hi.color = FRAME_GOLD_BRIGHT
+	hi.anchor_left = 0.0
+	hi.anchor_top = 0.0
+	hi.anchor_right = 1.0
+	hi.anchor_bottom = 0.0
+	hi.offset_left = 4.0
+	hi.offset_right = -4.0
+	hi.offset_top = 3.0
+	hi.offset_bottom = 4.0
+	hi.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	s.add_child(hi)
 
 	var icon := TextureRect.new()
 	icon.name = "Icon"
@@ -86,23 +129,36 @@ func _make_slot(idx: int) -> Control:
 	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	icon.anchor_right = 1.0
 	icon.anchor_bottom = 1.0
+	icon.offset_left = 4.0
+	icon.offset_top = 4.0
+	icon.offset_right = -4.0
+	icon.offset_bottom = -4.0
+	# NEAREST keeps the procedural pixel-art glyphs crisp at 64px.
+	# LINEAR_MIPMAP (Godot default) blurs them into a smear.
+	icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	s.add_child(icon)
 
 	# Cooldown overlay (semi-transparent dark mask + countdown number)
 	var cd := ColorRect.new()
 	cd.name = "CD"
-	cd.color = Color(0, 0, 0, 0.55)
+	cd.color = Color(0, 0, 0, 0.62)
 	cd.anchor_right = 1.0
 	cd.anchor_bottom = 1.0
+	cd.offset_left = 3.0
+	cd.offset_top = 3.0
+	cd.offset_right = -3.0
+	cd.offset_bottom = -3.0
 	cd.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	cd.visible = false
 	s.add_child(cd)
 
 	var cd_lbl := Label.new()
 	cd_lbl.name = "CDLabel"
-	cd_lbl.add_theme_font_size_override("font_size", 14)
-	cd_lbl.modulate = Color(1, 1, 1)
+	cd_lbl.add_theme_font_size_override("font_size", 22)  # was 14, doubles legibility
+	cd_lbl.add_theme_color_override("font_color", Color(1.0, 0.95, 0.70, 1))
+	cd_lbl.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.95))
+	cd_lbl.add_theme_constant_override("outline_size", 5)
 	cd_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	cd_lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	cd_lbl.anchor_right = 1.0
@@ -110,19 +166,41 @@ func _make_slot(idx: int) -> Control:
 	cd_lbl.visible = false
 	s.add_child(cd_lbl)
 
-	# Hotkey badge bottom-right
+	# Hotkey badge bottom-right. Sits inside a dark pill background so
+	# the text reads on every icon color (no more 'Q' invisible against
+	# yellow holy abilities).
+	var hk_pill := Panel.new()
+	hk_pill.name = "HotkeyPill"
+	hk_pill.anchor_left = 0.0
+	hk_pill.anchor_top = 1.0
+	hk_pill.anchor_right = 0.0
+	hk_pill.anchor_bottom = 1.0
+	hk_pill.offset_left = 4.0
+	hk_pill.offset_top = -18.0
+	hk_pill.offset_right = 22.0
+	hk_pill.offset_bottom = -4.0
+	var pill_sb := StyleBoxFlat.new()
+	pill_sb.bg_color = Color(0, 0, 0, 0.78)
+	pill_sb.border_color = FRAME_GOLD
+	pill_sb.set_border_width_all(1)
+	pill_sb.set_corner_radius_all(3)
+	hk_pill.add_theme_stylebox_override("panel", pill_sb)
+	hk_pill.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	s.add_child(hk_pill)
+
 	var hk := Label.new()
 	hk.name = "Hotkey"
 	hk.text = HOTKEYS[idx] if idx < HOTKEYS.size() else ""
-	hk.add_theme_font_size_override("font_size", 11)
-	hk.modulate = Color(0.95, 0.95, 0.65)
-	hk.anchor_left = 1.0
-	hk.anchor_top = 1.0
+	hk.add_theme_font_size_override("font_size", 12)
+	hk.add_theme_color_override("font_color", FRAME_GOLD_BRIGHT)
+	hk.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.9))
+	hk.add_theme_constant_override("outline_size", 3)
+	hk.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	hk.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	hk.anchor_right = 1.0
 	hk.anchor_bottom = 1.0
-	hk.offset_left = -16.0
-	hk.offset_top = -13.0
-	s.add_child(hk)
+	hk.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	hk_pill.add_child(hk)
 	return s
 
 func _process(delta: float) -> void:
@@ -235,9 +313,15 @@ func _update_cooldowns() -> void:
 			cd_lbl.visible = false
 			cd.anchor_top = 0.0  # reset for next use
 
-# Procedural icon: 64x64 image with a per-ability glyph drawn on top
-# of an element-tinted gradient. No sprite assets required; everything
-# is drawn pixel-by-pixel based on the ability id.
+# Procedural icon: 64x64 image rendered with multiple compositing
+# passes — vertical gradient body (lit from above), corner vignette,
+# element glyph, top molten highlight, sparkles. The icon's outer
+# border is drawn by the slot Panel's StyleBoxFlat (gold frame +
+# shadow), so the image itself does NOT paint a 1px outer ring; the
+# previous version did and produced a double-border 'comic-book'
+# look. ICON_SIZE stays at 64 because every _glyph_* helper uses
+# hard-coded 64-grid coords; bumping to 96 would shrink every glyph
+# into the upper-left quarter.
 const ICON_SIZE: int = 64
 
 func _build_ability_icon(k: Dictionary) -> Texture2D:
@@ -246,31 +330,64 @@ func _build_ability_icon(k: Dictionary) -> Texture2D:
 		return _icon_cache[ability_id]
 	var img := Image.create(ICON_SIZE, ICON_SIZE, false, Image.FORMAT_RGBA8)
 	var bg: Color = _color_for_id(StringName(k.get("id", "")))
-	# Radial gradient body (lighter center -> darker edges)
-	var center := Vector2(ICON_SIZE * 0.5, ICON_SIZE * 0.4)
+	# Pass 1 — sky-to-stone vertical gradient. The top of the slot is
+	# a brighter saturated version of the element color, the bottom
+	# fades to a darker desaturated rocky tone. This reads as 'molten
+	# metal disc set into stone' rather than 'flat colored square'.
+	var top_color: Color = bg.lightened(0.32)
+	var bot_color: Color = bg.darkened(0.50).lerp(Color(0.07, 0.06, 0.08, 1), 0.35)
+	for y in ICON_SIZE:
+		var t: float = float(y) / float(ICON_SIZE - 1)
+		# Quadratic curve so transition concentrates in the lower half
+		t = t * t
+		var row: Color = top_color.lerp(bot_color, t)
+		for x in ICON_SIZE:
+			img.set_pixel(x, y, row)
+	# Pass 2 — radial vignette darkens the corners so the eye is drawn
+	# to the central glyph. Without this the icons read flat even with
+	# the gradient pass.
+	var center := Vector2(ICON_SIZE * 0.5, ICON_SIZE * 0.5)
+	var max_d: float = ICON_SIZE * 0.55
 	for x in ICON_SIZE:
 		for y in ICON_SIZE:
-			var d: float = Vector2(x, y).distance_to(center) / float(ICON_SIZE * 0.6)
-			d = clamp(d, 0.0, 1.0)
-			img.set_pixel(x, y, bg.lightened(0.25 * (1.0 - d)).lerp(bg.darkened(0.4), d))
-	# Glyph overlay
-	var glyph_color: Color = bg.lightened(0.6)
+			var d: float = Vector2(x, y).distance_to(center) / max_d
+			if d > 0.7:
+				var fade: float = clamp((d - 0.7) / 0.5, 0.0, 0.85)
+				var px: Color = img.get_pixel(x, y)
+				img.set_pixel(x, y, px.darkened(fade * 0.55))
+	# Pass 3 — glyph. We paint at higher detail using the same
+	# coordinate space; downstream nearest-filter scaling keeps it
+	# crisp at the 64px slot size.
+	var glyph_color: Color = bg.lightened(0.85).lerp(Color.WHITE, 0.35)
 	_draw_glyph(img, StringName(k.get("id", "")), glyph_color)
-	# Inner bevel highlight (top edge bright, bottom dim)
+	# Pass 4 — inner bevel highlights: bright top, mid-dark bottom.
+	# These run inside the gold-frame margin so the icon reads as 'lit
+	# from above' even after the slot StyleBoxFlat draws its border.
 	for x in ICON_SIZE:
 		img.set_pixel(x, 1, bg.lightened(0.45))
 		img.set_pixel(x, ICON_SIZE - 2, bg.darkened(0.5))
 	for y in ICON_SIZE:
 		img.set_pixel(1, y, bg.lightened(0.30))
 		img.set_pixel(ICON_SIZE - 2, y, bg.darkened(0.45))
-	# Outer gold border
-	var border := Color(0.95, 0.78, 0.40)
+	# Pass 5 — top-edge molten highlight. Two-pixel band of bright
+	# bg-tinted color across the top, fading down. Adds a 'wet metal'
+	# read at the top edge that simulates the gloss WoW icons get
+	# from their gradient overlays.
+	var molten: Color = bg.lightened(0.65)
 	for x in ICON_SIZE:
-		img.set_pixel(x, 0, border)
-		img.set_pixel(x, ICON_SIZE - 1, border)
-	for y in ICON_SIZE:
-		img.set_pixel(0, y, border)
-		img.set_pixel(ICON_SIZE - 1, y, border)
+		img.set_pixel(x, 2, molten.lerp(top_color, 0.25))
+		img.set_pixel(x, 3, molten.lerp(top_color, 0.55))
+	# Pass 6 — corner sparkles for legendary/active abilities. Tiny
+	# 1px dots in the top-left and bottom-right that catch the eye
+	# without dominating. Hue pulled from bg so they read as part of
+	# the same set.
+	var spark: Color = bg.lightened(0.95).lerp(Color.WHITE, 0.5)
+	img.set_pixel(4, 4, spark)
+	img.set_pixel(5, 4, spark.lerp(top_color, 0.5))
+	img.set_pixel(4, 5, spark.lerp(top_color, 0.5))
+	# Note: outer border is now drawn by the slot Panel's StyleBoxFlat
+	# (gold frame with shadow) — we no longer paint a 1px border on
+	# the image itself, which was causing a double-border artifact.
 	var tex: Texture2D = ImageTexture.create_from_image(img)
 	if ability_id != "":
 		_icon_cache[ability_id] = tex
@@ -309,40 +426,91 @@ func _draw_glyph(img: Image, id: StringName, c: Color) -> void:
 # --- Glyph primitives ---
 
 func _glyph_sword(img: Image, c: Color) -> void:
-	# Diagonal blade from upper-right to lower-left + crossguard
-	var center := ICON_SIZE / 2
+	# Katana-style diagonal blade with proper geometry: tip in upper-
+	# right, grip in lower-left, gold tsuba (crossguard), dark tsuka
+	# (handle). Three layers — outline, fill, highlight stripe along
+	# the edge — read as a real sword instead of a slash.
+	var c_outline: Color = c.darkened(0.55)
+	var c_fill: Color = c
+	var c_highlight: Color = c.lightened(0.55)
+	# Blade body: parallel diagonal stripe from (16,48) -> (48,16)
 	for i in range(-22, 23):
-		var x: int = clamp(center + i, 1, ICON_SIZE - 2)
-		var y: int = clamp(center - i, 1, ICON_SIZE - 2)
-		_blot(img, x, y, c, 1)
-	# Crossguard
-	var gy := center + 12
-	for x in range(center - 14, center + 15):
-		_blot(img, x, gy, c.darkened(0.2), 1)
+		var x: int = clamp(32 + i, 1, ICON_SIZE - 2)
+		var y: int = clamp(32 - i, 1, ICON_SIZE - 2)
+		# 3-thick blade: outline / fill / fill / highlight
+		_blot(img, x, y, c_fill, 1)
+		# Highlight one px above (perpendicular to slash direction)
+		if x + 1 < ICON_SIZE - 1 and y - 1 > 0:
+			img.set_pixel(x + 1, y - 1, c_highlight)
+		if x - 1 > 0 and y + 1 < ICON_SIZE - 1:
+			img.set_pixel(x - 1, y + 1, c_outline)
+	# Tsuba (gold crossguard) - perpendicular to blade at lower-left
+	var gold := Color(0.92, 0.72, 0.30)
+	for off in range(-6, 7):
+		var gx: int = clamp(20 + off, 1, ICON_SIZE - 2)
+		var gy: int = clamp(44 + off, 1, ICON_SIZE - 2)
+		_blot(img, gx, gy, gold, 1)
+	# Tsuka (dark handle) extending past the tsuba
+	var dark := Color(0.18, 0.12, 0.10)
+	for k in range(0, 10):
+		var hx: int = clamp(16 - k, 1, ICON_SIZE - 2)
+		var hy: int = clamp(48 + k, 1, ICON_SIZE - 2)
+		_blot(img, hx, hy, dark, 1)
 
 func _glyph_water(img: Image, c: Color) -> void:
-	# Teardrop: triangle on top, circle at bottom
+	# Teardrop with proper lit shading: dark outline at edges, mid
+	# fill, bright highlight on the upper-left where light catches.
 	var cx := ICON_SIZE / 2
+	var c_dark: Color = c.darkened(0.45)
+	var c_lit: Color = c.lightened(0.55)
+	# Top triangle (point)
 	for r in range(0, 14):
 		var w: int = 14 - r
 		for dx in range(-w / 2, w / 2 + 1):
-			_blot(img, cx + dx, 14 + r, c, 0)
-	# Circle bottom
+			var col: Color = c
+			# Edge pixels darker
+			if abs(dx) >= w / 2 - 1:
+				col = c_dark
+			# Lit pixel
+			if dx <= -w / 4:
+				col = col.lerp(c_lit, 0.5)
+			_blot(img, cx + dx, 14 + r, col, 0)
+	# Round body
 	var by := 38
 	for dx in range(-12, 13):
 		for dy in range(-10, 11):
-			if dx * dx + dy * dy <= 100:
-				_blot(img, cx + dx, by + dy, c, 0)
+			var d2: int = dx * dx + dy * dy
+			if d2 <= 100:
+				var col2: Color = c
+				if d2 >= 80:
+					col2 = c_dark
+				# Highlight
+				if dx <= -4 and dy <= -2:
+					col2 = c_lit
+				_blot(img, cx + dx, by + dy, col2, 0)
 
 func _glyph_lightning(img: Image, c: Color) -> void:
-	# Z-shaped jagged bolt
+	# Bolt: stylized Z with thick body, dark outline, bright core.
+	# The earlier version drew a jagged 6-segment polygon that read as
+	# noise instead of a bolt. New shape uses 4 segments forming an
+	# unmistakable lightning Z.
 	var pts := [
-		Vector2i(38, 8), Vector2i(28, 26), Vector2i(36, 26),
-		Vector2i(20, 56), Vector2i(30, 36), Vector2i(22, 36)
+		Vector2i(38, 6),   # top peak
+		Vector2i(24, 28),  # bend left
+		Vector2i(34, 28),  # bend right
+		Vector2i(18, 58),  # bottom point
 	]
+	# Outline pass — darker, 1px wider
+	for i in range(pts.size() - 1):
+		_draw_line(img, pts[i], pts[i + 1], c.darkened(0.55), 3)
+	# Body pass
 	for i in range(pts.size() - 1):
 		_draw_line(img, pts[i], pts[i + 1], c, 2)
-	_draw_line(img, pts[pts.size() - 1], pts[0], c, 2)
+	# Bright core
+	for i in range(pts.size() - 1):
+		_draw_line(img, pts[i], pts[i + 1], c.lightened(0.55), 0)
+	# Cap the top peak with a bright dot
+	_blot(img, 38, 6, c.lightened(0.85), 1)
 
 func _glyph_flame(img: Image, c: Color) -> void:
 	# Three rising flame tongues

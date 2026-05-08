@@ -279,10 +279,17 @@ func _attach_value_label(bar: ProgressBar, fmt: String, kind: String) -> void:
 	lbl.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	lbl.add_theme_font_size_override("font_size", 11)
-	lbl.add_theme_color_override("font_color", Color(1, 1, 1, 0.95))
-	lbl.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.85))
-	lbl.add_theme_constant_override("outline_size", 3)
+	# 13pt is the WoW-standard bar value size; 11pt was 55% of bar
+	# height and squint-illegible on dark mid-fill segments.
+	lbl.add_theme_font_size_override("font_size", 13)
+	lbl.add_theme_color_override("font_color", Color(1, 1, 1, 0.97))
+	lbl.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.95))
+	lbl.add_theme_constant_override("outline_size", 4)
+	# Drop shadow so the text reads on light fill colors (Stamina yellow,
+	# Holy gold) without losing punch on dark fills (Shadow purple).
+	lbl.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.75))
+	lbl.add_theme_constant_override("shadow_offset_x", 1)
+	lbl.add_theme_constant_override("shadow_offset_y", 1)
 	lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	bar.add_child(lbl)
 	_refresh_value_label(bar, kind)
@@ -511,31 +518,61 @@ func _build_boss_bar() -> Control:
 	frame.name = "Frame"
 	frame.anchor_right = 1.0
 	frame.anchor_bottom = 1.0
+	# Backing panel: dark slate with gold filigree border + shadow,
+	# matching the ability bar slot styling so the HUD reads as a set.
+	var frame_sb := StyleBoxFlat.new()
+	frame_sb.bg_color = Color(0.06, 0.04, 0.06, 0.94)
+	frame_sb.border_color = Color(0.78, 0.62, 0.28, 1.0)
+	frame_sb.set_border_width_all(2)
+	frame_sb.set_corner_radius_all(6)
+	frame_sb.shadow_color = Color(0, 0, 0, 0.65)
+	frame_sb.shadow_size = 8
+	frame_sb.shadow_offset = Vector2(0, 4)
+	frame_sb.content_margin_top = 6
+	frame_sb.content_margin_bottom = 6
+	frame_sb.content_margin_left = 14
+	frame_sb.content_margin_right = 14
+	frame.add_theme_stylebox_override("panel", frame_sb)
 	root.add_child(frame)
 
 	var v := VBoxContainer.new()
 	v.name = "V"
+	v.add_theme_constant_override("separation", 4)
 	frame.add_child(v)
 
 	var name := Label.new()
 	name.name = "Name"
-	name.add_theme_font_size_override("font_size", 18)
-	name.modulate = Color(0.95, 0.85, 0.55)
+	# 22pt bold-bright with crisp dark outline + drop shadow. 18pt was
+	# below WoW boss-name reading distance.
+	name.add_theme_font_size_override("font_size", 22)
+	name.add_theme_color_override("font_color", Color(1.0, 0.92, 0.55, 1))
+	name.add_theme_color_override("font_outline_color", Color(0.20, 0.05, 0.05, 1.0))
+	name.add_theme_constant_override("outline_size", 5)
+	name.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.85))
+	name.add_theme_constant_override("shadow_offset_x", 2)
+	name.add_theme_constant_override("shadow_offset_y", 2)
 	name.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	v.add_child(name)
 
 	var phase := Label.new()
 	phase.name = "Phase"
-	phase.add_theme_font_size_override("font_size", 11)
-	phase.modulate = Color(0.85, 0.65, 0.45)
+	phase.add_theme_font_size_override("font_size", 13)
+	phase.add_theme_color_override("font_color", Color(0.95, 0.75, 0.55, 1))
+	phase.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.85))
+	phase.add_theme_constant_override("outline_size", 3)
 	phase.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	v.add_child(phase)
 
 	var hp := ProgressBar.new()
 	hp.name = "HP"
-	hp.custom_minimum_size = Vector2(700, 22)
-	hp.modulate = Color(0.95, 0.20, 0.20)
+	hp.custom_minimum_size = Vector2(700, 26)
 	hp.show_percentage = false
+	# Bare modulate ditched — apply the same StyleBoxFlat treatment the
+	# player bars get so the boss HP gets a polished inset frame +
+	# bevel, not just a tinted ProgressBar.
+	_apply_bar_style(hp, Color(0.92, 0.18, 0.20), Color(1.0, 0.50, 0.45), Color(0.45, 0.05, 0.07))
+	# Boss HP gets its own value label (e.g. "8,250 / 12,000")
+	_attach_value_label(hp, "%d / %d", "boss_hp")
 	v.add_child(hp)
 
 	var bar_script: GDScript = load("res://scripts/ui/hud_components/boss_bar.gd")
