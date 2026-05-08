@@ -229,23 +229,259 @@ func _update_cooldowns() -> void:
 			cd_lbl.visible = false
 			cd.anchor_top = 0.0  # reset for next use
 
-# Quick procedural icon: square colored by ability element with the first
-# letter of the ability name overlaid. Replaceable later when art lands.
+# Procedural icon: 64x64 image with a per-ability glyph drawn on top
+# of an element-tinted gradient. No sprite assets required; everything
+# is drawn pixel-by-pixel based on the ability id.
+const ICON_SIZE: int = 64
+
 func _build_ability_icon(k: Dictionary) -> Texture2D:
-	var img := Image.create(48, 48, false, Image.FORMAT_RGBA8)
-	var col: Color = _color_for_id(StringName(k.get("id", "")))
-	# Body fill with subtle gradient
-	for x in range(48):
-		for y in range(48):
-			var t: float = float(y) / 48.0
-			img.set_pixel(x, y, col.lerp(col.darkened(0.3), t))
-	# Border
-	for x in range(48):
-		img.set_pixel(x, 0, Color(0.95, 0.85, 0.55))
-		img.set_pixel(x, 47, Color(0.95, 0.85, 0.55))
-		img.set_pixel(0, x, Color(0.95, 0.85, 0.55))
-		img.set_pixel(47, x, Color(0.95, 0.85, 0.55))
+	var img := Image.create(ICON_SIZE, ICON_SIZE, false, Image.FORMAT_RGBA8)
+	var bg: Color = _color_for_id(StringName(k.get("id", "")))
+	# Radial gradient body (lighter center -> darker edges)
+	var center := Vector2(ICON_SIZE * 0.5, ICON_SIZE * 0.4)
+	for x in ICON_SIZE:
+		for y in ICON_SIZE:
+			var d: float = Vector2(x, y).distance_to(center) / float(ICON_SIZE * 0.6)
+			d = clamp(d, 0.0, 1.0)
+			img.set_pixel(x, y, bg.lightened(0.25 * (1.0 - d)).lerp(bg.darkened(0.4), d))
+	# Glyph overlay
+	var glyph_color: Color = bg.lightened(0.6)
+	_draw_glyph(img, StringName(k.get("id", "")), glyph_color)
+	# Inner bevel highlight (top edge bright, bottom dim)
+	for x in ICON_SIZE:
+		img.set_pixel(x, 1, bg.lightened(0.45))
+		img.set_pixel(x, ICON_SIZE - 2, bg.darkened(0.5))
+	for y in ICON_SIZE:
+		img.set_pixel(1, y, bg.lightened(0.30))
+		img.set_pixel(ICON_SIZE - 2, y, bg.darkened(0.45))
+	# Outer gold border
+	var border := Color(0.95, 0.78, 0.40)
+	for x in ICON_SIZE:
+		img.set_pixel(x, 0, border)
+		img.set_pixel(x, ICON_SIZE - 1, border)
+	for y in ICON_SIZE:
+		img.set_pixel(0, y, border)
+		img.set_pixel(ICON_SIZE - 1, y, border)
 	return ImageTexture.create_from_image(img)
+
+# Picks a glyph based on ability id. Each glyph is drawn into the
+# image via simple per-pixel paths. The id string is matched against
+# substring keywords so naming variations all hit the right glyph.
+func _draw_glyph(img: Image, id: StringName, c: Color) -> void:
+	var s := String(id).to_lower()
+	if "iai" in s or "katana" in s or "swing" in s or "smite" in s or "swipe" in s or "cleave" in s or "strike" in s or "rake" in s or "stab" in s or "shot" in s or "snipe" in s or "kunai" in s or "vine" in s or "lash" in s:
+		_glyph_sword(img, c)
+	elif "water" in s or "tide" in s or "redirect" in s or "flowing" in s:
+		_glyph_water(img, c)
+	elif "thunder" in s or "lightning" in s or "spark" in s:
+		_glyph_lightning(img, c)
+	elif "fire" in s or "fireball" in s or "flame" in s or "hellfire" in s or "fury" in s:
+		_glyph_flame(img, c)
+	elif "frost" in s or "nova" in s or "ice" in s:
+		_glyph_frost(img, c)
+	elif "holy" in s or "sun" in s or "judgment" in s or "pillar" in s or "beam" in s:
+		_glyph_sun(img, c)
+	elif "moon" in s or "shadow" in s or "soul" in s or "drain" in s or "stealth" in s or "demon_form" in s:
+		_glyph_moon(img, c)
+	elif "shield" in s or "guard" in s or "block" in s or "parry" in s or "divine_shield" in s or "mana_shield" in s:
+		_glyph_shield(img, c)
+	elif "heal" in s or "aura" in s:
+		_glyph_heart(img, c)
+	elif "war_cry" in s or "power_up" in s or "battle_cry" in s or "katana_power_up" in s or "primal" in s or "druid_form" in s or "hawk" in s or "stance_resolve" in s or "resolve" in s:
+		_glyph_aura(img, c)
+	elif "leap" in s or "trap" in s or "totem" in s or "throw" in s or "wing" in s:
+		_glyph_target(img, c)
+	else:
+		_glyph_diamond(img, c)
+
+# --- Glyph primitives ---
+
+func _glyph_sword(img: Image, c: Color) -> void:
+	# Diagonal blade from upper-right to lower-left + crossguard
+	var center := ICON_SIZE / 2
+	for i in range(-22, 23):
+		var x: int = clamp(center + i, 1, ICON_SIZE - 2)
+		var y: int = clamp(center - i, 1, ICON_SIZE - 2)
+		_blot(img, x, y, c, 1)
+	# Crossguard
+	var gy := center + 12
+	for x in range(center - 14, center + 15):
+		_blot(img, x, gy, c.darkened(0.2), 1)
+
+func _glyph_water(img: Image, c: Color) -> void:
+	# Teardrop: triangle on top, circle at bottom
+	var cx := ICON_SIZE / 2
+	for r in range(0, 14):
+		var w: int = 14 - r
+		for dx in range(-w / 2, w / 2 + 1):
+			_blot(img, cx + dx, 14 + r, c, 0)
+	# Circle bottom
+	var by := 38
+	for dx in range(-12, 13):
+		for dy in range(-10, 11):
+			if dx * dx + dy * dy <= 100:
+				_blot(img, cx + dx, by + dy, c, 0)
+
+func _glyph_lightning(img: Image, c: Color) -> void:
+	# Z-shaped jagged bolt
+	var pts := [
+		Vector2i(38, 8), Vector2i(28, 26), Vector2i(36, 26),
+		Vector2i(20, 56), Vector2i(30, 36), Vector2i(22, 36)
+	]
+	for i in range(pts.size() - 1):
+		_draw_line(img, pts[i], pts[i + 1], c, 2)
+	_draw_line(img, pts[pts.size() - 1], pts[0], c, 2)
+
+func _glyph_flame(img: Image, c: Color) -> void:
+	# Three rising flame tongues
+	var cx := ICON_SIZE / 2
+	for h in range(0, 38):
+		var w: int = int(10.0 - h * 0.18)
+		w = max(0, w)
+		for dx in range(-w, w + 1):
+			_blot(img, cx + dx, 56 - h, c, 0)
+	# Side tongues
+	for h in range(0, 22):
+		var w2: int = int(5.0 - h * 0.20)
+		w2 = max(0, w2)
+		for dx in range(-w2, w2 + 1):
+			_blot(img, cx - 12 + dx, 50 - h, c.darkened(0.15), 0)
+			_blot(img, cx + 12 + dx, 50 - h, c.darkened(0.15), 0)
+
+func _glyph_frost(img: Image, c: Color) -> void:
+	# Six-pointed star
+	var cx := ICON_SIZE / 2
+	var cy := ICON_SIZE / 2
+	for i in range(6):
+		var angle: float = float(i) * PI / 3.0
+		var dx: int = int(cos(angle) * 22.0)
+		var dy: int = int(sin(angle) * 22.0)
+		_draw_line(img, Vector2i(cx, cy), Vector2i(cx + dx, cy + dy), c, 1)
+
+func _glyph_sun(img: Image, c: Color) -> void:
+	# Center disc + radiating rays
+	var cx := ICON_SIZE / 2
+	var cy := ICON_SIZE / 2
+	for dx in range(-8, 9):
+		for dy in range(-8, 9):
+			if dx * dx + dy * dy <= 64:
+				_blot(img, cx + dx, cy + dy, c, 0)
+	# 8 rays
+	for i in range(8):
+		var angle: float = float(i) * PI / 4.0
+		var x1: int = cx + int(cos(angle) * 12.0)
+		var y1: int = cy + int(sin(angle) * 12.0)
+		var x2: int = cx + int(cos(angle) * 24.0)
+		var y2: int = cy + int(sin(angle) * 24.0)
+		_draw_line(img, Vector2i(x1, y1), Vector2i(x2, y2), c, 2)
+
+func _glyph_moon(img: Image, c: Color) -> void:
+	# Crescent: big disc minus offset disc
+	var cx := ICON_SIZE / 2 - 2
+	var cy := ICON_SIZE / 2
+	for dx in range(-22, 23):
+		for dy in range(-22, 23):
+			var inside_big: bool = dx * dx + dy * dy <= 22 * 22
+			var inside_cut: bool = (dx + 12) * (dx + 12) + dy * dy <= 20 * 20
+			if inside_big and not inside_cut:
+				_blot(img, cx + dx, cy + dy, c, 0)
+
+func _glyph_shield(img: Image, c: Color) -> void:
+	# Heater shield outline
+	var cx := ICON_SIZE / 2
+	for y in range(8, 56):
+		var t: float = float(y - 8) / 48.0
+		var w: int = int(lerp(20.0, 4.0, t * t))
+		for dx in range(-w, w + 1):
+			_blot(img, cx + dx, y, c, 0)
+
+func _glyph_heart(img: Image, c: Color) -> void:
+	var cx := ICON_SIZE / 2
+	# Two top circles + V bottom
+	for dx in range(-10, 11):
+		for dy in range(-10, 11):
+			if dx * dx + dy * dy <= 80:
+				_blot(img, cx - 9 + dx, 22 + dy, c, 0)
+				_blot(img, cx + 9 + dx, 22 + dy, c, 0)
+	for y in range(20, 50):
+		var w: int = int(20.0 - (y - 20) * 0.85)
+		w = max(0, w)
+		for dx in range(-w, w + 1):
+			_blot(img, cx + dx, y, c, 0)
+
+func _glyph_aura(img: Image, c: Color) -> void:
+	# Concentric rings + center pip (rage / power-up)
+	var cx := ICON_SIZE / 2
+	var cy := ICON_SIZE / 2
+	for r in [22, 16, 10]:
+		_draw_circle_outline(img, cx, cy, r, c, 1)
+	for dx in range(-3, 4):
+		for dy in range(-3, 4):
+			if dx * dx + dy * dy <= 9:
+				_blot(img, cx + dx, cy + dy, c.lightened(0.2), 0)
+
+func _glyph_target(img: Image, c: Color) -> void:
+	# Crosshair with center pip
+	var cx := ICON_SIZE / 2
+	var cy := ICON_SIZE / 2
+	_draw_circle_outline(img, cx, cy, 22, c, 1)
+	_draw_circle_outline(img, cx, cy, 12, c, 1)
+	for x in range(cx - 6, cx + 7):
+		_blot(img, x, cy, c, 0)
+	for y in range(cy - 6, cy + 7):
+		_blot(img, cx, y, c, 0)
+
+func _glyph_diamond(img: Image, c: Color) -> void:
+	# Generic fallback diamond
+	var cx := ICON_SIZE / 2
+	var cy := ICON_SIZE / 2
+	for dx in range(-20, 21):
+		for dy in range(-20, 21):
+			if abs(dx) + abs(dy) <= 20:
+				_blot(img, cx + dx, cy + dy, c, 0)
+
+# --- Drawing primitives ---
+
+func _blot(img: Image, x: int, y: int, c: Color, radius: int = 0) -> void:
+	if radius == 0:
+		if x >= 0 and y >= 0 and x < ICON_SIZE and y < ICON_SIZE:
+			img.set_pixel(x, y, c)
+		return
+	for dx in range(-radius, radius + 1):
+		for dy in range(-radius, radius + 1):
+			if dx * dx + dy * dy <= radius * radius:
+				var px: int = x + dx
+				var py: int = y + dy
+				if px >= 0 and py >= 0 and px < ICON_SIZE and py < ICON_SIZE:
+					img.set_pixel(px, py, c)
+
+# Bresenham line with thickness
+func _draw_line(img: Image, a: Vector2i, b: Vector2i, c: Color, thickness: int) -> void:
+	var dx: int = abs(b.x - a.x)
+	var dy: int = -abs(b.y - a.y)
+	var sx: int = 1 if a.x < b.x else -1
+	var sy: int = 1 if a.y < b.y else -1
+	var err: int = dx + dy
+	var x: int = a.x
+	var y: int = a.y
+	while true:
+		_blot(img, x, y, c, thickness)
+		if x == b.x and y == b.y:
+			break
+		var e2: int = 2 * err
+		if e2 >= dy:
+			err += dy
+			x += sx
+		if e2 <= dx:
+			err += dx
+			y += sy
+
+func _draw_circle_outline(img: Image, cx: int, cy: int, r: int, c: Color, thickness: int) -> void:
+	for theta_step in range(0, 360, 3):
+		var theta: float = deg_to_rad(theta_step)
+		var x: int = cx + int(cos(theta) * float(r))
+		var y: int = cy + int(sin(theta) * float(r))
+		_blot(img, x, y, c, thickness)
 
 func _color_for_id(id: StringName) -> Color:
 	var s: String = String(id)

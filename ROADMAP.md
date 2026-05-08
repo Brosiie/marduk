@@ -29,16 +29,16 @@ What landed:
 
 Goal: a level 1 character can run from one intro zone to Ashurim, kill their mini-boss, and meet the Storyteller.
 
-- [ ] Author one full intro scene (suggest Ronin's Sword-Vow Ruins for combat showcase)
-- [ ] Mini-boss AI: Enforcer Kazat with simple attack pattern + posture bar
-- [ ] First 3 breathing forms playable (Water 1-3) for Ronin testing
-- [ ] AbilityRunner wires hitbox spawning per ability target_mode
-- [ ] HUD ability bar shows Q/E/R/F slots and cooldowns
-- [ ] Damage popup floating numbers
-- [ ] Death + respawn at zone entrance
-- [ ] Loot pickup interaction (E to pick up)
-- [ ] Ashurim placeholder scene with the Storyteller NPC
-- [ ] Bond's damage formula filled in at scripts/combat/damage_calc.gd
+- [x] Author one full intro scene (Ronin's Sword-Vow Ruins — scene existed, Kazat wired in)
+- [x] Mini-boss AI: Enforcer Kazat — BossBase, 2 phases, sweep + lunge + fast-sweep
+- [x] First 3 breathing forms playable (Water 1-3 .tres resources + kit wired)
+- [x] AbilityRunner wires hitbox spawning per ability target_mode (FORWARD_CONE + AOE_AROUND_SELF)
+- [x] HUD ability bar shows Q/E/R/F slots and cooldowns (AbilitySlotBar + player public getters)
+- [x] Damage popup floating numbers (CombatBus autoload + DamageFloater.spawn wired)
+- [x] Death + respawn at zone entrance (was already fully implemented in Phase 0)
+- [x] Loot pickup interaction (V key — Kazat drops bronze_katana via ItemPickup)
+- [x] Ashurim placeholder scene with the Storyteller NPC (class-specific greeting)
+- [x] Bond's damage formula — soulslike-multiplicative locked in Phase 0
 
 Deliverable: 5-10 minute playable demo. Ronin only. One zone, one fight, one cutscene.
 

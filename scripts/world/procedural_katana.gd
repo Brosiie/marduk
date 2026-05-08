@@ -130,26 +130,23 @@ func _build() -> void:
 	hamon.mesh = hamon_mesh
 	var hmat := StandardMaterial3D.new()
 	hmat.albedo_color = Color(0.92, 0.96, 1.0, 1)
-	hmat.metallic = 0.95
-	hmat.roughness = 0.05
-	hmat.emission_enabled = true
-	hmat.emission = Color(0.85, 0.92, 1.0)
-	hmat.emission_energy_multiplier = 0.10
+	hmat.metallic = 1.0
+	hmat.roughness = 0.04  # mirror finish so it catches the sun
 	hamon.material_override = hmat
 	hamon.position = Vector3(BLADE_THICKNESS * 0.31, TSUKA_LENGTH + TSUBA_THICKNESS + BLADE_LENGTH * 0.475, 0)
 	hamon.rotation = blade.rotation
 	add_child(hamon)
 
-# Steel blade material: high reflectivity, low roughness, faint
-# emission so the hamon catches lantern light.
+# Steel blade material: high reflectivity, low roughness, NO emission.
+# The cinematic envelope's bloom amplifies any emissive surface into a
+# halo -- so even tiny emission turns the blade into a lightsaber.
+# Pure PBR steel reads correctly against the post-process stack.
 func _blade_mat() -> StandardMaterial3D:
 	var m := StandardMaterial3D.new()
 	m.albedo_color = Color(0.78, 0.82, 0.90, 1)
-	m.metallic = 0.95
+	m.metallic = 1.0
+	m.metallic_specular = 0.85
 	m.roughness = 0.18
-	m.emission_enabled = true
-	m.emission = Color(0.75, 0.82, 0.95)
-	m.emission_energy_multiplier = 0.08
 	return m
 
 # Wrap (handle/pommel) material: dark leather/lacquer, low reflectivity

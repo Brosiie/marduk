@@ -1,0 +1,154 @@
+[gd_scene load_steps=10 format=3]
+
+[ext_resource type="Script" path="res://scripts/player/player.gd" id="1_player"]
+[ext_resource type="Script" path="res://scripts/player/camera_rig.gd" id="2_cam"]
+[ext_resource type="PackedScene" path="res://scenes/ui/hud.tscn" id="3_hud"]
+[ext_resource type="Shader" path="res://shaders/toon.gdshader" id="4_toon"]
+[ext_resource type="Script" path="res://scripts/npcs/storyteller_npc.gd" id="5_storyteller"]
+[ext_resource type="Script" path="res://scripts/world/warp_portal.gd" id="6_warp"]
+
+; Ashurim — Convergence City. Phase 1 placeholder.
+; Sandstone vaults. Warm candlelight. The Storyteller waits at the dais.
+; All six class intro paths end here at Level 5.
+
+[sub_resource type="PlaneMesh" id="floor_mesh"]
+size = Vector2(60, 60)
+
+[sub_resource type="ShaderMaterial" id="floor_mat"]
+shader = ExtResource("4_toon")
+shader_parameter/albedo = Color(0.72, 0.58, 0.40, 1)
+shader_parameter/bands = 3.0
+shader_parameter/ambient = 0.40
+shader_parameter/rim_strength = 0.25
+shader_parameter/rim_power = 4.5
+shader_parameter/rim_color = Color(1.0, 0.80, 0.50, 1)
+shader_parameter/shadow_tint = Color(0.38, 0.28, 0.18, 1)
+
+[sub_resource type="BoxShape3D" id="floor_shape"]
+size = Vector3(60, 0.4, 60)
+
+[sub_resource type="StandardMaterial3D" id="wall_mat"]
+albedo_color = Color(0.65, 0.52, 0.36, 1)
+roughness = 0.90
+
+[sub_resource type="CapsuleShape3D" id="player_shape"]
+radius = 0.4
+height = 1.7
+
+[sub_resource type="CapsuleMesh" id="player_mesh"]
+radius = 0.4
+height = 1.7
+
+[sub_resource type="ShaderMaterial" id="player_mat"]
+shader = ExtResource("4_toon")
+shader_parameter/albedo = Color(0.92, 0.72, 0.30, 1)
+shader_parameter/bands = 3.0
+shader_parameter/ambient = 0.40
+shader_parameter/rim_strength = 0.9
+shader_parameter/rim_power = 3.0
+shader_parameter/rim_color = Color(1.0, 0.95, 0.7, 1)
+shader_parameter/shadow_tint = Color(0.55, 0.40, 0.25, 1)
+
+[sub_resource type="CapsuleMesh" id="npc_mesh"]
+radius = 0.3
+height = 1.8
+
+[node name="Ashurim" type="Node3D"]
+
+; ── Floor ──────────────────────────────────────────────────────────────
+[node name="Floor" type="StaticBody3D" parent="."]
+[node name="FloorMesh" type="MeshInstance3D" parent="Floor"]
+mesh = SubResource("floor_mesh")
+material_override = SubResource("floor_mat")
+[node name="FloorCol" type="CollisionShape3D" parent="Floor"]
+shape = SubResource("floor_shape")
+position = Vector3(0, -0.2, 0)
+
+; ── Walls (sandstone vaults, placeholder box geometry) ─────────────────
+[node name="WallNorth" type="StaticBody3D" parent="."]
+position = Vector3(0, 4, -30)
+[node name="WallNorthMesh" type="MeshInstance3D" parent="WallNorth"]
+mesh = BoxMesh.new()
+material_override = SubResource("wall_mat")
+[node name="WallNorthCol" type="CollisionShape3D" parent="WallNorth"]
+shape = BoxShape3D.new()
+
+[node name="WallSouth" type="StaticBody3D" parent="."]
+position = Vector3(0, 4, 30)
+[node name="WallEast" type="StaticBody3D" parent="."]
+position = Vector3(30, 4, 0)
+[node name="WallWest" type="StaticBody3D" parent="."]
+position = Vector3(-30, 4, 0)
+
+; ── Candlelight ambience ────────────────────────────────────────────────
+[node name="CandleA" type="OmniLight3D" parent="."]
+position = Vector3(8, 2.5, 0)
+light_color = Color(1.0, 0.70, 0.35)
+light_energy = 1.8
+omni_range = 12.0
+
+[node name="CandleB" type="OmniLight3D" parent="."]
+position = Vector3(-8, 2.5, 0)
+light_color = Color(1.0, 0.65, 0.30)
+light_energy = 1.6
+omni_range = 10.0
+
+[node name="CandleC" type="OmniLight3D" parent="."]
+position = Vector3(0, 2.5, -10)
+light_color = Color(1.0, 0.72, 0.40)
+light_energy = 1.4
+omni_range = 10.0
+
+; ── Storyteller dais (raised platform) ─────────────────────────────────
+[node name="Dais" type="StaticBody3D" parent="."]
+position = Vector3(0, 0.3, -12)
+[node name="DaisMesh" type="MeshInstance3D" parent="Dais"]
+mesh = BoxMesh.new()
+[node name="DaisCol" type="CollisionShape3D" parent="Dais"]
+shape = BoxShape3D.new()
+
+; Storyteller NPC ─ on the dais, facing the entrance
+[node name="Storyteller" type="CharacterBody3D" parent="."]
+script = ExtResource("5_storyteller")
+position = Vector3(0, 0.7, -12)
+rotation = Vector3(0, 3.14159, 0)
+
+[node name="StorytellerMesh" type="MeshInstance3D" parent="Storyteller"]
+mesh = SubResource("npc_mesh")
+position = Vector3(0, 0, 0)
+
+; ── Warp portal back from intro zones ──────────────────────────────────
+; The warp activates after Kazat is defeated; player arrives here at z=14.
+[node name="ArrivalPoint" type="Marker3D" parent="."]
+position = Vector3(0, 0, 14)
+
+[node name="PortalBack" type="Area3D" parent="."]
+script = ExtResource("6_warp")
+position = Vector3(0, 1, 14)
+
+; ── Player ─────────────────────────────────────────────────────────────
+[node name="Player" type="CharacterBody3D" parent="."]
+script = ExtResource("1_player")
+position = Vector3(0, 0.1, 12)
+
+[node name="PlayerMesh" type="MeshInstance3D" parent="Player"]
+mesh = SubResource("player_mesh")
+material_override = SubResource("player_mat")
+
+[node name="PlayerShape" type="CollisionShape3D" parent="Player"]
+shape = SubResource("player_shape")
+
+; ── Camera ─────────────────────────────────────────────────────────────
+[node name="CameraRig" type="Node3D" parent="Player"]
+script = ExtResource("2_cam")
+
+[node name="Camera3D" type="Camera3D" parent="Player/CameraRig"]
+position = Vector3(0, 12, 12)
+rotation = Vector3(-0.64, 0, 0)
+fov = 55.0
+
+; ── HUD ────────────────────────────────────────────────────────────────
+[node name="HUD" parent="." instance=ExtResource("3_hud")]
+
+; ── WorldEnvironment ───────────────────────────────────────────────────
+[node name="WorldEnv" type="WorldEnvironment" parent="."]

@@ -45,6 +45,7 @@ func _ready() -> void:
 		return
 	_install_low_hp_vignette()
 	_install_combo_label()
+	_polish_bars()
 	player.hp_changed.connect(_on_hp)
 	player.mana_changed.connect(_on_mana)
 	player.resource_changed.connect(_on_resource)
@@ -174,6 +175,7 @@ func _unhandled_input(event: InputEvent) -> void:
 func _on_hp(cur: float, mx: float) -> void:
 	hp_bar.max_value = mx
 	hp_bar.value = cur
+	_refresh_value_label(hp_bar, "hp")
 	# Low-HP vignette: kicks in below 40% max HP, ramps to full opacity
 	# at 0% (just before death). Pulses slightly via shader's _process so
 	# the screen breathes red.
@@ -216,6 +218,80 @@ void fragment() {
 	# bars/menus so they stay readable through the vignette.
 	add_child(_low_hp_vignette)
 	move_child(_low_hp_vignette, 0)  # behind UI children
+
+# Polish the three top-left bars with proper StyleBoxFlat overrides
+# (dark inset frame, gradient fill, gold border) instead of bare
+# ProgressBars with just a `modulate` tint.
+func _polish_bars() -> void:
+	# Remove the modulate color tints set in the .tscn -- the styleboxes
+	# below paint the actual fill color, modulate would double-tint them.
+	if hp_bar:
+		hp_bar.modulate = Color.WHITE
+		_apply_bar_style(hp_bar, Color(0.85, 0.18, 0.20), Color(1.00, 0.45, 0.45), Color(0.55, 0.10, 0.12))
+		_attach_value_label(hp_bar, "%d / %d", "hp")
+	if mana_bar:
+		mana_bar.modulate = Color.WHITE
+		_apply_bar_style(mana_bar, Color(0.30, 0.55, 1.00), Color(0.55, 0.78, 1.0), Color(0.15, 0.30, 0.65))
+		_attach_value_label(mana_bar, "%d / %d", "mana")
+	if xp_bar:
+		xp_bar.modulate = Color.WHITE
+		_apply_bar_style(xp_bar, Color(1.0, 0.78, 0.30), Color(1.0, 0.92, 0.55), Color(0.55, 0.40, 0.10))
+	if level_label:
+		level_label.add_theme_color_override("font_color", Color(1.0, 0.92, 0.55))
+		level_label.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.85))
+		level_label.add_theme_constant_override("outline_size", 4)
+		level_label.add_theme_font_size_override("font_size", 22)
+
+func _apply_bar_style(bar: ProgressBar, mid: Color, light: Color, dark: Color) -> void:
+	# Background: dark inset with gold border
+	var sb_bg := StyleBoxFlat.new()
+	sb_bg.bg_color = Color(0.04, 0.03, 0.07, 0.92)
+	sb_bg.border_color = Color(0.45, 0.32, 0.15, 0.95)
+	sb_bg.set_border_width_all(1)
+	sb_bg.set_corner_radius_all(4)
+	# Subtle inner shadow on top edge for depth
+	sb_bg.shadow_color = Color(0, 0, 0, 0.5)
+	sb_bg.shadow_size = 2
+	sb_bg.shadow_offset = Vector2(0, 1)
+	bar.add_theme_stylebox_override("background", sb_bg)
+	# Fill: gradient via shader_material would be ideal but a flat
+	# saturated fill + thin highlight strip is good enough at small
+	# bar heights.
+	var sb_fg := StyleBoxFlat.new()
+	sb_fg.bg_color = mid
+	sb_fg.border_color = light
+	sb_fg.border_width_top = 2  # bright top edge for the gradient illusion
+	sb_fg.set_corner_radius_all(3)
+	# Slight glow on the fill so the bar pops against the dark bg
+	sb_fg.shadow_color = mid * 0.5
+	sb_fg.shadow_size = 0
+	bar.add_theme_stylebox_override("fill", sb_fg)
+	# Hide the default percentage text; we'll attach our own value label
+	bar.show_percentage = false
+
+# Floating value label inside the bar showing 'HP / max'. The label
+# refreshes in _on_hp / _on_mana via _refresh_value_label.
+func _attach_value_label(bar: ProgressBar, fmt: String, kind: String) -> void:
+	var lbl := Label.new()
+	lbl.name = "ValueLabel"
+	lbl.set_meta("fmt", fmt)
+	lbl.set_meta("kind", kind)
+	lbl.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	lbl.add_theme_font_size_override("font_size", 11)
+	lbl.add_theme_color_override("font_color", Color(1, 1, 1, 0.95))
+	lbl.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.85))
+	lbl.add_theme_constant_override("outline_size", 3)
+	lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	bar.add_child(lbl)
+	_refresh_value_label(bar, kind)
+
+func _refresh_value_label(bar: ProgressBar, kind: String) -> void:
+	var lbl := bar.get_node_or_null("ValueLabel") as Label
+	if lbl == null:
+		return
+	lbl.text = "%d / %d" % [int(bar.value), int(bar.max_value)]
 
 # Combo HUD widget: anchored right-center, font scales with stack count.
 # Color crossfades from white -> yellow -> orange -> red as the combo

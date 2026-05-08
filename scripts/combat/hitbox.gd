@@ -18,7 +18,16 @@ func _ready() -> void:
 	area_entered.connect(_on_area_entered)
 	if lifetime > 0.0:
 		var t := get_tree().create_timer(lifetime)
-		t.timeout.connect(queue_free)
+		t.timeout.connect(_on_expired)
+
+func _on_expired() -> void:
+	if hit_set.is_empty() and has_meta("miss_punishment_seconds"):
+		var owner_node: Node = get_meta("punishable_owner", null)
+		var secs: float = float(get_meta("miss_punishment_seconds", 0.0))
+		if owner_node and is_instance_valid(owner_node) and secs > 0.0:
+			owner_node.locked = true
+			get_tree().create_timer(secs).timeout.connect(func(): if is_instance_valid(owner_node): owner_node.locked = false)
+	queue_free()
 
 func _layer_for_team(t: StringName) -> int:
 	# layer 4 = PlayerHitbox, layer 5 = EnemyHitbox

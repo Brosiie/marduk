@@ -779,14 +779,26 @@ func _cast_ability_slot(slot: int) -> void:
 		if resolved != "":
 			anim_player.stop()
 			anim_player.play(resolved)
-	# Spawn a hitbox in front of the player using the existing combat layer.
+	# Chain bonus: if last ability matches this form's predecessor within the window,
+	# multiply base_damage by chain_bonus_mult. Always update the tracker.
+	var chain_mult: float = 1.0
+	var chain_pred: StringName = StringName(k.get("chain_predecessor", &""))
+	var chain_window: float = float(k.get("chain_window", 0.0))
+	var chain_bonus: float = float(k.get("chain_bonus_mult", 1.0))
+	if chain_pred != &"" and last_ability_id == chain_pred and chain_window > 0.0:
+		if (now - last_ability_time) <= chain_window:
+			chain_mult = chain_bonus
+	last_ability_id = StringName(k.get("id", &""))
+	last_ability_time = now
+
+	# Spawn a hitbox using target_mode from the kit dict (defaults to FORWARD_CONE).
 	var hb := preload("res://scripts/combat/hitbox.gd").new()
 	var swing := Ability.new()
 	swing.id = StringName(k.get("id", "ability"))
 	swing.display_name = String(k.get("name", "Ability"))
-	swing.base_damage = float(k.get("damage", 30.0))
+	swing.base_damage = float(k.get("damage", 30.0)) * chain_mult
 	swing.damage_type = int(k.get("element", Ability.DamageType.PHYSICAL))
-	swing.target_mode = Ability.TargetMode.FORWARD_CONE
+	swing.target_mode = int(k.get("target_mode", Ability.TargetMode.FORWARD_CONE))
 	swing.range = float(k.get("range", 3.0))
 	swing.radius = float(k.get("radius", 1.5))
 	swing.attribute_scaling = 0.4
@@ -796,13 +808,25 @@ func _cast_ability_slot(slot: int) -> void:
 	hb.team = &"player"
 	var collider := CollisionShape3D.new()
 	hb.add_child(collider)
-	var b := BoxShape3D.new()
-	b.size = Vector3(swing.radius * 2.0, 2.0, swing.range)
-	collider.shape = b
 	var fwd := -mesh.global_transform.basis.z if mesh else -global_transform.basis.z
 	fwd.y = 0; fwd = fwd.normalized()
-	hb.position = global_position + fwd * (swing.range * 0.5)
-	hb.look_at(global_position + fwd * swing.range, Vector3.UP)
+	match swing.target_mode:
+		Ability.TargetMode.AOE_AROUND_SELF:
+			var s := SphereShape3D.new()
+			s.radius = swing.radius
+			collider.shape = s
+			hb.position = global_position
+			# Miss punishment: if AoE finisher whiffs, lock player briefly.
+			var miss_sec: float = float(k.get("miss_punishment", 0.0))
+			if miss_sec > 0.0:
+				hb.set_meta("miss_punishment_seconds", miss_sec)
+				hb.set_meta("punishable_owner", self)
+		_:
+			var b := BoxShape3D.new()
+			b.size = Vector3(swing.radius * 2.0, 2.0, max(swing.range, 0.5))
+			collider.shape = b
+			hb.position = global_position + fwd * (swing.range * 0.5)
+			hb.look_at(global_position + fwd * max(swing.range, 0.5) + Vector3(0, 0.001, 0), Vector3.UP)
 	get_tree().current_scene.add_child(hb)
 	# Audio cue: per-element so fire abilities sound different than holy
 	# than swords. Picks the cue from element type, falls back to swing.
@@ -1307,18 +1331,17 @@ func _kit_default() -> Array:
 	]
 
 func _kit_ronin() -> Array:
-	# Ronin: physical katana strikes themed by Demon-Slayer breathing
-	# forms. iai/water/thunder anims trigger trail VFX in matching colors.
-	# Thunder Breath is electrically-themed -> LIGHTNING element.
+	# Water Breathing Forms 1-3 for Phase 1 demo. Chain: W1 -> W2 -> W3.
+	# chain_predecessor / chain_window / chain_bonus_mult mirror the .tres resources.
 	return [
-		# Q: Iai Strike - sudden draw + slash, water-themed trail.
-		{"id": &"iai_strike", "name": "Iai Strike", "damage": 38.0, "range": 3.2, "radius": 1.0, "cooldown": 0.6, "cost": 8.0, "element": Ability.DamageType.PHYSICAL, "anim": "iai", "pitch": 1.4, "desc": "A sudden draw-cut. Quick, precise, water-flowing."},
-		# E: Water Breath - quick combo flow, water trail
-		{"id": &"water_breath_1", "name": "Water Breath: First Form", "damage": 32.0, "range": 4.5, "radius": 2.0, "cooldown": 1.2, "cost": 12.0, "element": Ability.DamageType.PHYSICAL, "anim": "attack", "pitch": 0.95, "desc": "First form. Slashing arc that flows like water."},
-		# R: Thunder Breath - airborne slam, lightning trail + LIGHTNING dmg
-		{"id": &"thunder_breath_1", "name": "Thunder Breath: First Form", "damage": 56.0, "range": 6.5, "radius": 1.6, "cooldown": 4.0, "cost": 24.0, "element": Ability.DamageType.LIGHTNING, "anim": "heavy", "pitch": 1.6, "desc": "Falling thunder. Strike from above, faster than sight."},
-		# F: Power Up - +35% damage 6s buff (BATTLE_CRY_IDS match)
-		{"id": &"katana_power_up", "name": "Stance Resolve", "damage": 0.0, "range": 1.0, "radius": 1.0, "cooldown": 18.0, "anim": "power_up", "desc": "Center yourself. +35% damage for 6 seconds."},
+		# Q: Water Form 1 — Flowing Cut. Entry form, no chain predecessor.
+		{"id": &"water_1", "name": "Flowing Cut", "damage": 22.0, "range": 2.4, "radius": 1.4, "cooldown": 0.4, "cost": 12.0, "element": Ability.DamageType.PHYSICAL, "anim": "attack", "pitch": 1.2, "desc": "First Form — a fluid forward slash.", "chain_predecessor": &"", "chain_window": 0.0, "chain_bonus_mult": 1.0, "target_mode": Ability.TargetMode.FORWARD_CONE},
+		# E: Water Form 2 — Still Water Redirect. Chains from W1 at 1.35x.
+		{"id": &"water_2", "name": "Still Water Redirect", "damage": 18.0, "range": 2.0, "radius": 1.0, "cooldown": 0.55, "cost": 10.0, "element": Ability.DamageType.PHYSICAL, "anim": "block", "pitch": 1.0, "desc": "Second Form — deflect and counter.", "chain_predecessor": &"water_1", "chain_window": 1.8, "chain_bonus_mult": 1.35, "target_mode": Ability.TargetMode.FORWARD_CONE},
+		# R: Water Form 3 — Rising Tide. Full chain from W1->W2->W3 pays 1.60x. AoE finisher.
+		{"id": &"water_3", "name": "Rising Tide", "damage": 38.0, "range": 0.0, "radius": 2.6, "cooldown": 0.85, "cost": 20.0, "element": Ability.DamageType.PHYSICAL, "anim": "heavy", "pitch": 0.85, "desc": "Third Form — rising arc AoE. Punishes whiffs.", "chain_predecessor": &"water_2", "chain_window": 1.8, "chain_bonus_mult": 1.60, "target_mode": Ability.TargetMode.AOE_AROUND_SELF, "miss_punishment": 0.40},
+		# F: Stance Resolve — +35% damage 6s buff.
+		{"id": &"katana_power_up", "name": "Stance Resolve", "damage": 0.0, "range": 1.0, "radius": 1.0, "cooldown": 18.0, "anim": "power_up", "desc": "Center yourself. +35% damage for 6 seconds.", "chain_predecessor": &"", "chain_window": 0.0, "chain_bonus_mult": 1.0, "target_mode": Ability.TargetMode.SELF},
 	]
 
 func _kit_berserker() -> Array:
@@ -2428,6 +2451,20 @@ func receive_loot(item: Item) -> void:
 
 func get_inventory() -> Inventory:
 	return inventory
+
+# HUD reads these to show cooldown overlays and ability names without needing
+# direct access to the private dictionary kit.
+func get_ability_cooldown_remaining(slot: int) -> float:
+	if slot < 0 or slot >= _ability_cooldowns.size():
+		return 0.0
+	var now := Time.get_ticks_msec() / 1000.0
+	return max(0.0, float(_ability_cooldowns[slot]) - now)
+
+func get_ability_slot_info(slot: int) -> Dictionary:
+	if slot < 0 or slot >= _ability_kit.size():
+		return {}
+	var k = _ability_kit[slot]
+	return k if k is Dictionary else {}
 
 # === Mount API ===
 var current_mount: Mount = null
