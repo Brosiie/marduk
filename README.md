@@ -8,6 +8,13 @@ D&D-style classes and abilities. Online dungeon co-op as Phase 4 stretch.
 ($1 prompt on first login each day, fully skippable). All code public on
 [github.com/Brosiie/marduk](https://github.com/Brosiie/marduk).
 
+**Design specs:**
+- [ROADMAP.md](ROADMAP.md) — phase build order
+- [STORY.md](STORY.md) — full lore
+- [CHARACTER_DESIGN.md](CHARACTER_DESIGN.md) — races, classes, customization, Heaven Rule, living-character systems
+- [EQUIPMENT_VISUAL.md](EQUIPMENT_VISUAL.md) — per-item mesh map across all 145+ authored items
+- [DEMON_VISUAL_TRANSFORMATION.md](DEMON_VISUAL_TRANSFORMATION.md) — Demon class visual transformation + Sacrifice Ritual
+
 ## Account + Backend
 
 - **Cloudflare Workers + D1** backend at `api.marduk.game` (see [CLOUDFLARE_DEPLOY.md](CLOUDFLARE_DEPLOY.md))
@@ -119,12 +126,12 @@ assets/
 ## MVP Scope Ladder (single-player first)
 
 - [x] **Phase 0** Project scaffold, capsule running on a floor with Diablo-cam.
-- [ ] **Phase 1** First class (Warrior/Asaru). Basic attack hitbox. One Tiamat-spawn enemy. One dungeon room. Death + respawn.
-- [ ] **Phase 2** XP gain, level-up, mana, one active ability per class. 3-node skill tree.
-- [ ] **Phase 3** Save/load. Second class (Mage/Asaruludu). Enemy variety. Loot drops.
-- [ ] **Phase 4** Networking via Godot MultiplayerAPI. Host + 1-3 clients. Authoritative host.
-- [ ] **Phase 5** Procedural dungeons (prefab rooms stitched).
-- [ ] **Phase 6** Tiamat boss fight. Multi-phase, telegraphed attacks.
+- [x] **Phase 1** Ronin demo: Sword-Vow Ruins → Enforcer Kazat (mini-boss with 2 phases, sweep + lunge + fast-sweep) → Ashurim Storyteller. Water Forms 1-3 with chain bonuses (W1 → W2 = 1.35×, W2 → W3 = 1.60×, 1.8s window, 0.4s whiff lock on W3). HUD ability bar with Q/E/R/F slots and cooldowns. Damage floaters via CombatBus autoload. Death + respawn at lodestone. Loot pickup (V key) — Kazat drops bronze katana via ItemPickup.
+- [ ] **Phase 2** All 6 starter intros + their mini-bosses. One signature ability per class. Skill tree visual UI (K). Save/load slot select. Pause menu.
+- [ ] **Phase 3** Babilim hub. Faction reputation. Loot rarity affixes. 6-slot equipment fully wired. Per-class signature mesh authoring in Blender.
+- [ ] **Phase 4** Authoritative networking. 2-4 player co-op dungeons. Lobby system. PvP zones (separate damage track).
+- [ ] **Phase 5** Black Citadel + Tiamat (3-phase). Sun Gate unlock. Lucifer secret boss. Demon class unlock. Prestige loop.
+- [ ] **Phase 6** Procedural dungeon stitcher. Daily/weekly events. Achievements. Leaderboards.
 
 ## Asset Pipeline
 
@@ -289,6 +296,60 @@ damage taken and reduces ability HP costs by half. It is the *only* place
 "corruption" is referenced in the systems and it is an opt-in equip-bonus,
 not the core class economy.)
 
+## Character Customization
+
+Characters are built from **Class × Race × Gender × Appearance**. All combinations valid. Race nudges stats and silhouette but never dominates the build — class drives identity. Full design in [CHARACTER_DESIGN.md](CHARACTER_DESIGN.md).
+
+### The Five Races
+
+Marduk is Mesopotamian-mythic. Races are ethnographic types from the world's regions, not Tolkien fantasy peoples. All races can play all classes; affinity is a visual suggestion in the creator, not a gate.
+
+| Race | Origin | Build | Stat Lean | Class Affinity |
+|------|--------|-------|-----------|----------------|
+| **Anunnaki-Blooded** | Babilim — Iron Crown court, Inkstone Sanctum | Tall, slender, fine-boned (1.05× height) | +Int, +Dex, -Str | Mage, Paladin Lightbringer, Assassin |
+| **Ash-Born** | The ash-steppes east of Bone Mountains | Broad, dense, scar-prone (1.0×) | +Str(2), +Vit, -Int | Berserker, Paladin Guardian, Demon |
+| **Reed-Walker** | Reed Wastes, Lapis Bay deltas | Lean, wiry, weathered (0.98×) | +Dex(2), +Vit, -Str | Ronin, Ranger, Assassin |
+| **Mountain-Forged** | Bone Mountains forge-cities | Stocky, beard-heavy (0.85× — distinctly shorter) | +Vit(2), +Str, -Dex | Berserker, Paladin Guardian, Mage, Druid |
+| **Wound-Marked** | Verdant Wound corruption-frontier | Hollow, long-limbed, vine-veined (1.02×) | +Int, +Dex, -Vit | Chaos Druid, Mage, Demon |
+
+Each race ships with 5 skin tones, 6 hair colors (Wound-Marked includes moss-green and vine-purple), 5 eye colors, plus race-specific cultural cosmetics (war-paint, tattoos, jewelry, hair traditions).
+
+### Gender System
+
+Both **male** and **female** mesh variants per class. Gender does not affect stats. Some cosmetics are gender-locked (beards male-only, certain hairstyles). Pick freely.
+
+### Appearance Presets
+
+Diablo-tighter than ESO sliders, looser than Diablo 4. The full [CharacterAppearance Resource](scripts/player/character_appearance.gd) covers:
+
+- 3 body types per gender (lean / athletic / stocky)
+- 5 face presets per race+gender
+- 8 hair styles
+- 6 hair colors (race-gated palette)
+- 5 eye colors (race-gated)
+- 5 beard styles (male only)
+- Scar overlays, war-paint overlays, cultural markings, jewelry sets
+- 4 voice packs per gender (race-tinted accent)
+- Class-specific toggles (Mage/Sun-Breather glow eyes, aura intensity)
+
+Race definitions live in [resources/races/](resources/races/) — `anunnaki.tres`, `ash_born.tres`, `reed_walker.tres`, `mountain_forged.tres`, `wound_marked.tres`.
+
+The [AppearanceRegistry autoload](scripts/player/appearance_registry.gd) loads all 5 races, applies skin/hair/eye tint at runtime, scales the player to the race's height baseline, spawns time-of-creation gifts (eclipse halos, founder marks), and applies apothecary saturation tints from heavy potion use.
+
+### Time-of-Creation Gifts
+
+Characters created during specific real-world dates earn permanent appearance gifts:
+
+| Event | Window | Gift |
+|-------|--------|------|
+| Eclipse Day | Real-world solar eclipse | Permanent dim crescent halo |
+| Blood Moon | Real-world lunar eclipse | Permanent red eye-glow option (no Demon needed) |
+| Sun Festival | Real-world summer solstice | Permanent gold dawn-aura at sunrise |
+| Dark Solstice | Real-world winter solstice | Permanent shadow-trail at sunset |
+| Founding Day | May 8 (game launch anniversary) | Founder's mark sigil with creation year |
+
+Characters become timestamps. Year-1 founders are visibly recognizable forever.
+
 ## Skill Trees (49 nodes per class)
 
 Every class has a 49-node tree, organized as **7 branches × 7 tiers**.
@@ -426,15 +487,33 @@ Points of Interest scattered through the world. Examining one fires lore-on-disc
 
 Top-right HUD component. 200px circular minimap showing player at center, mobs as red dots, NPCs green, landmarks blue diamonds (faded if undiscovered), bosses orange. Rotates with camera yaw. 60-metre scan radius.
 
-## Locked Design Decisions (2026-05-05)
+## Locked Design Decisions
 
-These were open after the major build. Now committed:
+Originally locked 2026-05-05 (combat, aesthetic, Heaven access). Extended 2026-05-08 with the character / customization / sacrifice systems.
+
+### Combat & Aesthetic (2026-05-05)
 
 1. **Damage formula:** soulslike multiplicative. 8 layers (base × attribute × crit × defense × variance × pvp × heaven × status). Defense uses Diablo diminishing curve (`armor / (armor + 100)`). See [damage_calc.gd](scripts/combat/damage_calc.gd).
 2. **Aesthetic:** pure cel-shade. Toon shader is the canonical material for player + environments + enemies. No pixelated overlay. Octopath-crunch could ship later as a settings toggle but is not the default.
 3. **Sun Breathing prereq:** master ALL 6 base styles (Form 7 unlocked in each) + Tiamat defeated + level 18+. Sun Form 1 alone costs 5 skill points. The total Ronin commitment to reach Sun is 54 base style points + 5 + 18 to fully complete Sun = ~67 of 99 lifetime skill points.
 4. **PvP damage track:** hook in place at `damage_calc.gd:PVP_HOOK_ENABLED = false`. Flip when PvP zones land in Phase 4. Default scaling is 0.5x in PvP.
-5. **Heaven access:** Ronin only, Sun Breathing required to wield. Drop refuses to roll for non-Ronin killers. Wielding by an unworthy Ronin (no Sun Form 1) returns the sword to dormant katana mode.
+
+### Character System (2026-05-08)
+
+5. **Race system:** 5 ethnographic races mapped to the world's regions (no Tolkien fantasy peoples). All races can play all classes. Stat lean is small (±1 to ±2). Class drives identity. See [CHARACTER_DESIGN.md § 2.5](CHARACTER_DESIGN.md).
+6. **Gender per class:** male + female mesh variants for every class. No stat impact. Some cosmetics gender-locked (beards male-only, certain hairstyles).
+7. **Customization depth:** preset-driven (5 face presets, 8 hair styles, 6 hair colors, 5 skin tones, 3 body types). Tighter than ESO sliders, looser than Diablo 4. Race gates the available palettes.
+8. **Transmog:** unlocked at character level 10 via Ashurim "Wardrobe-Master" NPC. Pay coin to apply any unlocked item's appearance over an equipped item. Achievement-locked appearances layer on top.
+9. **Sun Breathing inheritance:** Sun Breathing class **inherits** the originating Ronin's race, gender, face, hair. Gi swaps to white-and-gold; sun-disc mempo permanent. Optional re-creation at unlock.
+
+### The Heaven Rule (2026-05-08)
+
+10. **Heaven cannot bind to Demons.** A Demon attempting to equip Heaven is offered the **Sacrifice Ritual** — a one-way modal with full information disclosed upfront. Accept = walk back through Lucifer's gate, restore pre-Lucifer class, lose all Demon mechanics, gain Heaven if pre-Lucifer was Ronin. Refuse = keep Demon, Heaven sits inert. The gate does not open twice. See [DEMON_VISUAL_TRANSFORMATION.md § 18](DEMON_VISUAL_TRANSFORMATION.md).
+11. **Heaven access (unchanged):** Ronin only, Sun Breathing required to wield. Drop refuses to roll for non-Ronin killers. Wielding by an unworthy Ronin (no Sun Form 1) returns the sword to dormant katana mode.
+
+### Pending Bond Review
+
+12. **Demon visual transformation system** — full spec in [DEMON_VISUAL_TRANSFORMATION.md](DEMON_VISUAL_TRANSFORMATION.md), implementation gated on Bond's checklist sign-off (8 cosmetic transformation layers + per-prior-class Demon variants + Ascendance progression + Mortal Echo + Pact Marks + Echo Abilities + Day of Reckoning + Crown of Names + Faction reactions to Demons).
 
 ### Ronin Breathing System
 
@@ -598,6 +677,102 @@ Each class has +20% damage and +10% attack speed on weapons they specialize with
 
 **Class-restricted Very Rares:** Ronin's Breath-Master Katana, Mage's Asaridu's Left-Hand Book, Ranger's Glade Widow's Quiver, Druid's Dragon-Pup Totem, Assassin's Silent Step boots, Berserker's Hassu's Kin-Axe.
 
+## Living Character Systems
+
+The character body is a logbook of what the player has done. Every system here turns playtime into visible character history. Designed in [CHARACTER_DESIGN.md § 8.5](CHARACTER_DESIGN.md).
+
+### Combat Scars (shipping in Phase 1)
+
+Every hit that takes ≥ 25% of max HP leaves a visible scar on the body. Element-respecting (fire = charred, frost = frostbitten, holy = gold-edged, shadow = ink-black). Up to 16 visible at once; oldest non-boss heal first. **Boss scars never fully heal** — they fade to silver lines but stay forever. A maxed character is visibly mapped with their kill list.
+
+[scar_manager.gd](scripts/player/scar_manager.gd) attaches to the player and listens to `take_damage`. Cosmetic-only; toggle off via Settings > Display > "Show Combat Scars: Off."
+
+### Tattoo Glyphs — the Codex of Marks
+
+First-time boss kills earn a unique **Glyph** — a small geometric mark associated with that boss's identity. Glyphs can be **inscribed** as tattoos at the Inkstone Sanctum vendor for a tiny stat bonus (+0.5% damage vs that boss's faction) and a permanent visible mark.
+
+- Costs gold + a token from that boss's drop table
+- Tattoo location is player-choice (chest, back, arm, neck, leg, face)
+- Glyph stack: a player can be covered in a sleeve of glyphs that tells their kill story
+- Visible to other players in PvP / parties — hovering shows the glyph list
+
+Veterans become walking museums. New players learn the bestiary by reading vets' bodies. [GlyphRegistry autoload](scripts/items/glyph_registry.gd) auto-listens to `CombatBus.kill_registered` for first-time boss kills.
+
+### The Inkstone Sage
+
+The personality NPC. The Sage chronicles the player's character in flowing prose generated each visit from current state. Class-aware opening, race flavor, scar count, glyph count, dominant potion type, time-of-creation gifts, Wound mutation stage, walked-back-from-Demon recognition.
+
+> *"You came back. I've seen people make a lot of choices in this hall — that one I respect more than most. The sword has decided you. It doesn't decide many."*
+
+Implementation: [inkstone_sage.gd](scripts/npcs/inkstone_sage.gd), all 9 classes have unique opening lines plus a Heaven-Rule walked-back override.
+
+### Apothecary Saturation
+
+Drinking potions over 1000 lifetime drinks per type permanently changes appearance. HP-stackers redden, mana-stackers tint blue, stamina-stackers turn windswept-green, Champion's-Draught drinkers gain gold streaks. Stacks: a player who drinks heavily of mana AND stamina shows blue-green hybrid features. Cosmetic-only; reads as identity at a glance.
+
+### Race-Specific Earned Cosmetics
+
+Each race has a cultural progression rewarded by race-themed engagement:
+
+- **Anunnaki-Blooded:** *Royal Bearing* — silver thread accents, gold robe lining, noble-posture idle anim. Earned via Crown court quests.
+- **Ash-Born:** *Ritual Scars* — visible scarification adds patterns per major boss kill.
+- **Reed-Walker:** *Salt-Crust Accents* — sea-air weathered face, fish-scale beadwork. 50+ hours in coastal/marsh zones.
+- **Mountain-Forged:** *Forge-Burn Brands* — geometric burn patterns. Craft 50+ items.
+- **Wound-Marked:** *Wound Ascendance* — gradual mutation in 4 stages: longer fingers, deeper green tint, vine-veins, +5% nature damage. **Player-toggleable lock** so characters can stop at the stage they like.
+
+### Tier 2 Roadmap (designed, awaiting implementation)
+
+These systems are fully specced in [CHARACTER_DESIGN.md § 8.5](CHARACTER_DESIGN.md) and ready to ship after Phase 2:
+
+- **Soul-Binding** — bind one weapon + one armor permanently; bound items fuse to the body, scale with player level, can never be lost
+- **Shadow History** — every death is a Shadow Memory phantom replay at the death-marker, visible to other players
+- **Time-of-Creation Gifts** — already wired in [AppearanceRegistry](scripts/player/appearance_registry.gd) (eclipse, blood moon, founding day)
+- **Inkstone Sage prose-export** — transcribe the Sage's chronicle as a paper-doll journal screenshot
+
+## The Heaven Rule
+
+**Heaven does not bind to the fallen.** The Heaven katana is the antithesis of Demonhood — the sword refuses corrupted wielders. A Demon-class character attempting to equip Heaven is offered a one-way ritual: **Walk Back through Lucifer's gate and reclaim mortality.** Full design in [CHARACTER_DESIGN.md § 8.4](CHARACTER_DESIGN.md), technical spec in [DEMON_VISUAL_TRANSFORMATION.md § 18](DEMON_VISUAL_TRANSFORMATION.md).
+
+### The Sacrifice Prompt
+
+When a Demon attempts to equip Heaven, [Inventory.equip](scripts/items/inventory.gd) emits `sacrifice_required(item, class_def)`. The [SacrificePrompt UI](scripts/ui/dialogs/sacrifice_prompt.gd) catches it, pauses the game, and shows a modal disclosing the full cost:
+
+> *The katana lies still in your demon-hand. It will not warm to you.*
+>
+> *You may walk back through Lucifer's gate. Once.*
+>
+> *The Demon you became will dissolve. The soul you walked into Lucifer with will return. You will be mortal again.*
+>
+> *Your race, your face, the marks you bear from the fight to here — these stay. The horns, the veins, the hunger — these go.*
+>
+> *The gate does not open twice. Once chosen, this cannot be undone.*
+
+The prompt also discloses **Pre-Lucifer class** and the **binding outcome**: a Demon-Ronin sees `Heaven will bind: YES`; a Demon-Mage sees `Heaven will bind: NO — the sword remains Ronin-only`. Full information upfront. No surprise sacrifices.
+
+### What Walking Back Does
+
+If the player accepts, [SacrificeRitual.walk_back](scripts/player/sacrifice_ritual.gd) executes:
+
+- Demon class **permanently locked** for this character (cannot become Demon again)
+- Pre-Lucifer class **restored** (whichever soul walked Lucifer's gate)
+- Pre-Lucifer skill tree progression **restored** from snapshot taken at Demon creation
+- All Demon abilities and the 49-node Demon skill tree progression **stripped**
+- Demon visual overlay **removed** (horns dissolve, veins fade, claws revert, eye glow off)
+- Permanent **white HOLY-element scar** on the chest, never fades
+- Demon-only items become **Inheritance Trinkets** (lore-only, stats zeroed)
+- Title awarded: **"The Mortal Returned"** (display variant: *Twice-Walker*)
+- Cinematic: warm dawn-flash + slow-motion + audio cue + toast: *"THE GATE DOES NOT OPEN TWICE"*
+- If pre-Lucifer was Ronin: Heaven auto-equips
+
+NPCs update their dialogue. The Storyteller and Inkstone Sage gain new opening lines for walked-back characters — their previous Demon greetings are replaced.
+
+### Why This Rule
+
+- **Lore-aligned:** Heaven is the divine antithesis of Demonhood. The sword choosing a corrupted wielder breaks the entire mythology.
+- **Player agency with weight:** the choice is meaningful. The Demon is real (49-node tree, +200% damage at full Blood, lifesteal, day/night swing). Sacrificing it weighs decades of investment.
+- **Inheritance pays off:** the prior-class choice at Demon creation now matters mechanically. A Demon-Ronin can pursue this arc; a Demon-Mage can walk back to mortality but Heaven still won't bind.
+- **One-way doors are powerful storytelling:** *the gate does not open twice* is a phrase players will remember.
+
 ## Loot Rarity Tiers
 
 | Color | Tier | Drops |
@@ -689,12 +864,16 @@ XP curve: `int(50 * pow(level, 1.7))` per level. ~half a million total XP from 1
 
 ## What is Missing on Purpose
 
-- Actual 3D scenes for zones (placeholder.tscn for now)
+- Actual 3D scenes for the 20 zones (Sword-Vow Ruins + Ashurim placeholder shipped Phase 1; rest Phase 2-3)
+- Per-class character creator UI scene (data layer ready: [CharacterAppearance](scripts/player/character_appearance.gd) + [AppearanceRegistry](scripts/player/appearance_registry.gd) + 5 race resources; UI scene authoring in Phase 2)
+- Per-class male/female mesh variants (existing Mixamo meshes are gender-locked; alternate-gender meshes are Phase 2 art)
 - Animation clips on player AnimationPlayer (49 breathing form anims to author or alias)
 - Bespoke ability hitbox geometry (AbilityRunner has the spawn hook, ability resources need shape data per target_mode)
 - Skill tree visual UI scene file (script exists, .tscn for it not yet built)
-- Vendor / shop UI (NPC system supports it, UI screen not authored)
+- Vendor / shop UI including Wardrobe-Master transmog vendor, Inkstone Sage tattoo vendor (NPC system supports it, UI screens not authored)
 - Quest log UI (data layer ready, panel not authored)
 - Real lighting and weather scenes per region
+- Per-item meshes — currently using kayKit fallbacks. [Blender procedural generator](blender/scripts/generate_placeholders.py) is ready to crank ~125 placeholders in one run; hand-modeled hero assets are Tier 2 work.
+- Demon visual transformation system implementation (full spec in [DEMON_VISUAL_TRANSFORMATION.md](DEMON_VISUAL_TRANSFORMATION.md), gated on Bond's review)
 
 See [ROADMAP.md](ROADMAP.md) for the build order.

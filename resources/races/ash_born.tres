@@ -1,0 +1,51 @@
+[gd_resource type="Race" format=3]
+
+[resource]
+race_id = &"ash_born"
+display_name = "Ash-Born"
+lore = "Steppe people from the volcanic plains east of the Bone Mountains. Broad-shouldered, dense, scar-prone by tradition. They break their own noses at coming-of-age. Berserker country: rage is taught before reading."
+origin_region = "The ash-steppes, the broken east"
+
+height_scale = 1.0
+build_archetype = 2
+
+skin_palette = [
+	Color(0.78, 0.62, 0.45),
+	Color(0.72, 0.55, 0.38),
+	Color(0.65, 0.48, 0.32),
+	Color(0.58, 0.42, 0.28),
+	Color(0.50, 0.36, 0.24),
+]
+
+hair_palette = [
+	Color(0.08, 0.06, 0.05),
+	Color(0.15, 0.10, 0.07),
+	Color(0.22, 0.15, 0.10),
+	Color(0.30, 0.20, 0.12),
+	Color(0.40, 0.28, 0.18),
+	Color(0.50, 0.40, 0.32),
+]
+
+eye_palette = [
+	Color(0.10, 0.08, 0.06),
+	Color(0.30, 0.22, 0.14),
+	Color(0.40, 0.32, 0.22),
+	Color(0.32, 0.30, 0.30),
+	Color(0.45, 0.40, 0.32),
+]
+
+stat_lean = {
+	&"strength": 2,
+	&"vitality": 1,
+	&"intellect": -1,
+}
+
+voice_tone_id = 1
+cultural_marking_max = 5
+hair_tradition = 1
+male_beard_tradition = 3
+
+affinity_classes = [&"berserker", &"paladin_guardian", &"demon"]
+
+earned_cosmetic_id = &"ritual_scars"
+earned_cosmetic_unlock_hint = "Defeat 3 main-tier bosses on this character. Each kill earns a ritual scarification pattern carved into your chest and arms — visible signature of what you've put down."

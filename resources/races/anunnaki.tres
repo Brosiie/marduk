@@ -1,0 +1,51 @@
+[gd_resource type="Race" format=3]
+
+[resource]
+race_id = &"anunnaki"
+display_name = "Anunnaki-Blooded"
+lore = "Babilim-born, the bloodline of the old kings. Tall, slender, fine-boned. Their language is the language of decree. They run the Crown's court and the Inkstone Sanctum's schools, and they have not forgotten that Marduk himself was Anunnaki before the gods walked away."
+origin_region = "Babilim — the Iron Crown court, the Inkstone Sanctum"
+
+height_scale = 1.05
+build_archetype = 0
+
+skin_palette = [
+	Color(0.95, 0.85, 0.70),
+	Color(0.92, 0.78, 0.62),
+	Color(0.88, 0.72, 0.55),
+	Color(0.82, 0.65, 0.48),
+	Color(0.76, 0.58, 0.42),
+]
+
+hair_palette = [
+	Color(0.08, 0.06, 0.05),
+	Color(0.20, 0.13, 0.08),
+	Color(0.35, 0.22, 0.12),
+	Color(0.55, 0.40, 0.22),
+	Color(0.75, 0.65, 0.40),
+	Color(0.85, 0.82, 0.78),
+]
+
+eye_palette = [
+	Color(0.55, 0.40, 0.18),
+	Color(0.85, 0.65, 0.25),
+	Color(0.40, 0.32, 0.20),
+	Color(0.30, 0.32, 0.35),
+	Color(0.42, 0.38, 0.30),
+]
+
+stat_lean = {
+	&"intellect": 1,
+	&"dexterity": 1,
+	&"strength": -1,
+}
+
+voice_tone_id = 0
+cultural_marking_max = 4
+hair_tradition = 0
+male_beard_tradition = 1
+
+affinity_classes = [&"mage", &"paladin_lightbringer", &"assassin"]
+
+earned_cosmetic_id = &"royal_bearing"
+earned_cosmetic_unlock_hint = "Complete the Crown court quest line. Silver thread will weave into your hair, and your idle posture will shift to a noble's bearing."

@@ -1,0 +1,51 @@
+[gd_resource type="Race" format=3]
+
+[resource]
+race_id = &"wound_marked"
+display_name = "Wound-Marked"
+lore = "Frontier folk born in the Verdant Wound — the corruption-blighted greenlands where the world bleeds chaos. Hollow-cheeked, long-limbed. Their children are born with vines for veins. The Wound takes its share of every Wound-Marked life; some pay it back willingly."
+origin_region = "Verdant Wound — the corruption-frontier villages"
+
+height_scale = 1.02
+build_archetype = 0
+
+skin_palette = [
+	Color(0.78, 0.78, 0.72),
+	Color(0.72, 0.75, 0.65),
+	Color(0.65, 0.70, 0.58),
+	Color(0.58, 0.65, 0.52),
+	Color(0.50, 0.58, 0.46),
+]
+
+hair_palette = [
+	Color(0.08, 0.06, 0.05),
+	Color(0.78, 0.78, 0.70),
+	Color(0.20, 0.30, 0.18),
+	Color(0.35, 0.45, 0.28),
+	Color(0.40, 0.20, 0.50),
+	Color(0.50, 0.55, 0.45),
+]
+
+eye_palette = [
+	Color(0.42, 0.55, 0.30),
+	Color(0.55, 0.70, 0.45),
+	Color(0.85, 0.85, 0.78),
+	Color(0.30, 0.25, 0.20),
+	Color(0.20, 0.30, 0.22),
+]
+
+stat_lean = {
+	&"intellect": 1,
+	&"dexterity": 1,
+	&"vitality": -1,
+}
+
+voice_tone_id = 4
+cultural_marking_max = 5
+hair_tradition = 4
+male_beard_tradition = 0
+
+affinity_classes = [&"chaos_druid", &"mage", &"demon"]
+
+earned_cosmetic_id = &"wound_ascendance"
+earned_cosmetic_unlock_hint = "Spend 100+ hours in Verdant Wound zones. The corruption progresses in 4 stages — longer fingers, deeper green tint, vine-veins. Toggle in Settings > Display > 'Wound Stage Lock' to halt at any stage you like."

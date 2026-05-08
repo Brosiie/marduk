@@ -1,0 +1,51 @@
+[gd_resource type="Race" format=3]
+
+[resource]
+race_id = &"mountain_forged"
+display_name = "Mountain-Forged"
+lore = "Smith-clans and miners of the Bone Mountains. Short, dense, beard-heavy. They built the Edict pillars before the Crown took credit for them. Their songs are anvil-rhythms and their oaths are iron."
+origin_region = "Bone Mountains — the deep forge-cities"
+
+height_scale = 0.85
+build_archetype = 2
+
+skin_palette = [
+	Color(0.92, 0.78, 0.66),
+	Color(0.86, 0.70, 0.56),
+	Color(0.78, 0.62, 0.48),
+	Color(0.70, 0.54, 0.42),
+	Color(0.62, 0.46, 0.36),
+]
+
+hair_palette = [
+	Color(0.08, 0.06, 0.05),
+	Color(0.18, 0.12, 0.08),
+	Color(0.30, 0.18, 0.10),
+	Color(0.45, 0.22, 0.12),
+	Color(0.55, 0.32, 0.18),
+	Color(0.40, 0.30, 0.25),
+]
+
+eye_palette = [
+	Color(0.32, 0.32, 0.35),
+	Color(0.20, 0.30, 0.45),
+	Color(0.15, 0.25, 0.40),
+	Color(0.30, 0.20, 0.12),
+	Color(0.42, 0.32, 0.20),
+]
+
+stat_lean = {
+	&"vitality": 2,
+	&"strength": 1,
+	&"dexterity": -1,
+}
+
+voice_tone_id = 3
+cultural_marking_max = 4
+hair_tradition = 3
+male_beard_tradition = 4
+
+affinity_classes = [&"berserker", &"paladin_guardian", &"mage", &"chaos_druid"]
+
+earned_cosmetic_id = &"forge_burn_brands"
+earned_cosmetic_unlock_hint = "Craft 50+ items at the smith. Decorative forge-burns in geometric patterns will mark your forearms — proof you took your apprenticeship and survived the trials."

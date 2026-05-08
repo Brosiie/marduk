@@ -1,0 +1,51 @@
+[gd_resource type="Race" format=3]
+
+[resource]
+race_id = &"reed_walker"
+display_name = "Reed-Walker"
+lore = "Marsh nomads of the Reed Wastes; salt-cracked traders of Lapis Bay. Two flavors of the same root stock. Lean, wiry, weathered. The Six Breaths temple is on their coast — most Ronin start here."
+origin_region = "Reed Wastes, Lapis Bay, the deltas"
+
+height_scale = 0.98
+build_archetype = 1
+
+skin_palette = [
+	Color(0.62, 0.45, 0.30),
+	Color(0.55, 0.38, 0.25),
+	Color(0.45, 0.30, 0.20),
+	Color(0.38, 0.25, 0.16),
+	Color(0.30, 0.20, 0.13),
+]
+
+hair_palette = [
+	Color(0.06, 0.05, 0.04),
+	Color(0.12, 0.08, 0.06),
+	Color(0.20, 0.13, 0.08),
+	Color(0.30, 0.20, 0.10),
+	Color(0.40, 0.30, 0.18),
+	Color(0.55, 0.45, 0.30),
+]
+
+eye_palette = [
+	Color(0.20, 0.15, 0.10),
+	Color(0.35, 0.25, 0.15),
+	Color(0.30, 0.40, 0.30),
+	Color(0.42, 0.50, 0.55),
+	Color(0.55, 0.60, 0.55),
+]
+
+stat_lean = {
+	&"dexterity": 2,
+	&"vitality": 1,
+	&"strength": -1,
+}
+
+voice_tone_id = 2
+cultural_marking_max = 4
+hair_tradition = 2
+male_beard_tradition = 1
+
+affinity_classes = [&"ronin", &"ranger", &"assassin"]
+
+earned_cosmetic_id = &"salt_crust_accents"
+earned_cosmetic_unlock_hint = "Spend 50+ hours in coastal and marsh zones. Sea-air will weather your face and salt will crust into your hair; fish-scale beadwork will appear in your braids."
