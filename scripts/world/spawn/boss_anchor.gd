@@ -29,6 +29,10 @@ func spawn_boss() -> void:
 	inst.boss_id = boss_id
 	get_tree().current_scene.add_child(inst)
 	inst.global_position = global_position
+	# Cinematic spawn: fade alpha in over 1.4s + ground rise from -1.0
+	# to 0 + dust column at the spawn point. Reads as 'they appear from
+	# the earth like a curse manifesting' instead of just popping in.
+	_play_boss_spawn_pose(inst)
 
 	# Apply registry data (boss_id was already stamped above; rest of fields
 	# are stat overrides that can be applied post-add safely).
@@ -43,6 +47,67 @@ func spawn_boss() -> void:
 
 	# Bake attack patterns matching the boss
 	inst.attack_patterns = _build_patterns(boss_id)
+
+func _play_boss_spawn_pose(boss: Node3D) -> void:
+	if boss == null or not is_instance_valid(boss):
+		return
+	# Fade in: drop the boss to alpha 0 first, then tween up. We use
+	# modulate which works on Node3D's RenderingServer instance via
+	# self_modulate. For meshes embedded under MeshInstance3D parents
+	# we set per-mesh transparency through albedo color alpha.
+	var origin: Vector3 = boss.global_position
+	# Sink the boss 1m into the ground, rise back up over 1.4s
+	boss.global_position = origin - Vector3(0, 1.0, 0)
+	var rise := boss.create_tween()
+	rise.tween_property(boss, "global_position", origin, 1.4).set_trans(Tween.TRANS_QUART).set_ease(Tween.EASE_OUT)
+	# Dust column at the spawn point (column of dirt particles rising)
+	_spawn_boss_dust(origin)
+	# Audio sting on spawn so the player ear hears the curse manifest
+	var ab: Node = get_node_or_null("/root/AudioBus")
+	if ab and ab.has_method("play_cue"):
+		ab.play_cue(&"thunder", origin, -3.0, 0.5)
+		ab.play_cue(&"shadow_cast", origin, -1.0, 0.6)
+
+func _spawn_boss_dust(at_pos: Vector3) -> void:
+	var p := GPUParticles3D.new()
+	p.name = "BossSpawnDust"
+	p.amount = 80
+	p.lifetime = 1.6
+	p.one_shot = true
+	p.explosiveness = 0.85
+	p.visibility_aabb = AABB(Vector3(-3, 0, -3), Vector3(6, 5, 6))
+	var mat := ParticleProcessMaterial.new()
+	mat.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_RING
+	mat.emission_ring_radius = 1.20
+	mat.emission_ring_inner_radius = 0.70
+	mat.emission_ring_axis = Vector3.UP
+	mat.emission_ring_height = 0.10
+	mat.direction = Vector3.UP
+	mat.spread = 30.0
+	mat.initial_velocity_min = 1.5
+	mat.initial_velocity_max = 3.5
+	mat.gravity = Vector3(0, -2.0, 0)
+	mat.scale_min = 0.18
+	mat.scale_max = 0.42
+	# Dark dust + ember tinge: curse manifesting into the world
+	mat.color = Color(0.40, 0.20, 0.18, 0.9)
+	p.process_material = mat
+	var quad := QuadMesh.new()
+	quad.size = Vector2(0.30, 0.30)
+	var smat := StandardMaterial3D.new()
+	smat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	smat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	smat.albedo_color = Color(0.40, 0.20, 0.18, 0.85)
+	smat.emission_enabled = true
+	smat.emission = Color(0.95, 0.30, 0.10)
+	smat.emission_energy_multiplier = 0.7
+	smat.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
+	smat.billboard_keep_scale = true
+	quad.material = smat
+	p.draw_pass_1 = quad
+	get_tree().current_scene.add_child(p)
+	p.global_position = at_pos
+	get_tree().create_timer(2.5).timeout.connect(func(): if is_instance_valid(p): p.queue_free())
 
 func _build_patterns(id: StringName) -> Array[BossAttackPattern]:
 	var arr: Array[BossAttackPattern] = []

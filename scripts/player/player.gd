@@ -593,6 +593,10 @@ func toggle_pet() -> void:
 # stats.class_def.class_id. Indexes map to Q / E / R / F.
 var _ability_kit: Array = []
 var _ability_cooldowns: Array = [0.0, 0.0, 0.0, 0.0]
+# First-press tracker: when the player casts an ability for the first
+# time, fire a one-shot tutorial floater so they know what just
+# happened. Reset per session so re-rolling a class re-shows the hints.
+var _ability_first_press: Array = [false, false, false, false]
 
 func _build_ability_kit() -> void:
 	_ability_kit.clear()
@@ -640,6 +644,21 @@ func _cast_ability_slot(slot: int) -> void:
 			resource_changed.emit(resource_value, stats.class_def.resource_max, &"stamina")
 	# Cooldown
 	_ability_cooldowns[slot] = now + float(k.get("cooldown", 1.0))
+	# First-press tutorial: name the ability the first time each slot
+	# fires, so the player learns the kit by playing instead of by
+	# reading menus. After that the toasts go silent for that slot.
+	if slot < _ability_first_press.size() and not _ability_first_press[slot]:
+		_ability_first_press[slot] = true
+		var juice: Node = get_node_or_null("/root/Juice")
+		if juice and juice.has_method("toast"):
+			var name_label: String = String(k.get("name", "Ability"))
+			var desc: String = String(k.get("desc", ""))
+			var hk_labels := ["Q", "E", "R", "F"]
+			var hk: String = hk_labels[slot] if slot < hk_labels.size() else ""
+			var line := "[%s]  %s" % [hk, name_label]
+			if desc != "":
+				line += "  ·  " + desc
+			juice.toast(line, _class_buff_color(), 3.5)
 	# Buff trigger: well-known ability ids grant a temporary damage
 	# surge instead of (or in addition to) hitting an enemy. This is
 	# what makes War Cry / Power Up / Battle Cry feel useful instead

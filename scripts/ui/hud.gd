@@ -260,7 +260,17 @@ func _on_mana(cur: float, mx: float) -> void:
 
 func _on_level_up(lvl: int) -> void:
 	_refresh_all()
-	# Level-up arpeggio
+	# Cinematic: gold particle column rising from the player + screen
+	# flash + toast banner. The player should FEEL the level-up.
+	if player:
+		_spawn_levelup_column(player)
+	var juice: Node = get_node_or_null("/root/Juice")
+	if juice:
+		if juice.has_method("flash"):
+			juice.flash(Color(1.0, 0.92, 0.50), 0.20, 0.50)
+		if juice.has_method("toast"):
+			juice.toast("LEVEL %d" % lvl, Color(1.0, 0.92, 0.50), 2.5)
+	# Level-up arpeggio (existing audio cue)
 	var ab = get_node_or_null("/root/AudioBus")
 	if ab and ab.has_method("play_cue") and player:
 		ab.play_cue(&"level_up", player.global_position, -3.0, 1.0)
@@ -271,6 +281,51 @@ func _on_level_up(lvl: int) -> void:
 			ar.unlock(&"a_level_5")
 		if lvl >= 10:
 			ar.unlock(&"a_level_10")
+
+func _spawn_levelup_column(at_player: Node3D) -> void:
+	var p := GPUParticles3D.new()
+	p.name = "LevelUpColumn"
+	p.amount = 120
+	p.lifetime = 1.8
+	p.one_shot = true
+	p.explosiveness = 0.40  # staggered burst, looks like rising glow
+	p.visibility_aabb = AABB(Vector3(-1.5, 0, -1.5), Vector3(3, 5, 3))
+	var mat := ParticleProcessMaterial.new()
+	mat.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_RING
+	mat.emission_ring_radius = 0.7
+	mat.emission_ring_inner_radius = 0.3
+	mat.emission_ring_axis = Vector3.UP
+	mat.emission_ring_height = 0.10
+	mat.direction = Vector3.UP
+	mat.spread = 6.0
+	mat.initial_velocity_min = 3.5
+	mat.initial_velocity_max = 5.0
+	mat.gravity = Vector3.ZERO
+	mat.scale_min = 0.10
+	mat.scale_max = 0.22
+	mat.color = Color(1.0, 0.88, 0.45, 0.95)
+	mat.tangential_accel_min = 0.5
+	mat.tangential_accel_max = 1.5
+	p.process_material = mat
+	var quad := QuadMesh.new()
+	quad.size = Vector2(0.18, 0.18)
+	var smat := StandardMaterial3D.new()
+	smat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	smat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	smat.albedo_color = Color(1.0, 0.88, 0.45, 0.95)
+	smat.emission_enabled = true
+	smat.emission = Color(1.0, 0.88, 0.45)
+	smat.emission_energy_multiplier = 1.8
+	smat.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
+	smat.billboard_keep_scale = true
+	quad.material = smat
+	p.draw_pass_1 = quad
+	# Parent under current scene + position at player feet so the column
+	# rises through the player as the upgrade lands.
+	var scene := at_player.get_tree().current_scene
+	scene.add_child(p)
+	p.global_position = at_player.global_position
+	get_tree().create_timer(2.5).timeout.connect(func(): if is_instance_valid(p): p.queue_free())
 
 func _on_resource(cur: float, mx: float, _mech: StringName) -> void:
 	mana_bar.max_value = max(1.0, mx)
