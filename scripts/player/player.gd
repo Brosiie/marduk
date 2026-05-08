@@ -782,6 +782,10 @@ func _cast_ability_slot(slot: int) -> void:
 	# Cast burst: small particle puff at cast point, color-coded to
 	# the ability element. Reads as 'magic happens here'.
 	_spawn_cast_burst(int(k.get("element", Ability.DamageType.PHYSICAL)))
+	# Breath VFX: for Ronin breath/iai abilities, spawn a mouth puff
+	# AND coat the katana blade in matching elemental material for
+	# the duration of the swing. Demon-Slayer style.
+	_spawn_breath_vfx(StringName(k.get("id", "")))
 	on_combat_event(2.0)
 
 # Maps Ability.DamageType to the AudioBus cue name. Each element gets
@@ -841,6 +845,155 @@ func _spawn_cast_burst(element: int) -> void:
 		fwd = fwd.normalized()
 	burst.global_position = global_position + Vector3(0, 1.2, 0) + fwd * 0.8
 	get_tree().create_timer(1.2).timeout.connect(func(): if is_instance_valid(burst): burst.queue_free())
+
+# --- Breath VFX (Demon Slayer-style elemental breathing forms) ---
+#
+# When the Ronin casts an iai or breath form, we layer two effects:
+#   1. Mouth puff: a small element-themed particle burst at head height,
+#      front of the mesh. Reads as the breath being inhaled/exhaled.
+#   2. Blade coat: particles emitting along the katana that wrap the
+#      blade in the matching element for ~0.6s. Looks like the blade
+#      is dressed in water / fire / lightning / etc.
+#
+# Driven by the ability_id -> style map (`_trail_style_for`). Each
+# style has its own color + emission texture preference, mapped here.
+
+const BREATH_COLORS := {
+	&"water":   Color(0.40, 0.75, 1.00, 1.0),
+	&"thunder": Color(1.00, 0.95, 0.40, 1.0),
+	&"flame":   Color(1.00, 0.45, 0.15, 1.0),
+	&"wind":    Color(0.65, 0.95, 0.55, 1.0),
+	&"stone":   Color(0.75, 0.55, 0.30, 1.0),
+	&"mist":    Color(0.92, 0.92, 0.95, 1.0),
+	&"sun":     Color(1.00, 0.92, 0.50, 1.0),
+	&"moon":    Color(0.85, 0.30, 0.45, 1.0),
+}
+
+func _breath_color_for(style: StringName) -> Color:
+	return BREATH_COLORS.get(style, Color(0.95, 0.95, 0.95, 1.0))
+
+func _spawn_breath_vfx(ability_id: StringName) -> void:
+	var style: StringName = _trail_style_for(ability_id)
+	if style == &"":
+		return
+	var color: Color = _breath_color_for(style)
+	_spawn_mouth_puff(color, style)
+	_spawn_blade_coat(color, style)
+
+# Small puff at the player's mouth (head height, ~0.4m forward).
+# 14 particles, 0.5s lifetime, gentle outward drift.
+func _spawn_mouth_puff(color: Color, style: StringName) -> void:
+	if mesh == null:
+		return
+	var puff := GPUParticles3D.new()
+	puff.name = "MouthPuff"
+	puff.amount = 14
+	puff.lifetime = 0.5
+	puff.one_shot = true
+	puff.explosiveness = 0.92
+	puff.visibility_aabb = AABB(Vector3(-1, -0.5, -1), Vector3(2, 1.5, 2))
+	var mat := ParticleProcessMaterial.new()
+	mat.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_SPHERE
+	mat.emission_sphere_radius = 0.10
+	# Forward + slightly up, matching breath direction
+	mat.direction = Vector3(0.0, 0.2, -1.0)
+	mat.spread = 25.0
+	mat.initial_velocity_min = 1.2
+	mat.initial_velocity_max = 2.4
+	mat.gravity = Vector3(0, -0.8, 0)
+	# Style-specific shape: thunder = small + sharp, mist = big + soft
+	match style:
+		&"thunder":
+			mat.scale_min = 0.06; mat.scale_max = 0.14
+			mat.angular_velocity_min = -240.0; mat.angular_velocity_max = 240.0
+		&"flame":
+			mat.scale_min = 0.16; mat.scale_max = 0.30
+		&"mist", &"water":
+			mat.scale_min = 0.20; mat.scale_max = 0.40
+		_:
+			mat.scale_min = 0.12; mat.scale_max = 0.24
+	mat.color = color
+	puff.process_material = mat
+	var quad := QuadMesh.new()
+	quad.size = Vector2(0.18, 0.18)
+	var smat := StandardMaterial3D.new()
+	smat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	smat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	smat.albedo_color = color
+	smat.emission_enabled = true
+	smat.emission = color
+	smat.emission_energy_multiplier = 1.6
+	smat.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
+	smat.billboard_keep_scale = true
+	quad.material = smat
+	puff.draw_pass_1 = quad
+	# Position at head + forward
+	var fwd := -mesh.global_transform.basis.z
+	fwd.y = 0
+	if fwd.length_squared() > 0.001:
+		fwd = fwd.normalized()
+	get_tree().current_scene.add_child(puff)
+	puff.global_position = global_position + Vector3(0, 1.55, 0) + fwd * 0.30
+	get_tree().create_timer(1.2).timeout.connect(func(): if is_instance_valid(puff): puff.queue_free())
+
+# Blade coat: stream of particles emitted along the katana for ~0.6s.
+# Parented to the KatanaSocket so it tracks blade movement during the
+# swing animation. Ramps OUT after lifetime (one_shot).
+func _spawn_blade_coat(color: Color, style: StringName) -> void:
+	var socket: Node3D = mesh.get_node_or_null("KatanaSocket") if mesh else null
+	if socket == null:
+		return
+	var coat := GPUParticles3D.new()
+	coat.name = "BladeCoat"
+	coat.amount = 35
+	coat.lifetime = 0.65
+	coat.one_shot = true
+	coat.explosiveness = 0.45  # staggered emission, looks like the blade catches the element
+	coat.visibility_aabb = AABB(Vector3(-1, -0.5, -1.5), Vector3(2, 1, 3))
+	var mat := ParticleProcessMaterial.new()
+	# Emit along a narrow box matching the blade's local Z axis
+	mat.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_BOX
+	mat.emission_box_extents = Vector3(0.06, 0.06, 0.50)  # along blade length (~1m)
+	mat.direction = Vector3(0, 0, 1)
+	mat.spread = 12.0
+	mat.initial_velocity_min = 0.2
+	mat.initial_velocity_max = 0.6
+	mat.gravity = Vector3.ZERO
+	mat.scale_min = 0.07
+	mat.scale_max = 0.14
+	mat.color = color
+	mat.tangential_accel_min = -0.4
+	mat.tangential_accel_max = 0.4
+	# Style accent: thunder crackle (high angular velocity), water flow
+	# (smooth tangential), flame upward bias
+	match style:
+		&"thunder":
+			mat.angular_velocity_min = -360.0
+			mat.angular_velocity_max = 360.0
+		&"flame":
+			mat.gravity = Vector3(0, 1.5, 0)  # flame rises off the blade
+		&"water":
+			mat.tangential_accel_min = 0.6
+			mat.tangential_accel_max = 1.2
+	coat.process_material = mat
+	var quad := QuadMesh.new()
+	quad.size = Vector2(0.10, 0.10)
+	var smat := StandardMaterial3D.new()
+	smat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	smat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	smat.albedo_color = color
+	smat.emission_enabled = true
+	smat.emission = color
+	smat.emission_energy_multiplier = 2.0
+	smat.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
+	smat.billboard_keep_scale = true
+	quad.material = smat
+	coat.draw_pass_1 = quad
+	# Parent under the KatanaSocket so the coat tracks blade movement
+	# during the swing anim. Local position at the blade midpoint.
+	socket.add_child(coat)
+	coat.position = Vector3(0, 0.5, 0)  # local: blade middle
+	get_tree().create_timer(1.3).timeout.connect(func(): if is_instance_valid(coat): coat.queue_free())
 
 func _color_for_element(element: int) -> Color:
 	match element:
@@ -1803,12 +1956,27 @@ func _apply_vertical(delta: float) -> void:
 func _update_animation() -> void:
 	if not anim_player:
 		return
-	var moving: bool = Vector2(velocity.x, velocity.z).length() > 0.5 and is_on_floor()
-	var slot: String = "walk" if moving else "idle"
+	var horizontal_speed: float = Vector2(velocity.x, velocity.z).length()
+	var moving: bool = horizontal_speed > 0.5 and is_on_floor()
+	# Walk/run threshold: above 5.5 m/s (sprinting) play run anim, below
+	# play walk. Idle when stopped. This lets the Ronin's katana_run
+	# vs katana_walk overrides actually fire based on movement speed
+	# instead of always using walk.
+	var slot: String
+	if not moving:
+		slot = "idle"
+	elif horizontal_speed > 5.5:
+		slot = "run"
+	else:
+		slot = "walk"
 	# Resolve the slot through our alias map to whatever the imported character provides
 	var resolved: String = _resolved_anims.get(slot, "")
 	if resolved == "":
-		return
+		# Fall back: if run anim missing, use walk
+		if slot == "run":
+			resolved = _resolved_anims.get("walk", "")
+		if resolved == "":
+			return
 	if anim_player.current_animation != resolved:
 		anim_player.play(resolved)
 

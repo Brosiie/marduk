@@ -16,7 +16,7 @@
 [ext_resource type="Script" path="res://scripts/world/spawn/spawner.gd" id="5_spawner"]
 [ext_resource type="Script" path="res://scripts/world/spawn/boss_anchor.gd" id="6_boss_anchor"]
 [ext_resource type="PackedScene" path="res://assets/characters/mixamo/classes/ronin.glb" id="7_ronin"]
-[ext_resource type="PackedScene" path="res://assets/characters/kaykit/Assets/gltf/sword_1handed.gltf" id="8_katana"]
+[ext_resource type="PackedScene" path="res://assets/characters/kaykit/Assets/gltf/sword_2handed.gltf" id="8_katana"]
 [ext_resource type="Script" path="res://scripts/world/warp_portal.gd" id="9_warp"]
 
 [sub_resource type="PlaneMesh" id="floor_mesh"]
@@ -167,10 +167,14 @@ shape = SubResource("player_shape")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
 
 [node name="KatanaSocket" type="Node3D" parent="Player/MeshRoot"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.45, 1.0, 0.2)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.42, 1.0, 0.18)
 
 [node name="KatanaMesh" parent="Player/MeshRoot/KatanaSocket" instance=ExtResource("8_katana")]
-transform = Transform3D(0.0, 0.7071, 0.7071, 0.0, -0.7071, 0.7071, 1.0, 0.0, 0.0, 0, 0, 0)
+; Scale to katana proportions: 1.35x along blade length, 0.6x narrower
+; on width, slight forward tilt for the iconic katana stance angle.
+; Combined with sword_2handed source mesh this reads as a long
+; two-handed katana (Kachujin's Sword-Vow great-sword).
+transform = Transform3D(0.0, 0.5, 0.95, 0.0, -0.5, 0.95, 1.35, 0.0, 0.0, 0, 0, 0)
 
 [node name="CameraRig" type="Node3D" parent="."]
 script = ExtResource("2_cam")

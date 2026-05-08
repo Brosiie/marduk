@@ -94,18 +94,26 @@ func storm_darkness() -> float:
 # --- Scene rescan ---
 
 func _on_tree_changed() -> void:
-	# Debounce: scene swaps fire many tree_changed events. Defer to
-	# next frame and the latest call wins.
+	# Debounce: tree_changed fires for EVERY node added (props, mobs,
+	# particles), which would re-rescan and leak follower+particle
+	# systems hundreds of times per scene load -> RID exhaustion crash.
+	# Only rescan when the SCENE ROOT actually changes.
+	var current_scene = get_tree().current_scene if get_tree() else null
+	if current_scene == _scene_root:
+		return  # scene unchanged, ignore the spam
 	call_deferred("_rescan")
 
 func _rescan() -> void:
-	_scene_root = get_tree().current_scene if get_tree() else null
-	if _scene_root == null:
+	var new_scene = get_tree().current_scene if get_tree() else null
+	if new_scene == null:
 		return
+	# Idempotent: if we already attached to this scene, don't re-attach.
+	# Particle nodes from prior scenes are GC'd when the scene unloads.
+	if new_scene == _scene_root and _follower != null and is_instance_valid(_follower):
+		return
+	_scene_root = new_scene
 	_camera = _find_camera(_scene_root)
-	# Build a follower that hangs around the camera. We re-parent it
-	# under the new scene every rescan because the old one is freed
-	# with the previous scene.
+	# Build a follower that hangs around the camera.
 	_follower = Node3D.new()
 	_follower.name = "WeatherFollower"
 	_scene_root.add_child(_follower)

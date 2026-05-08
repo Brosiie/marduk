@@ -14,12 +14,10 @@ config/name="Marduk"
 config/description="ARPG dungeon crawler. Marduk vs Tiamat."
 run/main_scene="res://scenes/world/intros/sword_vow_ruins.tscn"
 config/features=PackedStringArray("4.6", "Forward Plus")
-config/icon="res://icon.svg"
-boot_splash/show_image=true
-boot_splash/fullsize=false
-boot_splash/use_filter=true
-boot_splash/image="res://boot_splash.png"
 boot_splash/bg_color=Color(0.04, 0.024, 0.047, 1)
+boot_splash/stretch_mode=0
+boot_splash/image="res://boot_splash.png"
+config/icon="res://icon.svg"
 
 [autoload]
 
