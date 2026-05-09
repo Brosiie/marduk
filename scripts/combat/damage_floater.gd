@@ -38,7 +38,7 @@ const ELEMENT_COLORS := {
 	&"heal":      Color(0.40, 0.95, 0.55),
 }
 
-static func spawn(target: Node3D, amount: float, is_crit: bool = false, element: StringName = &"physical") -> DamageFloater:
+static func spawn(target: Node3D, amount: float, is_crit: bool = false, element: StringName = &"physical", class_tint: Color = Color(0,0,0,0)) -> DamageFloater:
 	if target == null or not is_instance_valid(target):
 		return null
 	var floater := DamageFloater.new()
@@ -69,8 +69,15 @@ static func spawn(target: Node3D, amount: float, is_crit: bool = false, element:
 	floater.outline_modulate = Color(0, 0, 0, 0.92)
 	floater.modulate = ELEMENT_COLORS.get(element, ELEMENT_COLORS[&"physical"])
 	if is_crit:
-		# Crits lerp HARD toward bright gold and over-saturate
-		floater.modulate = floater.modulate.lerp(Color(1.0, 0.92, 0.50), 0.7)
+		# Crits lerp HARD toward bright gold and over-saturate. If a class
+		# tint is provided (alpha > 0), the crit lean blends to the class
+		# color instead, so Berserker crits go red, Mage crits go violet,
+		# Demon crits go ember. Reads as 'this hit was YOURS' at a glance
+		# in PvP / parties.
+		if class_tint.a > 0.0:
+			floater.modulate = floater.modulate.lerp(class_tint, 0.65)
+		else:
+			floater.modulate = floater.modulate.lerp(Color(1.0, 0.92, 0.50), 0.7)
 	# Tier 2+ gets a faint shadow offset for extra punch — text shadow
 	# doubles as a subtle motion-blur read when the number rises.
 	if tier >= 2:
