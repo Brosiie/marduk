@@ -140,7 +140,32 @@ func _engage(player_node: Node) -> void:
 			boss_name = String(_boss.name)
 		juice.shake(0.55, 0.45)  # gates slamming closed (heavier than before)
 		juice.flash(Color(0.95, 0.20, 0.20), 0.40, 0.50)
-		juice.toast("⚔  %s  ⚔" % boss_name.to_upper(), Color(0.95, 0.20, 0.20), 4.0)
+		# Cinematic nameplate flourish: split the boss's display_name into
+		# title + epithet ("Enforcer Kazat, Iron-Faced" -> name="Enforcer
+		# Kazat", epithet="Iron-Faced") so the sword-wipe nameplate reads
+		# like a Bayonetta / DMC kill-card. Lore line pulled from
+		# BossRegistry when the boss has a boss_id.
+		var split_name: String = boss_name
+		var split_epithet: String = ""
+		if "," in boss_name:
+			var parts := boss_name.split(",", false, 1)
+			split_name = parts[0].strip_edges()
+			split_epithet = parts[1].strip_edges() if parts.size() > 1 else ""
+		elif " the " in boss_name:
+			var idx: int = boss_name.find(" the ")
+			split_name = boss_name.substr(0, idx).strip_edges()
+			split_epithet = boss_name.substr(idx + 1).strip_edges()
+		var lore_line: String = ""
+		if "boss_id" in _boss:
+			var br: Node = get_node_or_null("/root/BossRegistry")
+			if br and br.has_method("get_boss"):
+				var rec = br.get_boss(StringName(_boss.get("boss_id")))
+				if rec and "lore" in rec:
+					lore_line = String(rec.lore)
+		if juice.has_method("boss_nameplate"):
+			juice.boss_nameplate(split_name, split_epithet, lore_line, Color(0.95, 0.20, 0.20), 4.0)
+		else:
+			juice.toast("⚔  %s  ⚔" % boss_name.to_upper(), Color(0.95, 0.20, 0.20), 4.0)
 		juice.slowmo(0.30, 1.1)  # longer + deeper slowmo for cinematic weight
 		# Camera zoom-in: pull the SpringArm length down for ~1.5s, then
 		# release back to the player's chosen distance. Reads as 'the

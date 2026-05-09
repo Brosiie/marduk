@@ -323,6 +323,24 @@ func _open_dialogue() -> void:
 		# Try by display_name -> "c_<slug>" (storyteller, iddinu, belitu)
 		var slug: String = display_name.to_lower().replace(",", "").replace(" ", "_").split("_")[0]
 		cdx.unlock(StringName("c_" + slug))
+	# Branching dialogue path: if DialogueRegistry has a tree for this
+	# npc_id, instantiate the DialoguePanel and let it render the full
+	# Line/Choice tree (with faction-rep tags, gating, quest-start
+	# effects). Falls through to the legacy single-greeting popup if
+	# there's no registered dialogue for this NPC.
+	var dr: Node = get_node_or_null("/root/DialogueRegistry")
+	if dr and dr.has_method("get_dialogue"):
+		var d = dr.get_dialogue(npc_id)
+		if d != null:
+			var panel_script: GDScript = load("res://scripts/ui/panels/dialogue_panel.gd")
+			if panel_script:
+				var dp := CanvasLayer.new()
+				dp.set_script(panel_script)
+				dp.layer = 60
+				dp.name = "DialoguePanel"
+				get_tree().current_scene.add_child(dp)
+				dp.open(d, display_name)
+				return
 	# Polished dialogue panel, gold-filigree slate frame matching the
 	# rest of the HUD language. Fade in / out via tween.
 	var dialog_panel := PanelContainer.new()

@@ -27,6 +27,12 @@ class Choice:
 	var sets_permanent_flag: StringName = &""
 	var starts_quest_id: StringName = &""
 	var ends_dialogue: bool = false
+	# Faction reputation deltas applied when this choice is picked.
+	# Map of faction_id -> int delta. Negative damages rep, positive
+	# helps it. Used by the dialogue panel to render preview tags like
+	# "[Crown +250 / Druids -150]" so the player sees consequences
+	# BEFORE picking the line. Empty = no rep changes.
+	var faction_rep_changes: Dictionary = {}
 
 @export var id: StringName = &""
 @export var npc_id: StringName = &""
@@ -70,5 +76,12 @@ func _make_line(d: Dictionary) -> Line:
 		c.ends_dialogue = bool(cd.get("ends_dialogue", false))
 		for cls in cd.get("require_class", []):
 			c.require_class.append(StringName(cls))
+		# Inflate faction rep deltas. Source dict keys can be plain
+		# strings (StringName isn't ConfigFile-serializable in some
+		# Godot 4 builds), so coerce to StringName here.
+		var raw_rep = cd.get("faction_rep_changes", {})
+		if raw_rep is Dictionary:
+			for fid in (raw_rep as Dictionary).keys():
+				c.faction_rep_changes[StringName(fid)] = int(raw_rep[fid])
 		l.choices.append(c)
 	return l

@@ -93,13 +93,23 @@ func _ready() -> void:
 		minimap.set_script(mm_script)
 		minimap.name = "WowMinimap"
 		$Root.add_child(minimap)
-	# Buff/debuff bar (top right, under minimap)
+	# Buff/debuff bar (top right, under minimap), shows StatusEffect resources
 	var bb_script: GDScript = load("res://scripts/ui/hud_components/buff_bar.gd")
 	if bb_script:
 		var buffs := Control.new()
 		buffs.set_script(bb_script)
 		buffs.name = "BuffBar"
 		$Root.add_child(buffs)
+	# Player transient buff bar (top left, under HP/Mana/XP). Shows
+	# the timer-float buffs that live on Player directly: battle cry,
+	# guard, riposte, and surge potions. These aren't StatusEffect
+	# resources so BuffBar doesn't pick them up.
+	var pbb_script: GDScript = load("res://scripts/ui/hud_components/player_buff_bar.gd")
+	if pbb_script:
+		var pbb := Control.new()
+		pbb.set_script(pbb_script)
+		pbb.name = "PlayerBuffBar"
+		$Root.add_child(pbb)
 	# Player ability cast bar (bottom-center, above the WowAbilityBar)
 	var pcb_script: GDScript = load("res://scripts/ui/hud_components/player_cast_bar.gd")
 	if pcb_script:

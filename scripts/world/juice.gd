@@ -157,6 +157,126 @@ func toast(text: String, color: Color = Color(0.95, 0.85, 0.30), duration: float
 	tw_in.tween_property(lbl, "modulate:a", 0.0, 0.45)
 	tw_in.tween_callback(lbl.queue_free)
 
+# Boss nameplate flourish: cinematic wipe-in for the moment a player
+# enters a boss arena. Visual sequence:
+#   1. Thin gold horizontal line scales from center-out to full width (0.25s)
+#   2. Line expands vertically into a nameplate panel with the boss
+#      name + epithet + lore line (0.35s ease-out)
+#   3. Hold for `duration` seconds
+#   4. Panel collapses back to a line, line shrinks to center, vanish (0.45s)
+#
+# `name` is the boss's primary name ("Enforcer Kazat"), `epithet` is the
+# subtitle ("Iron-Faced"), `lore` is the optional one-line flavor
+# ("He held your lord's neck while Tashmu raised the sword.").
+#
+# Replaces the old `juice.toast("⚔  KAZAT  ⚔")` which was a one-line
+# notification that read like every other toast. The wipe makes the
+# moment feel HEAVY, like Bayonetta / DMC kill-card framing.
+func boss_nameplate(name: String, epithet: String = "", lore: String = "",
+		color: Color = Color(0.95, 0.20, 0.20), duration: float = 3.0) -> void:
+	# Container anchored center-screen at upper-third. Manages the wipe
+	# stages by tweening child sizes/opacities.
+	var holder := Control.new()
+	holder.anchor_left = 0.5
+	holder.anchor_right = 0.5
+	holder.anchor_top = 0.0
+	holder.anchor_bottom = 0.0
+	holder.offset_left = -360.0
+	holder.offset_right = 360.0
+	holder.offset_top = 110.0
+	holder.offset_bottom = 290.0
+	holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_canvas.add_child(holder)
+	# The wipe line. Starts at width=0, scales out to 720px, then becomes
+	# the panel's top border as the panel fades up underneath.
+	var line := ColorRect.new()
+	line.anchor_left = 0.5
+	line.anchor_right = 0.5
+	line.anchor_top = 0.5
+	line.anchor_bottom = 0.5
+	line.offset_left = 0
+	line.offset_right = 0
+	line.offset_top = -1.5
+	line.offset_bottom = 1.5
+	line.color = color
+	holder.add_child(line)
+	# Nameplate panel (initially hidden, fades in once the line completes).
+	var panel := PanelContainer.new()
+	panel.anchor_left = 0.0
+	panel.anchor_right = 1.0
+	panel.anchor_top = 0.0
+	panel.anchor_bottom = 1.0
+	panel.modulate.a = 0.0
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Color(0.05, 0.02, 0.02, 0.92)
+	sb.border_color = color
+	sb.border_width_top = 3
+	sb.border_width_bottom = 3
+	sb.border_width_left = 1
+	sb.border_width_right = 1
+	sb.set_corner_radius_all(2)
+	sb.shadow_color = Color(0, 0, 0, 0.7)
+	sb.shadow_size = 12
+	sb.shadow_offset = Vector2(0, 6)
+	sb.content_margin_left = 28
+	sb.content_margin_right = 28
+	sb.content_margin_top = 18
+	sb.content_margin_bottom = 18
+	panel.add_theme_stylebox_override("panel", sb)
+	holder.add_child(panel)
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", 6)
+	v.alignment = BoxContainer.ALIGNMENT_CENTER
+	panel.add_child(v)
+	# Boss name (large, blood-tinted, outlined)
+	var name_lbl := Label.new()
+	name_lbl.text = name.to_upper()
+	name_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	name_lbl.add_theme_font_size_override("font_size", 42)
+	name_lbl.add_theme_color_override("font_color", color)
+	name_lbl.add_theme_color_override("font_outline_color", Color(0.10, 0.0, 0.0, 0.95))
+	name_lbl.add_theme_constant_override("outline_size", 8)
+	v.add_child(name_lbl)
+	# Epithet, smaller, italic-weight feel via dimmer color
+	if epithet != "":
+		var ep_lbl := Label.new()
+		ep_lbl.text = epithet
+		ep_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		ep_lbl.add_theme_font_size_override("font_size", 18)
+		ep_lbl.add_theme_color_override("font_color", color * 0.75)
+		ep_lbl.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.85))
+		ep_lbl.add_theme_constant_override("outline_size", 4)
+		v.add_child(ep_lbl)
+	# Lore one-liner in muted bronze
+	if lore != "":
+		var lore_lbl := Label.new()
+		lore_lbl.text = lore
+		lore_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		lore_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		lore_lbl.custom_minimum_size = Vector2(640, 0)
+		lore_lbl.add_theme_font_size_override("font_size", 13)
+		lore_lbl.add_theme_color_override("font_color", Color(0.85, 0.78, 0.55, 0.85))
+		lore_lbl.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.85))
+		lore_lbl.add_theme_constant_override("outline_size", 3)
+		v.add_child(lore_lbl)
+	# Stage 1: wipe line out from center (0.25s)
+	# Stage 2: panel fade in + line fades into top border (0.35s)
+	# Stage 3: hold for `duration`
+	# Stage 4: panel fade out + line shrink back to nothing (0.45s)
+	var tw := create_tween()
+	# Stage 1: line grows from 0 to 720px wide
+	tw.tween_property(line, "offset_left", -360.0, 0.25).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	tw.parallel().tween_property(line, "offset_right", 360.0, 0.25).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	# Stage 2: panel fades up
+	tw.tween_property(panel, "modulate:a", 1.0, 0.35).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	# Stage 3: hold
+	tw.tween_interval(duration)
+	# Stage 4: panel fades out, line collapses
+	tw.tween_property(panel, "modulate:a", 0.0, 0.30)
+	tw.parallel().tween_property(line, "offset_left", 0.0, 0.45).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	tw.parallel().tween_property(line, "offset_right", 0.0, 0.45).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	tw.tween_callback(holder.queue_free)
+
 # Quest milestone banner: a wide gold ribbon that sweeps across the
 # upper-third of the screen for accept / complete / turn-in moments.
 # Bigger than a toast (toasts stack and read like notifications); the
