@@ -22,6 +22,10 @@ var player: Node = null
 var npc: Node = null
 var _current_tab: int = TAB_BUY
 var _gold_label: Label = null
+# Cached at open() so every row prices off the same snapshot. Hostile
+# vendors (rep < -3000) refuse to trade entirely.
+var _player_rep: int = 0
+var _vendor_will_trade: bool = true
 
 func _ready() -> void:
 	visible = false
@@ -31,9 +35,21 @@ func open(p_vendor, p_player: Node, p_npc: Node = null) -> void:
 	vendor = p_vendor
 	player = p_player
 	npc = p_npc
+	_resolve_player_rep()
 	visible = true
 	get_tree().paused = true
 	_build()
+
+func _resolve_player_rep() -> void:
+	_player_rep = 0
+	_vendor_will_trade = true
+	if vendor == null or not "faction" in vendor or vendor.faction == &"":
+		return
+	var fr: Node = get_node_or_null("/root/FactionRegistry")
+	if fr and fr.has_method("get_rep"):
+		_player_rep = int(fr.get_rep(vendor.faction))
+	if vendor.has_method("will_trade"):
+		_vendor_will_trade = bool(vendor.will_trade(_player_rep))
 
 func close() -> void:
 	visible = false
@@ -89,6 +105,28 @@ func _build() -> void:
 		greeting.add_theme_font_size_override("font_size", 12)
 		greeting.add_theme_color_override("font_color", Color(0.78, 0.72, 0.60))
 		vbox.add_child(greeting)
+
+	# Faction badge — shows the player's tier with this vendor and the
+	# resulting price modifier. Skipped for vendors with no faction.
+	var badge := _make_faction_badge()
+	if badge:
+		vbox.add_child(badge)
+
+	# Hostile vendors refuse trade outright. Render a single refusal line
+	# and skip the tabs / stock entirely.
+	if not _vendor_will_trade:
+		var refusal := Label.new()
+		refusal.text = "%s refuses to trade with you." % (vendor.display_name if vendor else "The vendor")
+		refusal.add_theme_font_size_override("font_size", 16)
+		refusal.add_theme_color_override("font_color", Color(0.85, 0.30, 0.25))
+		refusal.custom_minimum_size = Vector2(720, 0)
+		vbox.add_child(refusal)
+		var hint := Label.new()
+		hint.text = "Earn standing with their faction first."
+		hint.add_theme_font_size_override("font_size", 12)
+		hint.add_theme_color_override("font_color", Color(0.65, 0.55, 0.45))
+		vbox.add_child(hint)
+		return
 
 	# Tabs
 	var tabs := HBoxContainer.new()
@@ -155,7 +193,7 @@ func _make_buy_row(item: Item, qty: int, stock) -> Control:
 	name_label.tooltip_text = item.description
 	row.add_child(name_label)
 
-	var price: int = vendor.sell_price(item) if vendor.has_method("sell_price") else int(item.sell_value)
+	var price: int = vendor.sell_price(item, _player_rep) if vendor.has_method("sell_price") else int(item.sell_value)
 	var price_label := Label.new()
 	price_label.text = "%d g" % price
 	price_label.add_theme_font_size_override("font_size", 13)
@@ -201,7 +239,7 @@ func _render_sell(content: VBoxContainer) -> void:
 			continue
 		var item: Item = stack.item
 		# Vendor refuses some items
-		if vendor.has_method("can_buy") and not vendor.can_buy(item):
+		if vendor.has_method("can_buy") and not vendor.can_buy(item, _player_rep):
 			continue
 		content.add_child(_make_sell_row(item, stack.count))
 
@@ -217,7 +255,7 @@ func _make_sell_row(item: Item, qty: int) -> Control:
 	name_label.tooltip_text = item.description
 	row.add_child(name_label)
 
-	var price: int = vendor.buy_price(item) if vendor.has_method("buy_price") else int(item.sell_value * 0.35)
+	var price: int = vendor.buy_price(item, _player_rep) if vendor.has_method("buy_price") else int(item.sell_value * 0.35)
 	var price_label := Label.new()
 	price_label.text = "%d g" % price
 	price_label.add_theme_font_size_override("font_size", 13)
@@ -298,6 +336,34 @@ func _make_label(text: String) -> Label:
 	lab.custom_minimum_size = Vector2(720, 0)
 	lab.add_theme_font_size_override("font_size", 14)
 	lab.add_theme_color_override("font_color", Color(0.75, 0.70, 0.60))
+	return lab
+
+func _make_faction_badge() -> Control:
+	# Renders a colored "Crown - Friendly (-5%/+5%)" line so the player
+	# can see exactly what their reputation buys them at this vendor.
+	# Returns null when the vendor has no faction or registries are
+	# missing — caller skips on null.
+	if vendor == null or not "faction" in vendor or vendor.faction == &"":
+		return null
+	var fr: Node = get_node_or_null("/root/FactionRegistry")
+	if fr == null or not fr.has_method("tier_for") or not fr.has_method("get_faction"):
+		return null
+	var tier: String = fr.tier_for(_player_rep)
+	var tier_color: Color = fr.tier_color_for(_player_rep) if fr.has_method("tier_color_for") else Color(0.85, 0.85, 0.85)
+	var f = fr.get_faction(vendor.faction)
+	var fname: String = f.display_name if f else String(vendor.faction)
+	var mod: Dictionary = vendor.tier_modifier(_player_rep) if vendor.has_method("tier_modifier") else {"sell_mult": 1.0, "buy_mult": 1.0}
+	var sell_pct: int = int(round((float(mod.get("sell_mult", 1.0)) - 1.0) * 100.0))
+	var buy_pct: int = int(round((float(mod.get("buy_mult", 1.0)) - 1.0) * 100.0))
+	var lab := Label.new()
+	if sell_pct == 0 and buy_pct == 0:
+		lab.text = "%s · %s" % [fname, tier]
+	else:
+		var sell_str: String = ("%+d%%" % sell_pct) if sell_pct != 0 else "0%"
+		var buy_str: String = ("%+d%%" % buy_pct) if buy_pct != 0 else "0%"
+		lab.text = "%s · %s   (buy %s · sell %s)" % [fname, tier, sell_str, buy_str]
+	lab.add_theme_font_size_override("font_size", 12)
+	lab.add_theme_color_override("font_color", tier_color)
 	return lab
 
 func _toast(msg: String) -> void:

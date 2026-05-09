@@ -36,22 +36,60 @@ class Stock:
 func add_stock(item_id: StringName, quantity: int = -1, price_override: int = 0) -> void:
 	stocked_items.append({"item_id": String(item_id), "quantity": quantity, "price_override": price_override})
 
-func sell_price(item: Item) -> int:
+func sell_price(item: Item, player_rep: int = 0) -> int:
 	if not item:
 		return 0
-	return int(round(float(item.sell_value) * sell_markup))
+	var mod: Dictionary = tier_modifier(player_rep)
+	if bool(mod.get("refuses_trade", false)):
+		return 0
+	var mult: float = float(mod.get("sell_mult", 1.0))
+	return int(round(float(item.sell_value) * sell_markup * mult))
 
-func buy_price(item: Item) -> int:
+func buy_price(item: Item, player_rep: int = 0) -> int:
 	if not item:
 		return 0
 	if refuses_quest_items and item.is_quest_item:
 		return 0
 	if refuses_soulbound and item.is_soulbound:
 		return 0
-	return int(round(float(item.sell_value) * buy_markup))
+	var mod: Dictionary = tier_modifier(player_rep)
+	if bool(mod.get("refuses_trade", false)):
+		return 0
+	var mult: float = float(mod.get("buy_mult", 1.0))
+	return int(round(float(item.sell_value) * buy_markup * mult))
 
-func can_buy(item: Item) -> bool:
-	return buy_price(item) > 0
+func can_buy(item: Item, player_rep: int = 0) -> bool:
+	return buy_price(item, player_rep) > 0
+
+func will_trade(player_rep: int) -> bool:
+	# Hostile and Hated tiers refuse trade outright. Tier breakpoints
+	# mirror FactionRegistry so the boundary is consistent.
+	# Vendors with no faction (faction == &"") trade with anyone.
+	if faction == &"":
+		return true
+	return player_rep >= -3000  # >= Unfriendly floor
+
+func tier_modifier(player_rep: int) -> Dictionary:
+	# Returns {sell_mult, buy_mult, refuses_trade} based on rep with the
+	# vendor's faction. Vendors with no faction return baseline.
+	# Sell mult < 1.0 = vendor charges player less. Buy mult > 1.0 =
+	# vendor pays player more for junk. Both lean toward the player as
+	# rep climbs, so the tier ladder is a tangible reward.
+	if faction == &"":
+		return {"sell_mult": 1.0, "buy_mult": 1.0, "refuses_trade": false}
+	if player_rep < -3000:
+		return {"sell_mult": 1.0, "buy_mult": 1.0, "refuses_trade": true}
+	if player_rep < 0:
+		return {"sell_mult": 1.20, "buy_mult": 0.80, "refuses_trade": false}  # Unfriendly
+	if player_rep < 3000:
+		return {"sell_mult": 1.00, "buy_mult": 1.00, "refuses_trade": false}  # Neutral
+	if player_rep < 9000:
+		return {"sell_mult": 0.95, "buy_mult": 1.05, "refuses_trade": false}  # Friendly
+	if player_rep < 21000:
+		return {"sell_mult": 0.90, "buy_mult": 1.10, "refuses_trade": false}  # Honored
+	if player_rep < 42000:
+		return {"sell_mult": 0.85, "buy_mult": 1.15, "refuses_trade": false}  # Revered
+	return {"sell_mult": 0.80, "buy_mult": 1.20, "refuses_trade": false}      # Exalted
 
 func auto_generated_potions() -> Array[StringName]:
 	# Picks the right potion tier based on basic_gear_min_level.

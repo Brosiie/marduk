@@ -41,6 +41,43 @@ class Objective:
 # Example: {&"crown": 250, &"black_sail": -100} for a Crown loyalty quest.
 @export var faction_rep_changes: Dictionary = {}
 
+# Map of faction_id -> minimum rep value required to ACCEPT this quest.
+# Empty = no faction prereq. Non-empty entries are AND-ed: all listed
+# factions must meet their threshold. Use FactionRegistry tier
+# breakpoints (3000 = Friendly, 9000 = Honored, 21000 = Revered).
+# Example: {&"crown": 3000} = "must be Friendly with Crown."
+@export var min_faction_rep: Dictionary = {}
+
+func meets_faction_requirements() -> bool:
+	if min_faction_rep.is_empty():
+		return true
+	var fr: Node = Engine.get_main_loop().root.get_node_or_null("/root/FactionRegistry") if Engine.get_main_loop() else null
+	if fr == null or not fr.has_method("get_rep"):
+		return true  # registry not loaded, fail open so tests + offline don't soft-lock
+	for fid in min_faction_rep.keys():
+		var threshold: int = int(min_faction_rep[fid])
+		if int(fr.get_rep(fid)) < threshold:
+			return false
+	return true
+
+func unmet_faction_summary() -> String:
+	# Human-readable list of unmet faction requirements, eg
+	# "Friendly with The Iron Crown". Empty string when all met.
+	if min_faction_rep.is_empty():
+		return ""
+	var fr: Node = Engine.get_main_loop().root.get_node_or_null("/root/FactionRegistry") if Engine.get_main_loop() else null
+	if fr == null:
+		return ""
+	var parts: Array[String] = []
+	for fid in min_faction_rep.keys():
+		var threshold: int = int(min_faction_rep[fid])
+		if int(fr.get_rep(fid)) < threshold:
+			var tier_name: String = fr.tier_for(threshold) if fr.has_method("tier_for") else str(threshold)
+			var f = fr.get_faction(fid) if fr.has_method("get_faction") else null
+			var fname: String = f.display_name if f else String(fid)
+			parts.append("%s with %s" % [tier_name, fname])
+	return ", ".join(parts)
+
 func build_objectives() -> Array:
 	# Inflate inspector data into Objective instances
 	var arr: Array = []

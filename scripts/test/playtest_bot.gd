@@ -123,6 +123,9 @@ func _run() -> void:
 	await _scenario_inventory_save_load()
 	await _scenario_quest_persist_across_reload()
 	await _scenario_boss_defeated_blocks_arena()
+	await _scenario_faction_kill_rep()
+	await _scenario_vendor_tier_pricing()
+	await _scenario_quest_faction_gate()
 
 	_finish()
 
@@ -784,6 +787,131 @@ func _scenario_boss_defeated_blocks_arena() -> void:
 		_pass("boss_defeated_gate", "arena recognizes %s as already defeated" % arena_boss_id)
 	else:
 		_fail("boss_defeated_gate", "arena DOES NOT skip engagement for already-defeated %s — would re-trigger fight on reload" % arena_boss_id)
+
+# 8. Faction kill rep: read Crown rep, set a baseline, fire the kill
+# bridge with a stand-in target carrying faction_rep_on_kill, verify
+# rep moved exactly the declared deltas. Proves Player._apply_kill_rep
+# routes through FactionRegistry correctly without needing a full
+# spawned-and-killed boss in scene.
+func _scenario_faction_kill_rep() -> void:
+	var fr: Node = get_node_or_null("/root/FactionRegistry")
+	if fr == null or not fr.has_method("set_rep") or not fr.has_method("get_rep"):
+		_findings.append("(skip faction_kill_rep: FactionRegistry missing)")
+		return
+	if _player == null or not _player.has_method("_apply_kill_rep"):
+		_findings.append("(skip faction_kill_rep: player kill bridge missing)")
+		return
+	# Baseline both factions to a known value so the delta math is unambiguous.
+	fr.set_rep(&"crown", 1000)
+	fr.set_rep(&"druids", 1000)
+	# Build a Node that looks like a boss with faction_rep_on_kill.
+	var fake := Node.new()
+	fake.add_to_group("boss")
+	fake.set_meta("faction_rep_on_kill", {&"crown": -100, &"druids": 50})
+	# Plain `target.faction_rep_on_kill` works because GDScript's `in`
+	# operator + property access falls through to set_meta-stored values
+	# only when wrapped — we need a real property. Easiest: set on a
+	# Resource-like wrapper. Skip the meta path and use a script.
+	fake.queue_free()
+	var script := GDScript.new()
+	script.source_code = "extends Node\nvar faction_rep_on_kill: Dictionary = {&\"crown\": -100, &\"druids\": 50}\n"
+	script.reload()
+	var fake2: Node = Node.new()
+	fake2.set_script(script)
+	fake2.add_to_group("boss")
+	add_child(fake2)
+	_player._apply_kill_rep(fake2)
+	fake2.queue_free()
+	var crown_after: int = int(fr.get_rep(&"crown"))
+	var druids_after: int = int(fr.get_rep(&"druids"))
+	if crown_after == 900 and druids_after == 1050:
+		_pass("faction_kill_rep", "Crown 1000->%d, Druids 1000->%d" % [crown_after, druids_after])
+	else:
+		_fail("faction_kill_rep", "Expected Crown 900 / Druids 1050, got Crown %d / Druids %d" % [crown_after, druids_after])
+
+# 9. Vendor tier pricing: build a Vendor with a faction, sweep player
+# rep across Hostile / Neutral / Friendly / Exalted, verify sell_price
+# falls and buy_price rises monotonically with rep. Proves the tier
+# modifier is wired through both pricing paths.
+func _scenario_vendor_tier_pricing() -> void:
+	var fr: Node = get_node_or_null("/root/FactionRegistry")
+	if fr == null:
+		_findings.append("(skip vendor_tier_pricing: FactionRegistry missing)")
+		return
+	var vendor: Vendor = Vendor.new()
+	vendor.faction = &"crown"
+	vendor.sell_markup = 1.5
+	vendor.buy_markup = 0.35
+	# Stand-in item with a known sell_value
+	var item: Item = Item.new()
+	item.sell_value = 100
+	# Hostile (refuses)
+	if vendor.will_trade(-5000):
+		_fail("vendor_tier_pricing", "Hostile rep should refuse trade but will_trade returned true")
+		return
+	# Neutral baseline
+	var sell_neutral: int = int(vendor.sell_price(item, 0))
+	var buy_neutral: int = int(vendor.buy_price(item, 0))
+	# Friendly (3000+)
+	var sell_friendly: int = int(vendor.sell_price(item, 4000))
+	var buy_friendly: int = int(vendor.buy_price(item, 4000))
+	# Exalted (42000+)
+	var sell_exalted: int = int(vendor.sell_price(item, 42000))
+	var buy_exalted: int = int(vendor.buy_price(item, 42000))
+	# Monotonic checks: sell falls with rep, buy rises with rep
+	if sell_friendly >= sell_neutral:
+		_fail("vendor_tier_pricing", "Friendly sell %d should be < Neutral %d" % [sell_friendly, sell_neutral])
+		return
+	if sell_exalted >= sell_friendly:
+		_fail("vendor_tier_pricing", "Exalted sell %d should be < Friendly %d" % [sell_exalted, sell_friendly])
+		return
+	if buy_friendly <= buy_neutral:
+		_fail("vendor_tier_pricing", "Friendly buy %d should be > Neutral %d" % [buy_friendly, buy_neutral])
+		return
+	if buy_exalted <= buy_friendly:
+		_fail("vendor_tier_pricing", "Exalted buy %d should be > Friendly %d" % [buy_exalted, buy_friendly])
+		return
+	_pass("vendor_tier_pricing", "Hostile=refuse, sell %d->%d->%d, buy %d->%d->%d (Neu/Fri/Exa)" %
+		[sell_neutral, sell_friendly, sell_exalted, buy_neutral, buy_friendly, buy_exalted])
+
+# 10. Quest faction gate: register a quest with min_faction_rep set
+# above the player's current rep, verify accept_quest fails. Bump rep
+# above threshold, verify accept_quest succeeds.
+func _scenario_quest_faction_gate() -> void:
+	var fr: Node = get_node_or_null("/root/FactionRegistry")
+	var qr: Node = get_node_or_null("/root/QuestRegistry")
+	if fr == null or qr == null:
+		_findings.append("(skip quest_faction_gate: registries missing)")
+		return
+	# Build a synthetic quest the harness owns (won't pollute live save).
+	# Use preload to dodge any stale class_name cache.
+	var QuestRes = preload("res://scripts/quests/quest.gd")
+	var q = QuestRes.new()
+	q.id = &"_harness_faction_gate_quest"
+	q.display_name = "Harness Faction Gate"
+	q.min_level = 1
+	q.objectives_data = [{"description":"noop","kind":"talk_to","target_id":"void","required_count":1}]
+	q.min_faction_rep = {&"crown": 9000}  # Honored
+	# Register on the live registry so accept_quest can find it
+	if "quests" in qr:
+		qr.quests[q.id] = q
+	# Set rep below threshold and try
+	fr.set_rep(&"crown", 1000)  # Friendly, NOT Honored
+	var blocked: bool = not bool(qr.accept_quest(q.id))
+	# Set rep at threshold and try
+	fr.set_rep(&"crown", 9000)  # Exactly Honored
+	var accepted: bool = bool(qr.accept_quest(q.id))
+	# Cleanup so harness doesn't persist a fake quest
+	if "_active" in qr and qr._active.has(q.id):
+		qr._active.erase(q.id)
+	if "_progress" in qr and qr._progress.has(q.id):
+		qr._progress.erase(q.id)
+	if "quests" in qr and qr.quests.has(q.id):
+		qr.quests.erase(q.id)
+	if blocked and accepted:
+		_pass("quest_faction_gate", "below threshold blocked, at threshold accepted")
+	else:
+		_fail("quest_faction_gate", "blocked=%s accepted=%s (expected true,true)" % [blocked, accepted])
 
 func _scenario_hud_presence() -> void:
 	var huds := get_tree().get_nodes_in_group("hud")

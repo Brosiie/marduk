@@ -8,6 +8,12 @@ extends Node
 # class_name removed: this script is registered as the FactionRegistry
 # autoload in project.godot.
 
+# Explicit preload — bypasses the global class_name cache so a stale
+# .godot/global_script_class_cache.cfg can't take this autoload offline.
+# Without this, a missed cache rebuild left every Faction-typed signature
+# unresolved and the whole registry failed to instantiate.
+const FactionRes := preload("res://scripts/factions/faction.gd")
+
 signal rep_changed(faction_id: StringName, new_value: int, old_value: int)
 signal tier_changed(faction_id: StringName, new_tier: String, old_tier: String)
 
@@ -38,7 +44,7 @@ const TIER_COLORS := {
 	"Exalted":    Color(1.00, 0.85, 0.30),
 }
 
-var factions: Dictionary = {}  # StringName -> Faction
+var factions: Dictionary = {}  # StringName -> FactionRes
 
 func _ready() -> void:
 	_register_all()
@@ -57,8 +63,8 @@ func _register_all() -> void:
 	_make(&"black_sail",  "The Black Sail",      "Pirate kings of the Reed Wastes coast. Three crowns, three captains. They sell to anyone with coin.",
 		Color(0.55, 0.30, 0.65), "☠", 0)
 
-func _make(id: StringName, name: String, desc: String, color: Color, motif: String, starting: int) -> Faction:
-	var f := Faction.new()
+func _make(id: StringName, name: String, desc: String, color: Color, motif: String, starting: int) -> FactionRes:
+	var f := FactionRes.new()
 	f.faction_id = id
 	f.display_name = name
 	f.description = desc
@@ -68,11 +74,11 @@ func _make(id: StringName, name: String, desc: String, color: Color, motif: Stri
 	factions[id] = f
 	return f
 
-func get_faction(id: StringName) -> Faction:
+func get_faction(id: StringName) -> FactionRes:
 	return factions.get(id, null)
 
-func all_factions() -> Array[Faction]:
-	var out: Array[Faction] = []
+func all_factions() -> Array[FactionRes]:
+	var out: Array[FactionRes] = []
 	for f in factions.values():
 		out.append(f)
 	return out
