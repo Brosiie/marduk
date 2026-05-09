@@ -110,6 +110,16 @@ func _ready() -> void:
 		pbb.set_script(pbb_script)
 		pbb.name = "PlayerBuffBar"
 		$Root.add_child(pbb)
+	# Tiamat awareness widget (top right, beside the minimap). Hidden
+	# at DORMANT; fades in at STIRRING and tracks her dream as it
+	# climbs. Pulses on tier-ups so the player's eye catches the
+	# transition without a full toast occluding combat.
+	var taw_script: GDScript = load("res://scripts/ui/hud_components/tiamat_awareness_widget.gd")
+	if taw_script:
+		var taw := Control.new()
+		taw.set_script(taw_script)
+		taw.name = "TiamatAwarenessWidget"
+		$Root.add_child(taw)
 	# Compass strip (top center). N/E/S/W cardinals + warp portal +
 	# lodestone + quest-target markers slide along the strip as the
 	# player rotates. Skyrim/Fallout style heading reference so the

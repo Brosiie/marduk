@@ -115,16 +115,25 @@ func _apply(t: float) -> void:
 	var dark: float = 1.0
 	if wd and wd.has_method("storm_darkness"):
 		dark = wd.storm_darkness()
+	# Tiamat awareness tint: at WAKING tier and above, the sky shifts
+	# toward violet at dusk and dawn, deeper as awareness climbs. Read
+	# every frame so a tier transition mid-session affects the next
+	# render. Returns Color(0,0,0,0) if Tiamat is dormant or registry
+	# missing, which leaves the base color untouched.
+	var tiamat_tint: Color = _resolve_tiamat_tint(t)
 	if _world_env and _world_env.environment:
 		var env: Environment = _world_env.environment
 		var sky_mat: ProceduralSkyMaterial = env.sky.sky_material if env.sky else null
 		if sky_mat:
-			sky_mat.sky_top_color = _sample(SKY_TOP, t).darkened(1.0 - dark)
-			sky_mat.sky_horizon_color = _sample(SKY_HORIZON, t).darkened((1.0 - dark) * 0.7)
+			sky_mat.sky_top_color = _sample(SKY_TOP, t).darkened(1.0 - dark).lerp(tiamat_tint, tiamat_tint.a)
+			sky_mat.sky_horizon_color = _sample(SKY_HORIZON, t).darkened((1.0 - dark) * 0.7).lerp(tiamat_tint, tiamat_tint.a * 0.6)
 			sky_mat.ground_horizon_color = _sample(SKY_HORIZON, t).darkened(0.4 + (1.0 - dark) * 0.3)
 			sky_mat.ground_bottom_color = _sample(SKY_TOP, t).darkened(0.5 + (1.0 - dark) * 0.3)
-		# Ambient color tracks the horizon so shadows feel right
-		env.ambient_light_color = _sample(SKY_HORIZON, t).lightened(0.2).darkened((1.0 - dark) * 0.5)
+		# Ambient color tracks the horizon so shadows feel right. Tiamat
+		# tint applied softly so shadows pull toward violet without
+		# overpowering the base lighting.
+		var ambient: Color = _sample(SKY_HORIZON, t).lightened(0.2).darkened((1.0 - dark) * 0.5)
+		env.ambient_light_color = ambient.lerp(tiamat_tint, tiamat_tint.a * 0.4)
 		env.ambient_light_energy = lerp(0.45, 1.0, _sun_brightness(t)) * dark
 		# Storm fog: bump density when overcast / raining / storming
 		env.fog_density = lerp(0.005, 0.035, 1.0 - dark)
@@ -140,6 +149,35 @@ func _apply(t: float) -> void:
 func _sun_brightness(t: float) -> float:
 	# 0 at midnight, 1 at noon
 	return clamp(sin(t * TAU - PI * 0.5) * 0.5 + 0.5, 0.0, 1.0)
+
+# Tiamat awareness sky tint. Returns a Color whose alpha encodes the
+# blend strength: 0 = no tint, 1 = full violet. Active at WAKING tier
+# (50+) and stronger past WAKING_2 / AWAKE. Tint is biased toward the
+# fringes of the day (dawn / dusk) where the player notices the
+# shift, and dampened at noon where direct sun overpowers the
+# violet wash. Returns Color(0,0,0,0) when registry missing or
+# awareness too low for a visible effect.
+func _resolve_tiamat_tint(t: float) -> Color:
+	var tr: Node = get_node_or_null("/root/TiamatRegistry")
+	if tr == null or not tr.has_method("get_awareness"):
+		return Color(0, 0, 0, 0)
+	var awareness: int = int(tr.get_awareness())
+	if awareness < 50:  # below WAKING the sky stays clean
+		return Color(0, 0, 0, 0)
+	# 0.0 at awareness 50, 0.55 at 100, capped above. Capped well below
+	# 1.0 so the player can still see the world; this is a haze, not a
+	# replacement.
+	var base_strength: float = clamp((float(awareness) - 50.0) / 50.0 * 0.55, 0.0, 0.55)
+	# Bias by time-of-day: 0 at noon (t=0.5), 1 at midnight (t=0.0/1.0).
+	# Sun overrides violet during the day.
+	var sun_factor: float = _sun_brightness(t)
+	var time_bias: float = 1.0 - sun_factor * 0.7
+	# Violet hue shifts darker as awareness climbs. WAKING is dusty
+	# violet, AWAKE is blood-violet.
+	var t_aware: float = clamp(float(awareness) / 100.0, 0.0, 1.0)
+	var tint: Color = Color(0.55, 0.30, 0.65).lerp(Color(0.65, 0.15, 0.40), t_aware)
+	tint.a = base_strength * time_bias
+	return tint
 
 # Sample a list-of-{t, c} keyframes by interpolation. List MUST be
 # sorted by `t`. Wraps at 1.0.

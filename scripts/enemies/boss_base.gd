@@ -114,6 +114,21 @@ func _ready() -> void:
 	# Average mob HP at L1 is ~50; we scale up to give bosses real heft.
 	max_hp = max(max_hp, 600.0 * lvl_mult)
 	hp = max_hp
+	# Tiamat awareness multiplier: at AWAKE (100+), final / secret bosses
+	# scale up an extra +25% per 100 awareness above the threshold,
+	# capped at +100%. The completionist who fed her every prologue +
+	# every faction tier-up + every Wound glyph fights a meaningfully
+	# harder Tiamat than the speedrunner who skipped sidequests. Mid-
+	# bosses are unaffected; this is purely an endgame stake.
+	if is_final_boss or is_secret_boss:
+		var tr: Node = get_node_or_null("/root/TiamatRegistry")
+		if tr and tr.has_method("get_awareness"):
+			var awareness: int = int(tr.get_awareness())
+			if awareness >= 100:
+				var extra: float = clamp(float(awareness - 100) / 100.0 * 0.25, 0.0, 1.0)
+				max_hp *= (1.0 + extra)
+				contact_damage *= (1.0 + extra * 0.5)  # damage scales softer than HP
+				hp = max_hp
 	# Boss aura: dark crimson particle ring at the boss's feet so they
 	# read as a serious threat the moment the player sees them, even
 	# from far across the arena. Bigger than the player's class aura.

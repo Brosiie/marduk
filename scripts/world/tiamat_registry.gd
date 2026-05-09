@@ -88,6 +88,16 @@ func _wire_signal_sources() -> void:
 		var gcb := Callable(self, "_on_glyph_inscribed")
 		if not gr.glyph_inscribed.is_connected(gcb):
 			gr.glyph_inscribed.connect(gcb)
+	# QuestRegistry.quest_completed: factor each quest's faction_rep_changes
+	# into awareness. Druid rep gain -> she settles. Inquisition rep
+	# gain -> she stirs. Crown / Black Sail / Six Breaths quests
+	# are awareness-neutral (the political triangle around the Wound is
+	# what wakes her, not court intrigue).
+	var qr: Node = get_node_or_null("/root/QuestRegistry")
+	if qr and qr.has_signal("quest_completed"):
+		var qcb := Callable(self, "_on_quest_completed")
+		if not qr.quest_completed.is_connected(qcb):
+			qr.quest_completed.connect(qcb)
 
 func _on_faction_tier_changed(faction_id: StringName, _new_tier: String, old_tier: String) -> void:
 	# Only count tier UPS. Tier_changed fires on both directions so we
@@ -122,6 +132,26 @@ func _on_glyph_inscribed(_glyph, _location = null, _character = null) -> void:
 	if _glyph and _glyph.get("id"):
 		glyph_id = StringName(_glyph.get("id"))
 	on_glyph_inscribed(glyph_id)
+
+func _on_quest_completed(quest) -> void:
+	# A quest's faction_rep_changes dict tells us its diplomatic stance.
+	# Positive Druid rep means the quest tended the Wound; positive
+	# Inquisition rep means it burned what they call corruption. Each
+	# direction has its own awareness delta declared as a constant up
+	# top.
+	if quest == null or not "faction_rep_changes" in quest:
+		return
+	var changes: Dictionary = quest.faction_rep_changes
+	if changes.is_empty():
+		return
+	var druid_delta: int = int(changes.get(&"druids", 0))
+	var inq_delta: int = int(changes.get(&"inquisition", 0))
+	# Use whichever signal is stronger so a mixed quest doesn't double-
+	# tick. Druid >= |Inquisition| -> stabilize. Otherwise burn.
+	if druid_delta > 0 and druid_delta >= abs(inq_delta):
+		on_druid_quest_completed()
+	elif inq_delta > 0:
+		on_inquisition_quest_completed()
 
 # ────────── Public API ──────────
 
