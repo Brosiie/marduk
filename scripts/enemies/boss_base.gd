@@ -586,6 +586,22 @@ func _play_boss_death_cinematic() -> void:
 		if juice.has_method("toast"):
 			var nm: String = String(display_name) if display_name != "" else "FOE"
 			juice.toast("⚔  %s  FALLEN  ⚔" % nm.to_upper(), Color(1.0, 0.85, 0.45), 5.0)
+	# Victory audio chord — 5-note arpeggio that rises as the slowmo
+	# fades. The chord is the player's reward sound — earns the win.
+	var ab: Node = get_node_or_null("/root/AudioBus")
+	if ab and ab.has_method("play_cue"):
+		ab.play_cue(&"victory", global_position, -3.0, 1.0)
+		# Layer a death rumble underneath for weight
+		ab.play_cue(&"death", global_position, -8.0, 0.55)
+	# Music director: drop combat intensity to 0 so the area returns
+	# to peace music after the chord lands.
+	var md: Node = get_node_or_null("/root/MusicDirector")
+	if md and md.has_method("set_combat_intensity"):
+		# Defer slightly so the victory chord plays first, then music
+		# crossfades back to ambient.
+		get_tree().create_timer(1.5).timeout.connect(func():
+			if md and md.has_method("set_combat_intensity"):
+				md.set_combat_intensity(0.0))
 	# Golden particle burst at the boss's chest height
 	var burst := GPUParticles3D.new()
 	burst.name = "BossDeathBurst"

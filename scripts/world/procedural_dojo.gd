@@ -51,9 +51,11 @@ func _build() -> void:
 	var d: float = dojo_size.y
 	var fy: float = floor_y
 	# 1. Floor — a raised wooden slab. Two layers: planks on top, dark
-	# trim ring around the edge.
+	# trim ring around the edge. Tagged with `surface_type` so the
+	# player's footstep raycast can pick the wooden step audio cue.
 	var floor_node := _make_box(Vector3(w, 0.10, d), COL_FLOOR, true)
-	floor_node.name = "Floor"
+	floor_node.name = "DojoFloor"
+	floor_node.set_meta("surface_type", "wood")
 	floor_node.position = Vector3(0, fy, 0)
 	add_child(floor_node)
 	# Trim — slightly larger flat slab below the floor for the edge

@@ -128,9 +128,18 @@ func _fill_buffer(pb: AudioStreamGeneratorPlayback, name: StringName) -> void:
 		&"taunt":         _gen_arp(pb, [220.0, 277.0, 330.0], 0.07)
 		&"block":         _gen_burst(pb, 110.0, 90.0, 0.08, 0.45)
 		&"heal":          _gen_chirp(pb, 440.0, 660.0, 0.25)
-		# Footsteps (light/heavy)
+		# Footsteps. Per-surface variants — stone is heaviest, wood
+		# brighter and shorter, grass softest. Player's surface probe
+		# picks which one to play.
 		&"step":          _gen_burst(pb, 90.0, 70.0, 0.04, 0.18)
 		&"step_heavy":    _gen_burst(pb, 70.0, 50.0, 0.06, 0.30)
+		&"step_stone":    _gen_burst(pb, 110.0, 80.0, 0.05, 0.22)
+		&"step_wood":     _gen_burst(pb, 180.0, 140.0, 0.04, 0.16)
+		&"step_grass":    _gen_burst(pb, 70.0, 200.0, 0.06, 0.10)
+		# Combat — ambient and victory cues
+		&"victory":       _gen_arp(pb, [392.0, 523.0, 659.0, 880.0, 1047.0], 0.10)
+		&"boss_intro_roar": _gen_burst(pb, 60.0, 30.0, 0.45, 0.85)
+		&"ambient_grove": _gen_burst(pb, 200.0, 200.0, 0.30, 0.06)
 		# Weather: thunder is a short low rumble + sharp transient
 		&"thunder":       _gen_thunder(pb)
 		# Element-themed cast cues so fire abilities don't sound like swords

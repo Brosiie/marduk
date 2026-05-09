@@ -202,6 +202,11 @@ func _ready() -> void:
 	# frame zero, instead of moving like an unarmed peasant.
 	if stats and not stats.class_def:
 		_auto_assign_class_from_scene()
+	# Quest log: attach a QuestLog instance as a child if one isn't there yet.
+	# The QuestLogPanel UI walks player.get_node("QuestLog") to read state, and
+	# QuestLog itself listens for game events (kills, collects) to advance
+	# objectives. No quests will track if the log node is missing.
+	_attach_quest_log()
 	# Class aura: subtle particle ring at the player's feet, color
 	# matching the class buff palette (Ronin gold, Mage blue, etc).
 	# Spawned once class is set; reads as 'this character is powered'.
@@ -2375,8 +2380,50 @@ func _tick_footsteps(delta: float) -> void:
 		_footstep_clock = 0.0
 		var ab: Node = get_node_or_null("/root/AudioBus")
 		if ab and ab.has_method("play_cue"):
-			# Slight pitch jitter so steps don't drone
-			ab.play_cue(&"step", global_position, -14.0, randf_range(0.92, 1.08))
+			# Surface-aware step cue. Raycast straight down 1.2m and
+			# read the metadata of whatever StaticBody3D we hit. Each
+			# zone's procedural builds tag floor / dojo / bridge etc
+			# with `surface_type` metadata; default is stone.
+			var step_cue: StringName = _classify_step_surface()
+			# Slight pitch jitter so steps don't drone, plus per-surface
+			# pitch bias (wood is brighter, stone is heavier)
+			var pitch_bias: float = 1.0
+			match step_cue:
+				&"step_wood":  pitch_bias = 1.08
+				&"step_grass": pitch_bias = 0.92
+				&"step_stone": pitch_bias = 0.95
+			ab.play_cue(step_cue, global_position, -14.0, pitch_bias * randf_range(0.92, 1.08))
+
+# Probe what the player is standing on. Returns a step cue StringName
+# that AudioBus knows how to play. Default = step_stone.
+# Without a per-surface raycast every footstep would sound the same
+# regardless of whether the player is walking on the stone path or
+# the wood dojo floor or the grass perimeter.
+func _classify_step_surface() -> StringName:
+	var space := get_world_3d().direct_space_state
+	var origin := global_position + Vector3(0, 0.2, 0)
+	var query := PhysicsRayQueryParameters3D.create(origin, origin + Vector3(0, -1.6, 0))
+	query.collision_mask = 1  # world geometry layer
+	query.exclude = [get_rid()]
+	var hit := space.intersect_ray(query)
+	if hit.is_empty():
+		return &"step"  # generic fallback
+	var collider: Object = hit.get("collider")
+	# Procedural dojo and similar buildings tag their StaticBody3Ds
+	# with metadata. Read whichever the hit had; fall back to stone.
+	if collider and collider.has_meta("surface_type"):
+		var st: String = String(collider.get_meta("surface_type"))
+		match st:
+			"wood":  return &"step_wood"
+			"grass": return &"step_grass"
+			"stone": return &"step_stone"
+	# Heuristic: if collider's scene path contains 'dojo' or 'wood',
+	# treat as wood; if 'floor' or 'tile' default to stone.
+	if collider and collider is Node:
+		var nm: String = (collider as Node).name.to_lower()
+		if nm.contains("dojo") or nm.contains("wood") or nm.contains("plank") or nm.contains("tatami"):
+			return &"step_wood"
+	return &"step_stone"
 
 func _physics_process(delta: float) -> void:
 	if locked:
@@ -3004,6 +3051,17 @@ func get_inventory() -> Inventory:
 # CharacterAppearance + chosen name in pending slots when the Storyteller
 # flow finishes. The first Player to spawn in the new scene consumes them.
 # Gracefully no-ops if nothing is pending (eg legacy direct-load of an intro).
+func _attach_quest_log() -> void:
+	if get_node_or_null("QuestLog"):
+		return  # already attached (eg loaded from save with the node restored)
+	var qlog_script: GDScript = load("res://scripts/quests/quest_log.gd")
+	if not qlog_script:
+		return
+	var qlog: Node = qlog_script.new()
+	qlog.name = "QuestLog"
+	qlog.owner_player = self
+	add_child(qlog)
+
 func _consume_pending_appearance() -> void:
 	var ar: Node = get_node_or_null("/root/AppearanceRegistry")
 	if not ar or not ar.has_method("take_pending"):

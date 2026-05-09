@@ -628,7 +628,10 @@ func _build_sword_vow_ruins() -> void:
 		wl.spawn_intro_motes(self, Vector3(0, 1.5, -size / 2 + 5), 4.5, Color(1.0, 0.85, 0.92, 1.0))
 
 # ----------------------------------------------------------------
-# ASH-STEP CAMP — open steppe, raider tents, spear-rack, fire pit
+# ASH-STEP CAMP — Berserker intro. Raider camp on the burned steppe.
+# Layout: spawn at south through wooden palisade gate, walk past
+# weapon racks + bonfires + tents, climb a low ridge to the boss
+# arena (raider warlord on a ash-soaked dais).
 # ----------------------------------------------------------------
 func _build_ash_step_camp() -> void:
 	var tile_size := 4.0
@@ -637,13 +640,72 @@ func _build_ash_step_camp() -> void:
 		for z in range(-grid, grid + 1):
 			_spawn("floor_dirt_large.gltf.glb", Vector3(x * tile_size, 0, z * tile_size))
 
-	# Scattered barrier columns to suggest abandoned camp boundaries
-	for offset in [-12, -6, 0, 6, 12]:
-		_spawn("barrier_column.gltf.glb", Vector3(offset, 0, -size / 2 + 2), randf() * 360.0)
-		_spawn("barrier_column.gltf.glb", Vector3(offset, 0, size / 2 - 2), randf() * 360.0)
+	# Burned-grass scatter (sparse, uneven density toward the perimeter)
+	for _i in range(120):
+		var ox: float = randf_range(-size / 2 + 2, size / 2 - 2)
+		var oz: float = randf_range(-size / 2 + 2, size / 2 - 2)
+		if abs(ox) <= 2.0:
+			continue  # keep central path clear
+		var pick: float = randf()
+		if pick < 0.5:
+			# Scorched grass in dark amber tones
+			var inst := _nat(["grass.glb", "grass_large.glb"].pick_random(), Vector3(ox, 0, oz), randf() * 360.0, randf_range(0.7, 1.4))
+			if inst:
+				_tint_tree(inst, Color(0.42, 0.30, 0.20, 1.0))
+		elif pick < 0.75:
+			_nat(["stump_round.glb"].pick_random(), Vector3(ox, 0, oz), randf() * 360.0, randf_range(0.6, 1.2))
+		elif pick < 0.95:
+			_nat(["cliff_blockHalf_stone.glb"].pick_random(), Vector3(ox, 0, oz), randf() * 360.0, randf_range(0.5, 1.0))
 
-	# Central fire pit - a torch with a glow
-	_torch(Vector3(0, 0, 0), true)
+	# Palisade gate at the south entrance — two tall posts + crossbeam
+	var gate_z: float = size / 2 - 4
+	for sx in [-3.0, 3.0]:
+		_spawn("barrier_column.gltf.glb", Vector3(sx, 0, gate_z), 0.0, 1.6)
+	# Lit braziers flanking the gate
+	_torch(Vector3(-4.5, 0, gate_z), true)
+	_torch(Vector3(4.5, 0, gate_z), true)
+
+	# Path through camp: bonfires every 8m + scattered tent barriers
+	for z_step in range(-int(size / 2) + 6, int(size / 2) - 4, 8):
+		_torch(Vector3(0, 0, float(z_step)), true)
+		# Tent decoration: 2 barriers at each step, offset off-axis
+		_spawn("barrier_column.gltf.glb", Vector3(-5.0, 0, float(z_step)), 90.0, 1.0)
+		_spawn("barrier_column.gltf.glb", Vector3(5.0, 0, float(z_step)), 90.0, 1.0)
+
+	# Weapon rack scatter (broken weapons sticking out of the ground)
+	for i in range(8):
+		var angle: float = float(i) * TAU / 8.0
+		var r: float = size * 0.30
+		var px: float = cos(angle) * r
+		var pz: float = sin(angle) * r
+		if abs(px) < 4: continue
+		_spawn("sword_shield_broken.gltf.glb", Vector3(px, 0, pz), randf() * 360.0)
+
+	# Boss dais at the north — raised platform of dark stone
+	for tier in range(3):
+		var t_w: int = 5 - tier
+		var t_y: float = 0.40 * float(tier + 1)
+		for dx in range(-t_w, t_w + 1):
+			_spawn("floor_dirt_large.gltf.glb", Vector3(float(dx) * 1.0, t_y, -size / 2 + 4 + tier))
+	# Twin torches flanking the boss dais
+	_torch(Vector3(-5, 1.2, -size / 2 + 4), true)
+	_torch(Vector3(5, 1.2, -size / 2 + 4), true)
+	# Two dead trees behind the dais — burned, twisted silhouettes
+	for sx in [-7.0, 7.0]:
+		var dt := _nat("tree_blocks_fall.glb", Vector3(sx, 0, -size / 2 + 6), randf() * 360.0, 2.5)
+		if dt:
+			_tint_tree(dt, Color(0.18, 0.12, 0.08, 1.0))
+
+	# Ambient world life
+	var wl: Node = get_node_or_null("/root/WorldLife")
+	if wl:
+		# Crows circling overhead (Berserker's death-omen vibe)
+		wl.spawn_bird_flock(self, 6, Vector3(0, 18, 0), size * 0.7)
+		# Ash motes drifting (smoke + embers from the burned camp)
+		if wl.has_method("spawn_intro_motes"):
+			wl.spawn_intro_motes(self, Vector3(0, 1.5, -size / 2 + 5), 4.0, Color(0.95, 0.55, 0.20, 1.0))
+		# Chimney smoke from the central fire (vertical column)
+		wl.spawn_chimney_smoke(self, Vector3(0, 1.5, 0))
 
 # ----------------------------------------------------------------
 # WHISPER SHRINE — underground corridor, columns, dim

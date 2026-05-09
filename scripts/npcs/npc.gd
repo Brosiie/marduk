@@ -243,12 +243,41 @@ func _on_body_entered(body: Node3D) -> void:
 		return
 	_player_inside = true
 	_label3d.modulate = Color(1.0, 0.95, 0.55)  # highlight on hover
+	_show_interact_prompt()
 
 func _on_body_exited(body: Node3D) -> void:
 	if not body.is_in_group("player"):
 		return
 	_player_inside = false
 	_label3d.modulate = Color(0.55, 0.95, 0.55)
+	_hide_interact_prompt()
+
+# Floating "press V to talk" Label3D above the NPC's head — visible
+# only when the player is inside the interaction area. Without this
+# the player has no visual cue that the NPC is interactable.
+var _interact_prompt: Label3D = null
+
+func _show_interact_prompt() -> void:
+	if _interact_prompt and is_instance_valid(_interact_prompt):
+		_interact_prompt.visible = true
+		return
+	_interact_prompt = Label3D.new()
+	_interact_prompt.text = "[V] Talk"
+	_interact_prompt.font_size = 28
+	_interact_prompt.outline_size = 6
+	_interact_prompt.outline_modulate = Color(0, 0, 0, 0.95)
+	_interact_prompt.modulate = Color(1.0, 0.92, 0.55)
+	_interact_prompt.fixed_size = true
+	_interact_prompt.pixel_size = 0.005
+	_interact_prompt.no_depth_test = true
+	_interact_prompt.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	_interact_prompt.position = Vector3(0, 2.6, 0)
+	add_child(_interact_prompt)
+
+func _hide_interact_prompt() -> void:
+	if _interact_prompt and is_instance_valid(_interact_prompt):
+		_interact_prompt.queue_free()
+		_interact_prompt = null
 
 func _unhandled_input(event: InputEvent) -> void:
 	if not _player_inside:
@@ -265,34 +294,64 @@ func _open_dialogue() -> void:
 		# Try by display_name -> "c_<slug>" (storyteller, iddinu, belitu)
 		var slug: String = display_name.to_lower().replace(",", "").replace(" ", "_").split("_")[0]
 		cdx.unlock(StringName("c_" + slug))
-	# Cheap dialogue: pop a centered label that fades in/out. Real dialogue
-	# system can replace this — we just need V near an NPC to feel alive.
+	# Polished dialogue panel — gold-filigree slate frame matching the
+	# rest of the HUD language. Fade in / out via tween.
 	var dialog_panel := PanelContainer.new()
 	dialog_panel.anchor_left = 0.5
 	dialog_panel.anchor_top = 0.65
 	dialog_panel.anchor_right = 0.5
 	dialog_panel.anchor_bottom = 0.65
-	dialog_panel.offset_left = -360.0
-	dialog_panel.offset_top = -50.0
-	dialog_panel.offset_right = 360.0
-	dialog_panel.offset_bottom = 80.0
+	dialog_panel.offset_left = -380.0
+	dialog_panel.offset_top = -60.0
+	dialog_panel.offset_right = 380.0
+	dialog_panel.offset_bottom = 100.0
 	dialog_panel.modulate = Color(1, 1, 1, 0)
+	var dlg_sb := StyleBoxFlat.new()
+	dlg_sb.bg_color = Color(0.05, 0.04, 0.06, 0.95)
+	dlg_sb.border_color = Color(0.78, 0.62, 0.28, 1.0)
+	dlg_sb.set_border_width_all(2)
+	dlg_sb.border_width_top = 3
+	dlg_sb.set_corner_radius_all(6)
+	dlg_sb.shadow_color = Color(0, 0, 0, 0.65)
+	dlg_sb.shadow_size = 8
+	dlg_sb.shadow_offset = Vector2(0, 4)
+	dlg_sb.content_margin_left = 18
+	dlg_sb.content_margin_right = 18
+	dlg_sb.content_margin_top = 12
+	dlg_sb.content_margin_bottom = 12
+	dialog_panel.add_theme_stylebox_override("panel", dlg_sb)
 	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", 8)
 	dialog_panel.add_child(v)
 	var name_label := Label.new()
 	name_label.text = display_name
-	name_label.add_theme_font_size_override("font_size", 18)
-	name_label.modulate = Color(1.0, 0.85, 0.55)
+	name_label.add_theme_font_size_override("font_size", 22)
+	name_label.add_theme_color_override("font_color", Color(1.0, 0.92, 0.55))
+	name_label.add_theme_color_override("font_outline_color", Color(0.20, 0.05, 0.05, 1.0))
+	name_label.add_theme_constant_override("outline_size", 4)
+	name_label.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.85))
+	name_label.add_theme_constant_override("shadow_offset_x", 1)
+	name_label.add_theme_constant_override("shadow_offset_y", 2)
 	v.add_child(name_label)
+	# Gold separator line under the name
+	var sep := ColorRect.new()
+	sep.color = Color(0.78, 0.62, 0.28, 0.55)
+	sep.custom_minimum_size = Vector2(0, 1)
+	v.add_child(sep)
 	var line := Label.new()
 	line.text = greeting
 	line.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	line.add_theme_font_size_override("font_size", 14)
+	line.add_theme_color_override("font_color", Color(0.95, 0.92, 0.85))
+	line.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.85))
+	line.add_theme_constant_override("outline_size", 2)
 	line.custom_minimum_size = Vector2(720, 0)
 	v.add_child(line)
 	if has_quest and quest_id != &"":
 		var qbtn := Button.new()
-		qbtn.text = "[ Accept Quest ]"
-		qbtn.modulate = Color(1, 0.85, 0.5)
+		qbtn.text = "  ⚔  Accept Quest  ⚔  "
+		qbtn.add_theme_font_size_override("font_size", 14)
+		qbtn.add_theme_color_override("font_color", Color(1.0, 0.92, 0.55))
 		qbtn.pressed.connect(_on_accept_quest.bind(dialog_panel))
 		v.add_child(qbtn)
 	# Find the HUD CanvasLayer to host the panel

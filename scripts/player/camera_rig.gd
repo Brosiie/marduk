@@ -26,6 +26,20 @@ var distance: float = 11.0
 # in-frame. Set/cleared by Player on Tab press.
 var lock_target: Node3D = null
 const LOCK_YAW_SPEED: float = 4.0  # rad/sec
+# Lock-on snap: when the player first locks onto a target, accelerate
+# the camera yaw correction for the first 0.5s so the framing snaps
+# in fast. After that the lerp settles to LOCK_YAW_SPEED for subtle
+# tracking. Without the snap-in the lock-on feels slow/floaty.
+const LOCK_SNAP_SPEED: float = 16.0  # rad/sec during initial snap
+const LOCK_SNAP_DURATION: float = 0.45  # seconds of fast snap
+var _lock_acquired_at: float = 0.0
+var _last_lock_target: Node3D = null
+# Interior tightness: when the camera senses it's inside a building
+# (raycast hits a ceiling within 6m), pull spring_length toward this
+# value so the player isn't fighting clipping walls. Released back to
+# the user's chosen distance once outside.
+const INTERIOR_DISTANCE: float = 5.5
+var _interior_blend: float = 0.0  # 0..1, lerps toward 1 when inside
 
 # Mouse drag rotate: hold RMB or MMB and move mouse to spin the camera.
 # Standard ARPG control. Sensitivity in radians per pixel.
@@ -56,6 +70,15 @@ func _process(delta: float) -> void:
 	# framing). Manual rotation still applies on top so the player can
 	# nudge the angle while locked.
 	if lock_target and is_instance_valid(lock_target) and target:
+		# Detect lock-on acquisition (fresh target) so we can apply
+		# the fast snap-in for ~0.45s before settling into normal
+		# tracking speed.
+		if lock_target != _last_lock_target:
+			_lock_acquired_at = Time.get_ticks_msec() / 1000.0
+			_last_lock_target = lock_target
+		var time_locked: float = (Time.get_ticks_msec() / 1000.0) - _lock_acquired_at
+		var snap_blend: float = clamp(1.0 - time_locked / LOCK_SNAP_DURATION, 0.0, 1.0)
+		var yaw_speed: float = lerp(LOCK_YAW_SPEED, LOCK_SNAP_SPEED, snap_blend)
 		var to_target: Vector3 = lock_target.global_position - target.global_position
 		to_target.y = 0
 		if to_target.length_squared() > 0.001:
@@ -63,14 +86,38 @@ func _process(delta: float) -> void:
 			# target. Desired yaw = atan2 of -to_target so camera looks
 			# from behind player toward target.
 			var desired_yaw: float = atan2(-to_target.x, -to_target.z)
-			yaw = lerp_angle(yaw, desired_yaw, LOCK_YAW_SPEED * delta)
+			yaw = lerp_angle(yaw, desired_yaw, yaw_speed * delta)
+	else:
+		_last_lock_target = null
 	rotation.y = yaw
 
 	if Input.is_action_just_released("zoom_in"):
 		distance = max(min_distance, distance - zoom_step)
 	if Input.is_action_just_released("zoom_out"):
 		distance = min(max_distance, distance + zoom_step)
-	spring.spring_length = lerp(spring.spring_length, distance, 8.0 * delta)
+	# Interior tightness: raycast straight up from the player's head.
+	# If we hit a ceiling within 6m, blend the spring toward
+	# INTERIOR_DISTANCE so the camera doesn't poke through the dojo
+	# roof. Smooth blend (3s) so transitions don't feel jerky.
+	_update_interior_blend(delta)
+	var goal_distance: float = lerp(distance, INTERIOR_DISTANCE, _interior_blend)
+	spring.spring_length = lerp(spring.spring_length, goal_distance, 6.0 * delta)
+
+# Raycast up from the player's head; if we're under a ceiling within
+# 6m, fade _interior_blend toward 1.0 over ~0.6s. Released back to
+# 0.0 when we step out into open sky.
+func _update_interior_blend(delta: float) -> void:
+	if target == null:
+		return
+	var space := target.get_world_3d().direct_space_state
+	var origin: Vector3 = target.global_position + Vector3(0, 1.6, 0)
+	var query := PhysicsRayQueryParameters3D.create(origin, origin + Vector3(0, 6.0, 0))
+	query.collision_mask = 1
+	query.exclude = [target.get_rid()]
+	var hit := space.intersect_ray(query)
+	var should_be_interior: bool = not hit.is_empty()
+	var target_blend: float = 1.0 if should_be_interior else 0.0
+	_interior_blend = move_toward(_interior_blend, target_blend, delta * 1.6)
 
 # Mouse drag camera. RMB or MMB held = rotate yaw with mouse motion.
 # Standard ARPG control alongside Q/E and arrow-key rotation.

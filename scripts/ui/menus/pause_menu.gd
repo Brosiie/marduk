@@ -21,6 +21,8 @@ const MODAL_GROUP_NODE_NAMES := [
 	"SacrificePrompt",
 	"SaveSlotPicker",
 	"CharacterCreator",
+	"QuestLogPanel",
+	"SettingsMenu",
 ]
 
 @onready var dim: ColorRect = $Dim if has_node("Dim") else null
