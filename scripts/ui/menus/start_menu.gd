@@ -32,8 +32,17 @@ func _on_new() -> void:
 	get_tree().change_scene_to_file("res://scenes/menus/character_creator.tscn")
 
 func _on_continue() -> void:
-	# Phase 2: route to slot-pick screen, then load slot, then jump into the saved zone
-	get_tree().change_scene_to_file("res://scenes/world/intros/sword_vow_ruins.tscn")
+	# Spawn the SaveSlotPicker in LOAD mode. Picking a non-empty slot calls
+	# SaveSystem.load_slot + routes to the saved zone. Picking an empty slot
+	# routes to the character creator.
+	var packed: PackedScene = load("res://scenes/menus/save_slot_picker.tscn")
+	if not packed:
+		# Fallback to direct demo load if the picker scene isn't there yet
+		get_tree().change_scene_to_file("res://scenes/world/intros/sword_vow_ruins.tscn")
+		return
+	var picker = packed.instantiate()
+	get_tree().current_scene.add_child(picker)
+	picker.open(SaveSlotPicker.Mode.LOAD, null)
 
 func _on_settings() -> void:
 	# Phase 2: open Settings menu inline as a child overlay

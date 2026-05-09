@@ -157,6 +157,93 @@ const DEFAULT_BRANCH_COLORS := [
 	Color(0.55, 0.55, 0.55), Color(0.55, 0.55, 0.55), Color(0.55, 0.55, 0.55),
 ]
 
+# Class-aware visual theme. Each class gets:
+#   - dim_color:    full-screen background tint behind the panel
+#   - border_color: header + tooltip panel border hue (state colors layer over)
+#   - accent_color: motif label color
+#   - motif:        large Unicode character displayed bottom-right as a watermark
+#   - title_suffix: appended to the class display name in the header (lore flair)
+#
+# Procedural for now — Tier 2 polish swaps in real parchment/starfield/ember
+# textures by adding a `background_texture: Texture2D` field here.
+const CLASS_THEMES := {
+	&"berserker": {
+		"dim_color":    Color(0.10, 0.04, 0.03, 0.92),   # ash-and-blood
+		"border_color": Color(0.65, 0.20, 0.15, 0.95),
+		"accent_color": Color(0.95, 0.45, 0.20),
+		"motif":        "⚔",
+		"title_suffix": " — War Without Rest",
+	},
+	&"assassin": {
+		"dim_color":    Color(0.04, 0.05, 0.06, 0.94),   # midnight + venom
+		"border_color": Color(0.30, 0.50, 0.30, 0.85),
+		"accent_color": Color(0.55, 0.85, 0.45),
+		"motif":        "✶",
+		"title_suffix": " — Whispered Edge",
+	},
+	&"ronin": {
+		"dim_color":    Color(0.05, 0.08, 0.14, 0.92),   # cobalt night, parchment-warm border
+		"border_color": Color(0.95, 0.85, 0.55, 0.95),
+		"accent_color": Color(0.35, 0.65, 1.00),
+		"motif":        "刃",
+		"title_suffix": " — Seven Breaths",
+	},
+	&"ranger": {
+		"dim_color":    Color(0.04, 0.08, 0.05, 0.92),   # forest dark
+		"border_color": Color(0.55, 0.80, 0.45, 0.85),
+		"accent_color": Color(0.85, 0.95, 0.55),
+		"motif":        "➳",
+		"title_suffix": " — Eyes of the Glade",
+	},
+	&"mage": {
+		"dim_color":    Color(0.04, 0.04, 0.10, 0.93),   # arcane starfield
+		"border_color": Color(0.55, 0.40, 0.95, 0.95),
+		"accent_color": Color(0.85, 0.85, 1.00),
+		"motif":        "✦",
+		"title_suffix": " — The Inkstone Holds",
+	},
+	&"chaos_druid": {
+		"dim_color":    Color(0.05, 0.07, 0.05, 0.92),   # bog dark + woad accents
+		"border_color": Color(0.55, 0.30, 0.65, 0.85),
+		"accent_color": Color(0.65, 0.85, 0.45),
+		"motif":        "♆",
+		"title_suffix": " — The Wound Speaks",
+	},
+	&"demon": {
+		"dim_color":    Color(0.06, 0.02, 0.02, 0.95),   # ember-black
+		"border_color": Color(0.85, 0.20, 0.10, 0.95),
+		"accent_color": Color(0.95, 0.45, 0.20),
+		"motif":        "♅",
+		"title_suffix": " — Blood Pays the Toll",
+	},
+	&"paladin_guardian": {
+		"dim_color":    Color(0.08, 0.07, 0.06, 0.92),   # marble-warm
+		"border_color": Color(1.00, 0.85, 0.45, 0.95),
+		"accent_color": Color(0.95, 0.95, 0.85),
+		"motif":        "✠",
+		"title_suffix": " — The Wall That Stands",
+	},
+	&"paladin_lightbringer": {
+		"dim_color":    Color(0.08, 0.07, 0.07, 0.92),   # dawn warm
+		"border_color": Color(1.00, 0.65, 0.55, 0.95),
+		"accent_color": Color(1.00, 0.95, 0.85),
+		"motif":        "☼",
+		"title_suffix": " — Dawn-Bringer",
+	},
+}
+
+const DEFAULT_THEME := {
+	"dim_color":    Color(0.02, 0.015, 0.025, 0.85),
+	"border_color": Color(0.55, 0.40, 0.20, 0.90),
+	"accent_color": Color(0.95, 0.85, 0.55),
+	"motif":        "✷",
+	"title_suffix": "",
+}
+
+func _theme_for_class() -> Dictionary:
+	var class_id: StringName = stats.class_def.class_id if stats and stats.class_def else &""
+	return CLASS_THEMES.get(class_id, DEFAULT_THEME)
+
 func _ready() -> void:
 	visible = false
 	process_mode = Node.PROCESS_MODE_ALWAYS  # tick even while paused
@@ -224,6 +311,8 @@ func _build_panel() -> void:
 	_line_canvas = null
 	_tooltip_panel = null
 
+	_apply_class_theme()
+	_build_motif_watermark()
 	_build_header()
 	_build_branch_labels()
 	_build_tier_labels()
@@ -231,13 +320,42 @@ func _build_panel() -> void:
 	_build_node_grid()
 	_build_tooltip()
 
+# Recolor the full-screen dim layer to the class's theme color so the panel
+# reads as Mage's starfield-purple vs Demon's ember-black at a glance.
+func _apply_class_theme() -> void:
+	if not dim_layer:
+		return
+	var theme: Dictionary = _theme_for_class()
+	dim_layer.color = theme.get("dim_color", DEFAULT_THEME["dim_color"])
+
+# Large Unicode character in the bottom-right as a class watermark.
+# Visible behind the node grid so it doesn't compete with content.
+func _build_motif_watermark() -> void:
+	var theme: Dictionary = _theme_for_class()
+	var motif: String = theme.get("motif", "")
+	if motif == "":
+		return
+	var lab := Label.new()
+	lab.text = motif
+	lab.add_theme_font_size_override("font_size", 220)
+	var c: Color = theme.get("accent_color", Color.WHITE)
+	c.a = 0.10
+	lab.add_theme_color_override("font_color", c)
+	lab.position = Vector2(960, 460)
+	lab.size = Vector2(280, 280)
+	lab.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	lab.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	lab.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	panel_root.add_child(lab)
+
 func _build_header() -> void:
+	var theme: Dictionary = _theme_for_class()
 	var header := PanelContainer.new()
 	header.position = Vector2(20, 16)
 	header.custom_minimum_size = Vector2(900, HEADER_HEIGHT)
 	var hbg := StyleBoxFlat.new()
 	hbg.bg_color = Color(0.10, 0.08, 0.06, 0.90)
-	hbg.border_color = Color(0.40, 0.30, 0.20, 1.0)
+	hbg.border_color = theme.get("border_color", Color(0.40, 0.30, 0.20, 1.0))
 	hbg.border_width_left = 1; hbg.border_width_right = 1
 	hbg.border_width_top = 1; hbg.border_width_bottom = 1
 	hbg.corner_radius_top_left = 6; hbg.corner_radius_top_right = 6
@@ -250,9 +368,10 @@ func _build_header() -> void:
 	header.add_child(hbox)
 
 	var class_label := Label.new()
-	class_label.text = stats.class_def.display_name if stats and stats.class_def else "Unknown"
+	var name_text: String = stats.class_def.display_name if stats and stats.class_def else "Unknown"
+	class_label.text = name_text + String(theme.get("title_suffix", ""))
 	class_label.add_theme_font_size_override("font_size", 26)
-	class_label.add_theme_color_override("font_color", Color(0.95, 0.85, 0.45))
+	class_label.add_theme_color_override("font_color", theme.get("accent_color", Color(0.95, 0.85, 0.45)))
 	hbox.add_child(class_label)
 	_header_label = class_label
 
@@ -411,12 +530,13 @@ func _style_node_button(btn: Button, n: SkillNode) -> void:
 # Tooltip panel — shows on click, anchored bottom-right of the panel.
 # ---------------------------------------------------------------
 func _build_tooltip() -> void:
+	var theme: Dictionary = _theme_for_class()
 	_tooltip_panel = PanelContainer.new()
 	_tooltip_panel.position = Vector2(960, 110)
 	_tooltip_panel.custom_minimum_size = Vector2(280, 480)
 	var bg := StyleBoxFlat.new()
 	bg.bg_color = Color(0.08, 0.06, 0.05, 0.95)
-	bg.border_color = Color(0.55, 0.40, 0.20, 0.90)
+	bg.border_color = theme.get("border_color", Color(0.55, 0.40, 0.20, 0.90))
 	bg.border_width_left = 1; bg.border_width_right = 1
 	bg.border_width_top = 1; bg.border_width_bottom = 1
 	bg.corner_radius_top_left = 6; bg.corner_radius_top_right = 6

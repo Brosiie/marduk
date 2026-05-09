@@ -171,6 +171,13 @@ var _hp_surge_until: float = 0.0
 const SURGE_DURATION := 10.0
 const SURGE_MULTIPLIER := 10.0
 
+# Ability-cast announcer: HUD subscribes to this so the player cast
+# bar can light up with the ability name + duration. Emit at the
+# start of every cast; the bar drains for `duration` seconds. Slot
+# is the Q/E/R/F index (0..3) so the cast bar can position itself
+# above the right ability button.
+signal ability_cast_started(slot: int, name: String, duration: float)
+signal ability_cast_finished(slot: int)
 signal hp_changed(current: float, max_hp: float)
 signal mana_changed(current: float, max_mana: float)
 signal resource_changed(current: float, max_value: float, mechanic: StringName)
@@ -765,6 +772,18 @@ func _cast_ability_slot(slot: int) -> void:
 			resource_changed.emit(resource_value, stats.class_def.resource_max, &"stamina")
 	# Cooldown
 	_ability_cooldowns[slot] = now + float(k.get("cooldown", 1.0))
+	# Announce the cast so the HUD can show the cast bar with the
+	# ability name. Duration is the ANIMATION TIME — for one-shot
+	# swings that's ~0.6s; for charged abilities it could be longer
+	# from a `windup_seconds` field on the kit dict if we ever add one.
+	var cast_duration: float = float(k.get("windup_seconds", 0.5))
+	emit_signal("ability_cast_started", slot, String(k.get("name", "Ability")), cast_duration)
+	# Defer the finished-event by the cast duration so the bar drains
+	# fully before disappearing.
+	get_tree().create_timer(cast_duration).timeout.connect(func():
+		if not is_instance_valid(self): return
+		emit_signal("ability_cast_finished", slot)
+	)
 	# First-press tutorial: name the ability the first time each slot
 	# fires, so the player learns the kit by playing instead of by
 	# reading menus. After that the toasts go silent for that slot.

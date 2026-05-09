@@ -99,6 +99,13 @@ func _ready() -> void:
 		buffs.set_script(bb_script)
 		buffs.name = "BuffBar"
 		$Root.add_child(buffs)
+	# Player ability cast bar (bottom-center, above the WowAbilityBar)
+	var pcb_script: GDScript = load("res://scripts/ui/hud_components/player_cast_bar.gd")
+	if pcb_script:
+		var pcb := Control.new()
+		pcb.set_script(pcb_script)
+		pcb.name = "PlayerCastBar"
+		$Root.add_child(pcb)
 	# Quest tracker (top left, under bars)
 	var qt_script: GDScript = load("res://scripts/ui/hud_components/quest_tracker.gd")
 	if qt_script:

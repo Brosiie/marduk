@@ -562,7 +562,93 @@ func _die(killer: Node) -> void:
 	# Set save flags for major bosses (mini-bosses have their own quest flags via QuestLog)
 	if is_main_boss or is_final_boss or is_secret_boss:
 		SaveFlags.mark_boss_defeated(boss_id)
-	queue_free()
+	# CINEMATIC DEATH SEQUENCE — earned-victory feedback. Spawned in
+	# current_scene so it survives the boss queue_free below. Slowmo,
+	# screen flash, golden particle burst, vertical god-ray pillar,
+	# 'FALLEN' toast all fire-and-forget.
+	_play_boss_death_cinematic()
+	# Defer queue_free by a beat so the slowmo + flash have time to
+	# register before the body vanishes. Tween already handles the
+	# body's death anim via the rim shader fade-out.
+	get_tree().create_timer(0.85).timeout.connect(func():
+		if is_instance_valid(self): queue_free())
+
+func _play_boss_death_cinematic() -> void:
+	var juice: Node = get_node_or_null("/root/Juice")
+	# Slowmo for 1.2s — gives the player time to read the kill
+	if juice:
+		if juice.has_method("slowmo"):
+			juice.slowmo(0.18, 1.2)  # deeper than normal kill (0.30) for boss
+		if juice.has_method("flash"):
+			juice.flash(Color(1.0, 0.92, 0.55), 0.40, 0.55)
+		if juice.has_method("shake"):
+			juice.shake(0.55, 0.45)
+		if juice.has_method("toast"):
+			var nm: String = String(display_name) if display_name != "" else "FOE"
+			juice.toast("⚔  %s  FALLEN  ⚔" % nm.to_upper(), Color(1.0, 0.85, 0.45), 5.0)
+	# Golden particle burst at the boss's chest height
+	var burst := GPUParticles3D.new()
+	burst.name = "BossDeathBurst"
+	burst.amount = 200
+	burst.lifetime = 1.8
+	burst.one_shot = true
+	burst.explosiveness = 0.95
+	burst.visibility_aabb = AABB(Vector3(-8, -2, -8), Vector3(16, 8, 16))
+	var pm := ParticleProcessMaterial.new()
+	pm.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_SPHERE
+	pm.emission_sphere_radius = 0.5
+	pm.direction = Vector3(0, 1, 0)
+	pm.spread = 90.0
+	pm.initial_velocity_min = 4.0
+	pm.initial_velocity_max = 9.0
+	pm.gravity = Vector3(0, -2.5, 0)
+	pm.scale_min = 0.10
+	pm.scale_max = 0.32
+	pm.angular_velocity_min = -240.0
+	pm.angular_velocity_max = 240.0
+	pm.color = Color(1.0, 0.85, 0.45, 1.0)
+	burst.process_material = pm
+	var quad := QuadMesh.new()
+	quad.size = Vector2(0.20, 0.20)
+	var smat := StandardMaterial3D.new()
+	smat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	smat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	smat.albedo_color = Color(1.0, 0.85, 0.45, 0.95)
+	smat.emission_enabled = true
+	smat.emission = Color(1.0, 0.92, 0.55)
+	smat.emission_energy_multiplier = 3.0
+	smat.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
+	quad.material = smat
+	burst.draw_pass_1 = quad
+	get_tree().current_scene.add_child(burst)
+	burst.global_position = global_position + Vector3(0, 1.6, 0)
+	get_tree().create_timer(2.5).timeout.connect(func():
+		if is_instance_valid(burst): burst.queue_free())
+	# Vertical light pillar — bright god-ray that lasts 2s and fades
+	var pillar := MeshInstance3D.new()
+	pillar.name = "BossDeathPillar"
+	var cm := CylinderMesh.new()
+	cm.top_radius = 0.6
+	cm.bottom_radius = 1.2
+	cm.height = 30.0
+	pillar.mesh = cm
+	var pmat := StandardMaterial3D.new()
+	pmat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	pmat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	pmat.albedo_color = Color(1.0, 0.92, 0.55, 0.45)
+	pmat.emission_enabled = true
+	pmat.emission = Color(1.0, 0.85, 0.45)
+	pmat.emission_energy_multiplier = 2.2
+	pmat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	pillar.material_override = pmat
+	get_tree().current_scene.add_child(pillar)
+	pillar.global_position = global_position + Vector3(0, 15, 0)
+	# Tween pillar fade-out over 2s
+	var tw := pillar.create_tween()
+	tw.tween_property(pmat, "albedo_color:a", 0.0, 2.0)
+	tw.parallel().tween_property(pmat, "emission_energy_multiplier", 0.0, 2.0)
+	get_tree().create_timer(2.5).timeout.connect(func():
+		if is_instance_valid(pillar): pillar.queue_free())
 
 func _award_guaranteed_drops(killer: Node) -> void:
 	if not killer or not killer.has_method("receive_loot"):
