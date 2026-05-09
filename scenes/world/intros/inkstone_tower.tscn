@@ -5,6 +5,7 @@
 [ext_resource type="PackedScene" path="res://scenes/ui/hud.tscn" id="3_hud"]
 [ext_resource type="Shader" path="res://shaders/toon.gdshader" id="4_toon"]
 [ext_resource type="Script" path="res://scripts/enemies/tower_warden.gd" id="5_warden"]
+[ext_resource type="Script" path="res://scripts/world/spawn/spawner.gd" id="6_spawner"]
 
 ; Inkstone Tower — Mage intro arena.
 ; Top floor of the Inkstone Sanctum. A circular library room with bookshelves
@@ -163,6 +164,25 @@ script = ExtResource("2_cam")
 position = Vector3(0, 13, 13)
 rotation = Vector3(-0.66, 0, 0)
 fov = 55.0
+
+; ── Mob spawners (animated codices float between the shelves) ──
+[node name="SpawnerSW" type="Marker3D" parent="."]
+script = ExtResource("6_spawner")
+position = Vector3(-9, 0.1, 4)
+mob_pool = [&"animated_book"]
+initial_count = 2
+max_concurrent = 3
+respawn_seconds = 70.0
+disturb_radius = 4.5
+
+[node name="SpawnerSE" type="Marker3D" parent="."]
+script = ExtResource("6_spawner")
+position = Vector3(9, 0.1, 4)
+mob_pool = [&"animated_book", &"binding_construct"]
+initial_count = 2
+max_concurrent = 3
+respawn_seconds = 90.0
+disturb_radius = 4.5
 
 ; ── Tower Warden ────────────────────────────────────────────────
 [node name="TowerWarden" type="CharacterBody3D" parent="."]

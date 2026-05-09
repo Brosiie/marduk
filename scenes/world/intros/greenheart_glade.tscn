@@ -5,6 +5,7 @@
 [ext_resource type="PackedScene" path="res://scenes/ui/hud.tscn" id="3_hud"]
 [ext_resource type="Shader" path="res://shaders/toon.gdshader" id="4_toon"]
 [ext_resource type="Script" path="res://scripts/enemies/glade_terror.gd" id="5_terror"]
+[ext_resource type="Script" path="res://scripts/world/spawn/spawner.gd" id="6_spawner"]
 
 ; Greenheart Glade — Ranger intro arena.
 ; A clearing in the deep wood. Moss-soft floor, ringed by tall conifer trunks.
@@ -182,6 +183,25 @@ script = ExtResource("2_cam")
 position = Vector3(0, 13, 13)
 rotation = Vector3(-0.66, 0, 0)
 fov = 55.0
+
+; ── Mob spawners (Tiamat-touched wolves patrol the tree-line) ───
+[node name="SpawnerWest" type="Marker3D" parent="."]
+script = ExtResource("6_spawner")
+position = Vector3(-12, 0.1, 4)
+mob_pool = [&"corrupted_wolf"]
+initial_count = 2
+max_concurrent = 3
+respawn_seconds = 80.0
+disturb_radius = 6.0
+
+[node name="SpawnerEast" type="Marker3D" parent="."]
+script = ExtResource("6_spawner")
+position = Vector3(12, 0.1, 4)
+mob_pool = [&"corrupted_wolf", &"forest_blight"]
+initial_count = 2
+max_concurrent = 3
+respawn_seconds = 95.0
+disturb_radius = 6.0
 
 ; ── The Glade Terror ────────────────────────────────────────────
 [node name="GladeTerror" type="CharacterBody3D" parent="."]

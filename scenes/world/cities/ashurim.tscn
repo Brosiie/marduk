@@ -7,6 +7,8 @@
 [ext_resource type="Script" path="res://scripts/npcs/storyteller_npc.gd" id="5_storyteller"]
 [ext_resource type="Script" path="res://scripts/world/warp_portal.gd" id="6_warp"]
 [ext_resource type="Script" path="res://scripts/npcs/binding_altar.gd" id="7_altar"]
+[ext_resource type="Script" path="res://scripts/npcs/iddinu_quartermaster.gd" id="8_iddinu"]
+[ext_resource type="Script" path="res://scripts/npcs/belitu_market_girl.gd" id="9_belitu"]
 
 ; Ashurim — Convergence City. Phase 1 placeholder.
 ; Sandstone vaults. Warm candlelight. The Storyteller waits at the dais.
@@ -153,6 +155,16 @@ fov = 55.0
 [node name="BindingAltar" type="CharacterBody3D" parent="."]
 script = ExtResource("7_altar")
 position = Vector3(8, 0.6, -10)
+
+; ── Iddinu the Quartermaster — Crown logistics, gives q_iddinu_supplies ──
+[node name="IddinuQuartermaster" type="CharacterBody3D" parent="."]
+script = ExtResource("8_iddinu")
+position = Vector3(-8, 0.7, -8)
+
+; ── Belitu the Market Girl — runs the Singing Goat, gives q_belitu_brother ──
+[node name="BelituMarketGirl" type="CharacterBody3D" parent="."]
+script = ExtResource("9_belitu")
+position = Vector3(12, 0.7, 4)
 
 ; ── HUD ────────────────────────────────────────────────────────────────
 [node name="HUD" parent="." instance=ExtResource("3_hud")]

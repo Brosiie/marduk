@@ -5,6 +5,7 @@
 [ext_resource type="PackedScene" path="res://scenes/ui/hud.tscn" id="3_hud"]
 [ext_resource type="Shader" path="res://shaders/toon.gdshader" id="4_toon"]
 [ext_resource type="Script" path="res://scripts/enemies/master_sapum.gd" id="5_sapum"]
+[ext_resource type="Script" path="res://scripts/world/spawn/spawner.gd" id="6_spawner"]
 
 ; Whisper Shrine — Assassin intro arena.
 ; Hidden temple-courtyard built into a cliff cleft. Black-stone floor with
@@ -155,6 +156,25 @@ script = ExtResource("2_cam")
 position = Vector3(0, 13, 13)
 rotation = Vector3(-0.66, 0, 0)
 fov = 55.0
+
+; ── Mob spawners (Whisper-cult acolytes patrol between you and Sapum) ──
+[node name="SpawnerLeft" type="Marker3D" parent="."]
+script = ExtResource("6_spawner")
+position = Vector3(-7, 0.1, 6)
+mob_pool = [&"shrine_acolyte"]
+initial_count = 2
+max_concurrent = 2
+respawn_seconds = 90.0
+disturb_radius = 5.0
+
+[node name="SpawnerRight" type="Marker3D" parent="."]
+script = ExtResource("6_spawner")
+position = Vector3(7, 0.1, 6)
+mob_pool = [&"shrine_acolyte", &"shrine_zealot"]
+initial_count = 2
+max_concurrent = 2
+respawn_seconds = 110.0
+disturb_radius = 5.0
 
 ; ── Master Sapum ────────────────────────────────────────────────
 [node name="MasterSapum" type="CharacterBody3D" parent="."]
