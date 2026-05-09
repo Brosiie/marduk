@@ -106,3 +106,51 @@ func auto_generated_potions() -> Array[StringName]:
 	else:
 		tier_pool = [&"potion_hp_supreme", &"potion_mana_major", &"potion_champions_draught", &"potion_mana_surge", &"potion_stamina_surge"]
 	return tier_pool
+
+# Tiered basic-gear pool keyed off basic_gear_min_level. Returns a pool of
+# weapon + armor item ids that match the vendor's level band. The intent is
+# baseline coverage — every vendor with auto_stock_basic_gear=true offers
+# something the player can equip without hunting drops. Hand-authored tiers
+# below; expand as the ItemRegistry catalog grows.
+func auto_generated_basic_gear() -> Array[StringName]:
+	var pool: Array[StringName] = []
+	var min_lvl := basic_gear_min_level
+	if min_lvl < 10:
+		# Cradle / Ashurim tier — basic iron + leather
+		pool = [
+			&"sword_iron", &"axe_iron_hand", &"mace_iron", &"dagger_iron", &"bow_short", &"staff_apprentice",
+			&"helm_leather", &"chest_leather", &"legs_leather_pants", &"boots_leather", &"gloves_leather",
+			&"amulet_simple", &"ring_iron", &"belt_leather",
+		]
+	elif min_lvl < 25:
+		# Iron Crown Outskirts / early Reed Wastes tier — steel + brigandine
+		pool = [
+			&"sword_steel", &"sword_temple", &"axe_steel", &"mace_flanged", &"dagger_thieves_kitchen",
+			&"bow_long", &"staff_inkstone", &"crossbow_simple",
+			&"helm_iron", &"chest_iron", &"legs_iron_greaves", &"boots_sabaton", &"gloves_iron_gauntlets",
+			&"belt_war", &"ring_bronze_strength", &"ring_silver_dexterity", &"ring_gold_intellect",
+		]
+	elif min_lvl < 45:
+		# Lapis Bay / Bone Mountains tier — silver-edge + lapis
+		pool = [
+			&"sword_silver_edge", &"sword_lapis", &"greatsword_butcher", &"greataxe_steppe",
+			&"katana_water_disciple", &"katana_flame_disciple", &"nodachi_temple",
+			&"helm_circlet_apprentice", &"chest_robe_apprentice", &"helm_steppe_skull",
+			&"boots_silent_step", &"boots_dancer", &"gloves_archer",
+			&"cloak_traveler", &"amulet_lapis_drop",
+		]
+	elif min_lvl < 70:
+		# Verdant Wound / Ember Steppes tier — rare-only stocks
+		pool = [
+			&"katana_thunder_disciple", &"polearm_glaive", &"polearm_thorn_pike",
+			&"helm_inquisitor_hood", &"chest_paladin_plate", &"belt_storm_girdle",
+			&"cloak_mist_shroud", &"amulet_sun_drop",
+		]
+	else:
+		# Black Citadel + Sun Gate tier — very-rare endgame floor
+		pool = [
+			&"katana_breathing_master", &"greatsword_sun_edge", &"hammer_sun_brand",
+			&"helm_pillar_diadem", &"chest_pillar_robe", &"cloak_sun_bearer",
+			&"belt_pirate_kings_sash", &"ring_pillar_seal", &"ring_kingu_marker",
+		]
+	return pool

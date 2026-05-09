@@ -112,13 +112,26 @@ func _make_slot_row(slot_dict: Dictionary) -> Control:
 	row.add_theme_constant_override("separation", 16)
 	card.add_child(row)
 
-	# Left: slot label
+	# Left: slot label + thumbnail (when available). Thumbnail is a 240x135
+	# screenshot captured at save time, downscaled here to 96x54 for the row.
+	var left := VBoxContainer.new()
+	left.custom_minimum_size = Vector2(120, 0)
+	left.add_theme_constant_override("separation", 4)
+	row.add_child(left)
 	var slot_label := Label.new()
 	slot_label.text = "Slot %d" % (slot + 1)
-	slot_label.add_theme_font_size_override("font_size", 18)
+	slot_label.add_theme_font_size_override("font_size", 16)
 	slot_label.add_theme_color_override("font_color", Color(0.85, 0.78, 0.55))
-	slot_label.custom_minimum_size = Vector2(100, 0)
-	row.add_child(slot_label)
+	left.add_child(slot_label)
+	if not is_empty and SaveSystem and SaveSystem.has_method("load_thumbnail"):
+		var tex: Texture2D = SaveSystem.load_thumbnail(slot)
+		if tex:
+			var thumb := TextureRect.new()
+			thumb.texture = tex
+			thumb.custom_minimum_size = Vector2(112, 63)
+			thumb.expand_mode = TextureRect.EXPAND_FIT_WIDTH_PROPORTIONAL
+			thumb.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+			left.add_child(thumb)
 
 	# Middle: character info
 	var info := VBoxContainer.new()

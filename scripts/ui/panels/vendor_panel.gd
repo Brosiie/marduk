@@ -328,6 +328,14 @@ func _auto_populate_if_needed() -> void:
 			for item_id in vendor.auto_generated_potions():
 				if vendor.has_method("add_stock"):
 					vendor.add_stock(item_id, -1)
+	# Basic gear stock: 1 of each item in the tiered pool. Finite stock
+	# means the player has to come back as they level out of a tier;
+	# infinite would devalue dropped gear too much.
+	if "auto_stock_basic_gear" in vendor and vendor.auto_stock_basic_gear:
+		if vendor.has_method("auto_generated_basic_gear"):
+			for item_id in vendor.auto_generated_basic_gear():
+				if vendor.has_method("add_stock"):
+					vendor.add_stock(item_id, 1)
 
 func _make_label(text: String) -> Label:
 	var lab := Label.new()

@@ -81,10 +81,50 @@ func save_slot(slot: int, player) -> bool:
 	# Persist
 	var err := cfg.save(slot_path(slot))
 	if err == OK:
+		# Capture a 240x135 thumbnail of the current viewport beside the
+		# slot file. Slot picker reads the .png to render a preview row.
+		# Skipped silently if the viewport isn't ready (eg headless tests).
+		_save_thumbnail(slot)
 		save_completed.emit(slot)
 		return true
 	push_warning("SaveSystem: failed to save slot %d: %s" % [slot, err])
 	return false
+
+const THUMBNAIL_FMT := "user://saves/slot_%d_thumb.png"
+const THUMBNAIL_SIZE := Vector2i(240, 135)
+
+func thumbnail_path(slot: int) -> String:
+	return THUMBNAIL_FMT % slot
+
+# Captures the current viewport, downscales to THUMBNAIL_SIZE, writes PNG.
+# All failure modes (missing viewport, unwritable user://) are silent —
+# thumbnails are nice-to-have, not required.
+func _save_thumbnail(slot: int) -> void:
+	var viewport: Viewport = get_viewport()
+	if viewport == null:
+		return
+	var img: Image = viewport.get_texture().get_image()
+	if img == null or img.is_empty():
+		return
+	# Downscale to thumbnail size. Lanczos preserves the toon shader's
+	# crisp edges better than the default bilinear downsample.
+	img.resize(THUMBNAIL_SIZE.x, THUMBNAIL_SIZE.y, Image.INTERPOLATE_LANCZOS)
+	# Make sure the saves dir exists (first-save case)
+	DirAccess.make_dir_recursive_absolute(SAVE_DIR.replace("user://", OS.get_user_data_dir() + "/"))
+	var save_err: int = img.save_png(thumbnail_path(slot))
+	if save_err != OK:
+		push_warning("SaveSystem: thumbnail write failed for slot %d: %s" % [slot, save_err])
+
+# Public: load a slot's thumbnail as Texture2D for the slot picker UI.
+# Returns null if the file doesn't exist (older saves, fresh slots).
+func load_thumbnail(slot: int) -> Texture2D:
+	var path: String = thumbnail_path(slot)
+	if not FileAccess.file_exists(path):
+		return null
+	var img: Image = Image.new()
+	if img.load(path) != OK:
+		return null
+	return ImageTexture.create_from_image(img)
 
 func load_slot(slot: int, player) -> bool:
 	var cfg := ConfigFile.new()
@@ -155,11 +195,16 @@ func load_slot(slot: int, player) -> bool:
 
 func delete_slot(slot: int) -> bool:
 	var path := slot_path(slot)
-	if FileAccess.file_exists(path):
-		DirAccess.remove_absolute(path)
-		slot_deleted.emit(slot)
-		return true
-	return false
+	if not FileAccess.file_exists(path):
+		return false
+	DirAccess.remove_absolute(path)
+	# Best-effort thumbnail cleanup so deleted slots don't leak the
+	# previous character's screenshot into the next save.
+	var thumb: String = thumbnail_path(slot)
+	if FileAccess.file_exists(thumb):
+		DirAccess.remove_absolute(thumb)
+	slot_deleted.emit(slot)
+	return true
 
 func _stringnames_to_strings(arr: Array) -> Array:
 	var out: Array = []

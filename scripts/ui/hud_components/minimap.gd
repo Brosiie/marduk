@@ -62,6 +62,13 @@ func _draw() -> void:
 		var scale_factor := radius / scan_radius_world
 		return center + Vector2(rotated.x * scale_factor, rotated.z * scale_factor)
 
+	# Build the set of incomplete-objective target_ids so quest enemies can
+	# be highlighted in gold below. Walks every active quest the player has,
+	# inflating "kill <target_id> <count>" into a quick lookup. Reach-zone
+	# and collect objectives are skipped here because they don't map to a
+	# minimap-visible enemy node.
+	var quest_targets: Dictionary = _collect_quest_kill_targets()
+
 	# Draw mobs (enemies)
 	for n in get_tree().get_nodes_in_group("enemy"):
 		if not (n is Node3D):
@@ -71,11 +78,21 @@ func _draw() -> void:
 			continue
 		var p: Vector2 = to_minimap.call(n.global_position)
 		var color := Color(0.95, 0.25, 0.25)
+		var is_quest_target: bool = _is_quest_target(n, quest_targets)
 		if n is BossBase:
 			color = Color(1.0, 0.5, 0.0)
 			draw_circle(p, 5.0, color)
 		else:
 			draw_circle(p, 3.0, color)
+		# Gold halo on top so the quest target is unmistakable. Drawn AFTER
+		# the dot so the ring sits on top of the colored fill. Slightly
+		# pulsing alpha (cheap sin) for "look at me" without the cost of a
+		# tween per marker.
+		if is_quest_target:
+			var pulse: float = 0.55 + 0.35 * sin(Time.get_ticks_msec() / 220.0)
+			var ring_color := Color(1.0, 0.85, 0.30, pulse)
+			var ring_radius: float = 7.0 if n is BossBase else 5.5
+			draw_arc(p, ring_radius, 0.0, TAU, 24, ring_color, 1.6, true)
 
 	# Draw NPCs (friendly)
 	for n in get_tree().get_nodes_in_group("npc"):
@@ -113,3 +130,61 @@ func _draw_diamond(pos: Vector2, half: float, color: Color) -> void:
 		pos + Vector2(-half, 0)
 	])
 	draw_colored_polygon(pts, color)
+
+# ────────────────── Quest objective markers ──────────────────
+#
+# Walks the player's QuestLog and returns the set of mob_id / boss_id
+# values that still need to be killed for an active quest. Used by the
+# minimap to halo enemies that match. Empty dict if QuestLog is missing
+# or no active quests have remaining kill objectives.
+#
+# Stored as Dictionary<StringName, true> instead of Array because dict
+# lookup is O(1) and we test membership once per visible enemy each
+# minimap refresh.
+func _collect_quest_kill_targets() -> Dictionary:
+	var out: Dictionary = {}
+	if not player or not is_instance_valid(player):
+		return out
+	var qlog: Node = player.get_node_or_null("QuestLog")
+	if qlog == null:
+		return out
+	var active_dict = qlog.get("active") if "active" in qlog else null
+	if not (active_dict is Dictionary):
+		return out
+	for aq in (active_dict as Dictionary).values():
+		# ActiveQuest.state ACTIVE == 2 in Quest.State enum but we read by
+		# name to stay decoupled from the int value.
+		var state_val = aq.get("state") if "state" in aq else 2
+		if int(state_val) != 2:  # Quest.State.ACTIVE
+			continue
+		var objs = aq.get("objectives") if "objectives" in aq else []
+		for obj in (objs as Array):
+			if obj == null:
+				continue
+			# Only kill-objectives map to a visible mob/boss node. Talk-to,
+			# collect, and reach-zone objectives are tracked elsewhere.
+			var kind: StringName = StringName(obj.get("kind") if "kind" in obj else &"")
+			if kind != &"kill":
+				continue
+			# Skip already-completed sub-objectives so the marker drops off
+			# the moment the kill count hits required_count.
+			if obj.has_method("is_complete") and obj.is_complete():
+				continue
+			var tid: StringName = StringName(obj.get("target_id") if "target_id" in obj else &"")
+			if tid != &"":
+				out[tid] = true
+	return out
+
+func _is_quest_target(n: Node, targets: Dictionary) -> bool:
+	if targets.is_empty():
+		return false
+	# BossBase has boss_id; EnemyBase has mob_id. Either match counts.
+	if "boss_id" in n:
+		var bid = n.get("boss_id")
+		if bid != null and StringName(bid) in targets:
+			return true
+	if "mob_id" in n:
+		var mid = n.get("mob_id")
+		if mid != null and StringName(mid) in targets:
+			return true
+	return false

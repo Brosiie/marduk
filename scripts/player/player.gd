@@ -164,6 +164,13 @@ const GUARD_IDS := [
 const HEAL_IDS := [&"healing_aura", &"holy_blessing", &"healing_word"]
 const HEAL_PCT_OF_MAX := 0.30  # 30% max HP per heal cast
 
+# Revive abilities: scan group "player" for downed allies inside REVIVE_RANGE
+# and call DeathScreen.consume_revive() on each. Single-player has no party
+# so this is mostly multiplayer-facing, but it costs nothing to wire now and
+# means coop testing already works the day we drop the netcode in.
+const REVIVE_IDS := [&"revive_ally", &"sun_revive"]
+const REVIVE_RANGE := 6.0
+
 # Surge-potion timers (epoch seconds). Set by use_potion(); checked by _tick_resource.
 var _mana_surge_until: float = 0.0
 var _stamina_surge_until: float = 0.0
@@ -833,6 +840,12 @@ func _cast_ability_slot(slot: int) -> void:
 		_trigger_guard()
 	elif ability_id in HEAL_IDS:
 		_trigger_heal()
+	# Revive is intentionally OUTSIDE the elif chain so it stacks with
+	# healing_aura — Lightbringer's aura both heals the caster AND ressurects
+	# downed allies in range. A dedicated &"revive_ally" id can also fire it
+	# standalone for non-paladin classes that someday gain rez utility.
+	if ability_id in REVIVE_IDS or ability_id == &"healing_aura":
+		_trigger_revive_ally()
 	# Animation cue (best-effort)
 	if anim_player:
 		var anim_key: String = String(k.get("anim", "attack"))
@@ -2154,6 +2167,52 @@ func _trigger_heal() -> void:
 	if ab and ab.has_method("play_cue"):
 		ab.play_cue(&"heal", global_position, -6.0, 1.0)
 
+# Sweep "player" group for downed allies (DeathScreen visible) inside
+# REVIVE_RANGE and ressurect each by calling DeathScreen.consume_revive().
+# In single-player there is no party so the loop walks past `self` and
+# returns 0 revives — the call is harmless. Multiplayer reuses the exact
+# same code path. Returns the number of allies brought back so the caller
+# can tune flavor messaging.
+#
+# DeathScreen.consume_revive() restores the dead player to 50% HP at their
+# corpse position (no warp), and the screen closes itself.
+func _trigger_revive_ally() -> int:
+	var revived: int = 0
+	for ally in get_tree().get_nodes_in_group("player"):
+		if ally == self or not is_instance_valid(ally):
+			continue
+		if not (ally is Node3D):
+			continue
+		if (ally as Node3D).global_position.distance_to(global_position) > REVIVE_RANGE:
+			continue
+		# Each player owns its own DeathScreen instance (spawned by player.gd
+		# `_open_death_screen`). Look it up by name climbing from the scene
+		# root so we don't depend on a particular UI parent.
+		var screen: Node = get_tree().root.find_child("DeathScreen", true, false)
+		if screen == null or not screen.has_method("consume_revive"):
+			continue
+		# DeathScreen tracks which player it opened for; consume_revive() will
+		# no-op if the player it's holding isn't this ally. That's fine for
+		# single-host coop — the dead player's own DeathScreen handles them.
+		var did_revive: bool = bool(screen.consume_revive())
+		if did_revive:
+			revived += 1
+	if revived > 0:
+		var juice: Node = get_node_or_null("/root/Juice")
+		if juice:
+			if juice.has_method("flash"):
+				juice.flash(Color(1.0, 0.95, 0.55), 0.20, 0.55)
+			if juice.has_method("toast"):
+				var text: String = "RAISED %d ALLY" % revived if revived == 1 else "RAISED %d ALLIES" % revived
+				juice.toast(text, Color(1.0, 0.95, 0.55), 2.5)
+		var ab: Node = get_node_or_null("/root/AudioBus")
+		if ab and ab.has_method("play_cue"):
+			# Lodestone cue at upbeat pitch — same chime that fires for fav
+			# rep-tier gains, picked because the sweep already reads as
+			# "good thing happened."
+			ab.play_cue(&"lodestone", global_position, -2.0, 1.5)
+	return revived
+
 # --- Class kits ---
 # Default kit: 4 standard abilities every class can fall back to. Each
 # uses a distinct anim alias so visually they read differently. Class
@@ -2256,7 +2315,7 @@ func _kit_paladin_light() -> Array:
 		{"id": &"mace_swing", "name": "Mace Swing", "damage": 30.0, "range": 2.6, "radius": 1.4, "cooldown": 0.6, "cost": 4.0, "element": Ability.DamageType.HOLY, "anim": "attack", "desc": "Holy mace strike. Sustained holy DPS."},
 		{"id": &"sun_beam", "name": "Sun Beam", "damage": 60.0, "range": 12.0, "radius": 1.0, "cooldown": 5.0, "cost": 24.0, "element": Ability.DamageType.HOLY, "anim": "iai", "pitch": 1.4, "desc": "Focused beam of sunlight. Long-range holy."},
 		{"id": &"holy_pillar", "name": "Holy Pillar", "damage": 80.0, "range": 5.0, "radius": 2.5, "cooldown": 12.0, "cost": 35.0, "element": Ability.DamageType.HOLY, "anim": "heavy", "pitch": 1.0, "desc": "Pillar of light from above. AOE smite."},
-		{"id": &"healing_aura", "name": "Healing Aura", "damage": 0.0, "range": 4.0, "radius": 8.0, "cooldown": 18.0, "cost": 35.0, "element": Ability.DamageType.HOLY, "anim": "power_up", "desc": "Heal yourself for 30% max HP."},
+		{"id": &"healing_aura", "name": "Healing Aura", "damage": 0.0, "range": 4.0, "radius": 8.0, "cooldown": 18.0, "cost": 35.0, "element": Ability.DamageType.HOLY, "anim": "power_up", "desc": "Heal self 30% max HP. Raise downed allies within 6m."},
 	]
 
 # Short forward dash with i-frames + dodge animation. Bound to Shift via

@@ -5,6 +5,7 @@
 [ext_resource type="PackedScene" path="res://scenes/ui/hud.tscn" id="3_hud"]
 [ext_resource type="Shader" path="res://shaders/toon.gdshader" id="4_toon"]
 [ext_resource type="Script" path="res://scripts/enemies/hassu_the_hooked.gd" id="5_hassu"]
+[ext_resource type="Script" path="res://scripts/world/spawn/spawner.gd" id="6_spawner"]
 
 ; Ash-Step Camp — Berserker intro arena.
 ; Volcanic ash plain east of the Bone Mountains. Broken pillar to one side
@@ -118,6 +119,25 @@ script = ExtResource("2_cam")
 position = Vector3(0, 13, 13)
 rotation = Vector3(-0.66, 0, 0)
 fov = 55.0
+
+; ── Mob spawners (Hassu's raiders flank the broken pillar) ──────
+[node name="MobSpawnerLeft" type="Marker3D" parent="."]
+script = ExtResource("6_spawner")
+position = Vector3(-9, 0.1, 4)
+mob_pool = [&"raider_grunt", &"raider_archer"]
+initial_count = 2
+max_concurrent = 3
+respawn_seconds = 90.0
+disturb_radius = 6.0
+
+[node name="MobSpawnerRight" type="Marker3D" parent="."]
+script = ExtResource("6_spawner")
+position = Vector3(9, 0.1, 4)
+mob_pool = [&"raider_grunt", &"raider_chieftain_minor"]
+initial_count = 2
+max_concurrent = 2
+respawn_seconds = 110.0
+disturb_radius = 6.0
 
 ; ── Hassu the Hooked (mini-boss) ─────────────────────────────────
 [node name="HassuTheHooked" type="CharacterBody3D" parent="."]
