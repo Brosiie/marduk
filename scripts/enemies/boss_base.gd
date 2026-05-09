@@ -1261,11 +1261,16 @@ func _spawn_telegraph(p: BossAttackPattern) -> void:
 	var size: Vector2 = _telegraph_size_for(p)
 	quad.size = size
 	decal.mesh = quad
-	# Shader material with shape_id and color from the pattern
+	# Shader material with shape_id and color from the pattern. The
+	# pattern's telegraph_color wins if explicitly set to anything other
+	# than the default red; otherwise we resolve a tint from the
+	# pattern's damage_type so a fire boss gets orange wind-ups, frost
+	# gets ice-blue, lightning yellow, etc. Players read the threat type
+	# from the FLOOR before the hit even lands.
 	var mat := ShaderMaterial.new()
 	mat.shader = load("res://shaders/telegraph.gdshader")
 	mat.set_shader_parameter("shape_id", int(p.shape))
-	mat.set_shader_parameter("telegraph_color", p.telegraph_color)
+	mat.set_shader_parameter("telegraph_color", _resolve_telegraph_color(p))
 	mat.set_shader_parameter("progress", 0.0)
 	# Cone arc -- shader uses half-arc in radians
 	mat.set_shader_parameter("arc_radians", deg_to_rad(p.arc_degrees) * 0.5)
@@ -1298,6 +1303,33 @@ func _clear_telegraph() -> void:
 	if _telegraph_decal and is_instance_valid(_telegraph_decal):
 		_telegraph_decal.queue_free()
 	_telegraph_decal = null
+
+# Decide what color the telegraph decal renders. Element-typed patterns
+# (FIRE / FROST / LIGHTNING / HOLY / SHADOW / ARCANE) get the matching
+# elemental hue automatically so the player reads the threat type from
+# the FLOOR before the swing lands. PHYSICAL keeps the pattern's
+# explicitly-set color (which defaults to the canonical red).
+#
+# Element colors picked to match the breath-trail VFX + element_name()
+# table elsewhere, so a fire boss's wind-up, breath VFX, and damage
+# floater all read as the SAME color. Visual cohesion >>> per-system
+# tuning.
+func _resolve_telegraph_color(p: BossAttackPattern) -> Color:
+	# Pattern-author override: if the script set a non-default color
+	# explicitly (anything other than the BossAttackPattern default red
+	# at alpha 0.5), trust it. Lets a designer override for, say, a
+	# poison-green attack on a non-shadow boss.
+	const _DEFAULT_RED: Color = Color(1.0, 0.3, 0.3, 0.5)
+	if not p.telegraph_color.is_equal_approx(_DEFAULT_RED):
+		return p.telegraph_color
+	match p.damage_type:
+		Ability.DamageType.FIRE:      return Color(1.00, 0.45, 0.10, 0.55)
+		Ability.DamageType.FROST:     return Color(0.40, 0.75, 1.00, 0.55)
+		Ability.DamageType.LIGHTNING: return Color(1.00, 0.95, 0.25, 0.55)
+		Ability.DamageType.HOLY:      return Color(1.00, 0.92, 0.55, 0.55)
+		Ability.DamageType.SHADOW:    return Color(0.55, 0.20, 0.65, 0.55)
+		Ability.DamageType.ARCANE:    return Color(0.65, 0.35, 1.00, 0.55)
+		_:                            return _DEFAULT_RED  # PHYSICAL stays red
 
 # Size the decal quad to match the attack's footprint. The quad's UVs
 # are 0..1 across the full surface, and the shader assumes the danger

@@ -156,3 +156,106 @@ func toast(text: String, color: Color = Color(0.95, 0.85, 0.30), duration: float
 	tw_in.tween_interval(duration)
 	tw_in.tween_property(lbl, "modulate:a", 0.0, 0.45)
 	tw_in.tween_callback(lbl.queue_free)
+
+# Quest milestone banner: a wide gold ribbon that sweeps across the
+# upper-third of the screen for accept / complete / turn-in moments.
+# Bigger than a toast (toasts stack and read like notifications); the
+# ribbon is its own moment with an eyebrow line above the title and
+# a reward summary below.
+#
+# Visual:
+#   ┌─────────────── eyebrow (small gold) ───────────────┐
+#   │                  TITLE (big, gold)                  │
+#   └────────── subtitle (rewards, muted) ───────────────┘
+#
+# Animates: ribbon slides in from the right, settles for `duration`
+# seconds, then sweeps out to the left. Bond's other panels live around
+# offset_top 84 (toasts) and 0 (action bar); the ribbon parks at top
+# 18% of screen so it doesn't fight either.
+func quest_banner(eyebrow: String, title: String, subtitle: String = "",
+		color: Color = Color(1.0, 0.85, 0.30), duration: float = 3.5) -> void:
+	# Use a PanelContainer with a styled stylebox so the ribbon has a
+	# proper backdrop (toasts are bare labels). Anchored top-center.
+	var ribbon := PanelContainer.new()
+	ribbon.anchor_left = 0.5
+	ribbon.anchor_right = 0.5
+	ribbon.anchor_top = 0.0
+	ribbon.anchor_bottom = 0.0
+	ribbon.offset_left = -340.0
+	ribbon.offset_right = 340.0
+	ribbon.offset_top = 130.0
+	ribbon.offset_bottom = 250.0
+	ribbon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	# Slate panel with a colored top border (matches the milestone color
+	# so a faction-colored quest reads as Crown gold / Druid green / etc).
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Color(0.05, 0.04, 0.06, 0.92)
+	sb.border_color = color
+	sb.border_width_top = 3
+	sb.border_width_bottom = 1
+	sb.border_width_left = 1
+	sb.border_width_right = 1
+	sb.set_corner_radius_all(4)
+	sb.shadow_color = Color(0, 0, 0, 0.7)
+	sb.shadow_size = 10
+	sb.shadow_offset = Vector2(0, 4)
+	sb.content_margin_left = 30
+	sb.content_margin_right = 30
+	sb.content_margin_top = 14
+	sb.content_margin_bottom = 14
+	ribbon.add_theme_stylebox_override("panel", sb)
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", 4)
+	v.alignment = BoxContainer.ALIGNMENT_CENTER
+	ribbon.add_child(v)
+	# Eyebrow: tiny uppercase tag above the title. Reads as a category
+	# marker ("QUEST ACCEPTED", "QUEST COMPLETE", "TURNED IN").
+	var eyebrow_lbl := Label.new()
+	eyebrow_lbl.text = eyebrow.to_upper()
+	eyebrow_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	eyebrow_lbl.add_theme_font_size_override("font_size", 11)
+	eyebrow_lbl.add_theme_color_override("font_color", color * 0.85)
+	eyebrow_lbl.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.9))
+	eyebrow_lbl.add_theme_constant_override("outline_size", 3)
+	v.add_child(eyebrow_lbl)
+	# Title: the quest name. Large gold.
+	var title_lbl := Label.new()
+	title_lbl.text = title
+	title_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title_lbl.add_theme_font_size_override("font_size", 28)
+	title_lbl.add_theme_color_override("font_color", color)
+	title_lbl.add_theme_color_override("font_outline_color", Color(0.10, 0.05, 0.05, 0.95))
+	title_lbl.add_theme_constant_override("outline_size", 6)
+	v.add_child(title_lbl)
+	# Subtitle: optional reward / progress summary in muted bronze.
+	if subtitle != "":
+		var sub_lbl := Label.new()
+		sub_lbl.text = subtitle
+		sub_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		sub_lbl.add_theme_font_size_override("font_size", 13)
+		sub_lbl.add_theme_color_override("font_color", Color(0.85, 0.78, 0.55, 0.85))
+		sub_lbl.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.85))
+		sub_lbl.add_theme_constant_override("outline_size", 3)
+		v.add_child(sub_lbl)
+	_canvas.add_child(ribbon)
+	# Animate: slide in from the right (offset_left starts at +600 outside
+	# screen), settle, then sweep out to the left. Modulate fades on the
+	# in/out edges so the slide feels less abrupt.
+	var settle_left: float = ribbon.offset_left
+	var settle_right: float = ribbon.offset_right
+	ribbon.offset_left = settle_left + 600.0
+	ribbon.offset_right = settle_right + 600.0
+	ribbon.modulate.a = 0.0
+	var tw := create_tween()
+	tw.set_parallel(true)
+	tw.tween_property(ribbon, "offset_left", settle_left, 0.45).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	tw.tween_property(ribbon, "offset_right", settle_right, 0.45).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	tw.tween_property(ribbon, "modulate:a", 1.0, 0.30)
+	tw.set_parallel(false)
+	tw.tween_interval(duration)
+	tw.set_parallel(true)
+	tw.tween_property(ribbon, "offset_left", settle_left - 600.0, 0.55).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN)
+	tw.tween_property(ribbon, "offset_right", settle_right - 600.0, 0.55).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN)
+	tw.tween_property(ribbon, "modulate:a", 0.0, 0.40)
+	tw.set_parallel(false)
+	tw.tween_callback(ribbon.queue_free)

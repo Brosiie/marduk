@@ -374,10 +374,16 @@ func accept_quest(id: StringName) -> bool:
 	# Event-driven autosave so a freshly-accepted quest survives an
 	# alt-F4 / crash / power loss between the 60s autosave timer.
 	_request_autosave()
-	# Toast banner so accepting a quest feels like a moment
+	# Cinematic ribbon banner so accepting a quest is a real moment, not
+	# a notification stack entry. Falls back to toast if the Juice
+	# autoload doesn't expose quest_banner (older builds).
 	var juice = get_node_or_null("/root/Juice")
 	if juice:
-		juice.toast("Quest: %s" % q.display_name, Color(0.95, 0.85, 0.30), 3.0)
+		var subtitle: String = "%d xp · %d gold" % [q.xp_reward, q.gold_reward]
+		if juice.has_method("quest_banner"):
+			juice.quest_banner("QUEST ACCEPTED", q.display_name, subtitle, Color(0.95, 0.85, 0.30), 3.0)
+		else:
+			juice.toast("Quest: %s" % q.display_name, Color(0.95, 0.85, 0.30), 3.0)
 	return true
 
 func complete_quest(id: StringName) -> bool:
@@ -418,11 +424,32 @@ func complete_quest(id: StringName) -> bool:
 	# crash. Quest completions are MAJOR moments, the player is
 	# expecting their reward to be permanent.
 	_request_autosave()
-	# Toast for completion + brief slowmo to mark the moment
+	# Quest completion ribbon: the BIG moment. Eyebrow says "QUEST
+	# COMPLETE", title is the quest name, subtitle summarizes XP + gold +
+	# any item rewards. Green tint distinguishes from accept (gold).
 	var juice = get_node_or_null("/root/Juice")
 	if juice:
-		juice.toast("✓  Quest Complete: %s" % q.display_name, Color(0.45, 0.95, 0.55), 3.5)
+		var reward_bits: Array[String] = []
+		if q.xp_reward > 0:
+			reward_bits.append("%d xp" % q.xp_reward)
+		if q.gold_reward > 0:
+			reward_bits.append("%d gold" % q.gold_reward)
+		if q.item_rewards.size() > 0:
+			reward_bits.append("%d item%s" % [q.item_rewards.size(), "" if q.item_rewards.size() == 1 else "s"])
+		if q.skill_point_reward > 0:
+			reward_bits.append("%d skill point%s" % [q.skill_point_reward, "" if q.skill_point_reward == 1 else "s"])
+		var subtitle: String = "  ·  ".join(reward_bits) if reward_bits.size() > 0 else ""
+		if juice.has_method("quest_banner"):
+			juice.quest_banner("QUEST COMPLETE", q.display_name, subtitle, Color(0.45, 0.95, 0.55), 4.0)
+		else:
+			juice.toast("✓  Quest Complete: %s" % q.display_name, Color(0.45, 0.95, 0.55), 3.5)
 		juice.flash(Color(0.45, 0.95, 0.55), 0.20, 0.4)
+		# Triumph audio sting: lodestone cue at high pitch + level-up
+		# fanfare layered on top. Big payoff vs the toast's silent reward.
+		var ab: Node = get_node_or_null("/root/AudioBus")
+		if ab and ab.has_method("play_cue"):
+			ab.play_cue(&"level_up", Vector3.ZERO, -2.0, 1.1)
+			ab.play_cue(&"lodestone", Vector3.ZERO, -4.0, 1.4)
 	return true
 
 # Fire-and-forget autosave to slot 0 (the autosave slot). Skips

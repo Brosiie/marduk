@@ -81,11 +81,16 @@ func _ready() -> void:
 	_label3d.pixel_size = 0.005
 	add_child(_label3d)
 
-	# Yellow exclamation mark if there's a quest
+	# Quest marker, dynamic indicator above the NPC's head:
+	#   "!" gold = this NPC offers a quest the player hasn't taken yet
+	#   "?" cyan = this NPC is the giver of an active quest with ALL
+	#              objectives complete (ready to turn in)
+	#   hidden  = nothing for the player to do here
+	# Refreshed via _refresh_quest_marker on a 1s timer + on QuestRegistry
+	# signal fires so newly-completed objectives flip the marker the
+	# instant the kill counter ticks over.
 	_quest_marker = Label3D.new()
-	_quest_marker.text = "!"
 	_quest_marker.font_size = 48
-	_quest_marker.modulate = Color(1.0, 0.85, 0.30)
 	_quest_marker.outline_size = 8
 	_quest_marker.outline_modulate = Color(0, 0, 0, 0.9)
 	_quest_marker.position = Vector3(0, 2.7, 0)
@@ -93,8 +98,32 @@ func _ready() -> void:
 	_quest_marker.no_depth_test = true
 	_quest_marker.fixed_size = true
 	_quest_marker.pixel_size = 0.005
-	_quest_marker.visible = has_quest
+	_quest_marker.visible = false
 	add_child(_quest_marker)
+	# Bob the marker so it draws the eye. ~1.5s period, 0.18m amplitude.
+	# Tween auto-loops; pause-modes default keep it animating during
+	# pause (we want the marker visible in the pause menu too).
+	var tw := _quest_marker.create_tween().set_loops()
+	tw.tween_property(_quest_marker, "position:y", 2.95, 0.75).set_trans(Tween.TRANS_SINE)
+	tw.tween_property(_quest_marker, "position:y", 2.55, 0.75).set_trans(Tween.TRANS_SINE)
+	# Refresh on a slow timer, plus immediately after _ready so the
+	# marker shows up on the first frame instead of waiting 1s.
+	var refresh_timer := Timer.new()
+	refresh_timer.wait_time = 1.0
+	refresh_timer.autostart = true
+	refresh_timer.timeout.connect(_refresh_quest_marker)
+	add_child(refresh_timer)
+	# Hook QuestRegistry signals so kill-progress / accept / complete
+	# update the marker the same frame instead of waiting for the timer.
+	var qr := get_node_or_null("/root/QuestRegistry")
+	if qr:
+		if qr.has_signal("quest_accepted"):
+			qr.quest_accepted.connect(_on_quest_state_changed)
+		if qr.has_signal("quest_completed"):
+			qr.quest_completed.connect(_on_quest_state_changed)
+		if qr.has_signal("quest_progress"):
+			qr.quest_progress.connect(_on_quest_progress)
+	_refresh_quest_marker()
 
 	_load_idle_animation()
 
@@ -372,7 +401,91 @@ func _on_accept_quest(dialog_panel: Control) -> void:
 	if qr and qr.has_method("accept_quest"):
 		qr.accept_quest(quest_id)
 	has_quest = false
+	# Marker refresh is handled by the quest_accepted signal hook so a
+	# turn-in marker for THIS NPC's other quest can flip on right after
+	# the accepted-quest marker drops off. Keep the explicit hide as a
+	# belt-and-suspenders against signal lag.
 	if _quest_marker:
 		_quest_marker.visible = false
+	_refresh_quest_marker()
 	if dialog_panel and is_instance_valid(dialog_panel):
 		dialog_panel.queue_free()
+
+# ──────────────── Dynamic quest marker ────────────────
+#
+# Decides what "!" / "?" to render above the NPC. Rules:
+#   - "?" cyan if any active quest's giver_npc_id matches this NPC AND
+#     all objectives are complete -> ready to turn in
+#   - "!" gold if has_quest is true AND quest_id is offerable (not
+#     already active or completed)
+#   - else hide
+# Two-pass because turn-in (?) takes priority over offering a new (!) so
+# a debt-NPC always reads as "you have something for me" before
+# "I have something else for you."
+func _refresh_quest_marker() -> void:
+	if _quest_marker == null:
+		return
+	if _has_turn_in_for_me():
+		_quest_marker.text = "?"
+		_quest_marker.modulate = Color(0.45, 0.95, 1.00)
+		_quest_marker.visible = true
+		return
+	if has_quest and _can_offer_my_quest():
+		_quest_marker.text = "!"
+		_quest_marker.modulate = Color(1.0, 0.85, 0.30)
+		_quest_marker.visible = true
+		return
+	_quest_marker.visible = false
+
+func _has_turn_in_for_me() -> bool:
+	if npc_id == &"":
+		return false
+	var qr := get_node_or_null("/root/QuestRegistry")
+	if qr == null or not qr.has_method("get_active_quests"):
+		return false
+	var active: Array = qr.get_active_quests()
+	for q in active:
+		if q == null:
+			continue
+		var giver: StringName = StringName(q.get("giver_npc_id") if "giver_npc_id" in q else &"")
+		if giver != npc_id:
+			continue
+		# All objectives done? Pull live counters from QuestRegistry.
+		var qid: StringName = StringName(q.get("id") if "id" in q else &"")
+		if qid == &"":
+			continue
+		var counters: Array = qr.get_progress(qid) if qr.has_method("get_progress") else []
+		var objs: Array = q.get("objectives_data") if "objectives_data" in q else []
+		if objs.is_empty():
+			continue
+		var all_done: bool = true
+		for i in range(objs.size()):
+			var required: int = int(objs[i].get("required_count", 1))
+			var current: int = int(counters[i]) if i < counters.size() else 0
+			if current < required:
+				all_done = false
+				break
+		if all_done:
+			return true
+	return false
+
+func _can_offer_my_quest() -> bool:
+	if quest_id == &"":
+		return false
+	var qr := get_node_or_null("/root/QuestRegistry")
+	if qr == null:
+		return false
+	# Don't show "!" if quest already accepted or completed.
+	var active = qr.get("_active") if "_active" in qr else null
+	var completed = qr.get("_completed") if "_completed" in qr else null
+	if active is Dictionary and (active as Dictionary).has(quest_id):
+		return false
+	if completed is Dictionary and (completed as Dictionary).has(quest_id):
+		return false
+	return true
+
+func _on_quest_state_changed(_q: Variant) -> void:
+	_refresh_quest_marker()
+
+func _on_quest_progress(_q: Variant, _idx: int, _count: int) -> void:
+	_refresh_quest_marker()
