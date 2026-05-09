@@ -130,6 +130,7 @@ func _run() -> void:
 	await _scenario_complete_quest_faction_rep_apply()
 	await _scenario_save_version_migration()
 	await _scenario_tiamat_awareness_tiers()
+	await _scenario_npc_contextual_greeting()
 
 	_finish()
 
@@ -1207,6 +1208,75 @@ func _scenario_tiamat_awareness_tiers() -> void:
 		_pass("tiamat_awareness_tiers", "10 boundary checks ok, %d up-transitions fired" % saw_up_transitions)
 	else:
 		_fail("tiamat_awareness_tiers", "failures=%s up_transitions=%d" % [", ".join(failures), saw_up_transitions])
+
+# 15. NPC contextual greeting: NPCs that author DREAD_GREETINGS should
+# return a dread line when Tiamat awareness is at the corresponding
+# tier, falling back to class greeting at DORMANT. Proves the layered
+# selection in NPCLines.pick_contextual_greeting walks the priority
+# chain correctly.
+func _scenario_npc_contextual_greeting() -> void:
+	var tr: Node = get_node_or_null("/root/TiamatRegistry")
+	if tr == null:
+		_findings.append("(skip npc_contextual_greeting: TiamatRegistry missing)")
+		return
+	# Use Storyteller's tables directly so this test doesn't require an
+	# NPC to be alive in the scene. NPCLines is static so we can
+	# exercise the chooser without spawning anyone.
+	var class_greets := {
+		&"ronin": "ronin class line",
+		&"mage":  "mage class line",
+	}
+	var default_greet := "default line"
+	var dread_greets := {
+		"WAKING":   "waking dread line",
+		"WAKING_2": "waking_2 dread line",
+		"AWAKE":    "awake dread line",
+	}
+	# Build a fake player-like Node carrying just enough surface for
+	# the helper to introspect class id.
+	var fake := Node.new()
+	# Stub out get("stats") to return a wrapper exposing class_def
+	# with class_id. GDScript has no easy way to mock this without
+	# attaching scripts; use a real Resource.
+	var fake_class_def := Resource.new()
+	var ccd_script := GDScript.new()
+	ccd_script.source_code = "extends Resource\nvar class_id: StringName = &\"ronin\"\n"
+	ccd_script.reload()
+	fake_class_def.set_script(ccd_script)
+	var fake_stats := Resource.new()
+	var stats_script := GDScript.new()
+	stats_script.source_code = "extends Resource\nvar class_def: Resource = null\n"
+	stats_script.reload()
+	fake_stats.set_script(stats_script)
+	fake_stats.class_def = fake_class_def
+	# Attach via meta since we can't add stats as a regular Node property.
+	# pick_contextual_greeting reads via .get("stats"); we wrap fake in a
+	# script that exposes a stats var.
+	var wrapper_script := GDScript.new()
+	wrapper_script.source_code = """extends Node
+var stats = null
+var character_appearance = null
+"""
+	wrapper_script.reload()
+	fake.set_script(wrapper_script)
+	fake.stats = fake_stats
+
+	# Test 1: at DORMANT, class greeting wins (no dread tier active)
+	tr.set_awareness(0)
+	var got_dormant: String = NPCLines.pick_contextual_greeting(fake, class_greets, default_greet, dread_greets)
+	# Test 2: at WAKING, dread line for WAKING wins over class line
+	tr.set_awareness(60)  # mid-WAKING
+	var got_waking: String = NPCLines.pick_contextual_greeting(fake, class_greets, default_greet, dread_greets)
+	# Test 3: at AWAKE, AWAKE dread line wins
+	tr.set_awareness(120)  # past AWAKE threshold
+	var got_awake: String = NPCLines.pick_contextual_greeting(fake, class_greets, default_greet, dread_greets)
+	# Cleanup
+	tr.set_awareness(0)
+	fake.queue_free()
+	if got_dormant == "ronin class line" and got_waking == "waking dread line" and got_awake == "awake dread line":
+		_pass("npc_contextual_greeting", "DORMANT->class, WAKING->dread, AWAKE->dread (highest wins)")
+	else:
+		_fail("npc_contextual_greeting", "got dormant=%s waking=%s awake=%s" % [got_dormant, got_waking, got_awake])
 
 func _scenario_hud_presence() -> void:
 	var huds := get_tree().get_nodes_in_group("hud")

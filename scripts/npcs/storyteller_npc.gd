@@ -22,6 +22,25 @@ const DEFAULT_GREETING := "The city hasn't seen someone like you in a long time.
 # opening from the Storyteller. Overrides the class-line.
 const WALKED_BACK_GREETING := "You came back. I've seen people make a lot of choices in this hall, that one I respect more than most. The sword has decided you. It doesn't decide many."
 
+# Tiamat awareness dread: as her dream stirs, the Storyteller notices.
+# He's older than this city; he remembers what came before, and he can
+# feel her rising the same way he felt her last time. WAKING+ pulls
+# focus from class flavor toward warning.
+const DREAD_GREETINGS := {
+	"WAKING":   "You've been busy. The deep below the Bay is restless tonight. I can feel it in the floor when I sit too long. Whatever you're doing, you're doing it loud.",
+	"WAKING_2": "The kettle hums when no one is touching it. The lodestones are warm. Tell me you understand what you're waking. Tell me you have a plan.",
+	"AWAKE":    "She is awake. The city knows. The walls know. You did this, and I will not pretend otherwise. Sit anyway. The kettle is on. We talk while we still can.",
+}
+
+# Glyph-aware override: NPCs who recognize specific marks. The
+# Storyteller has seen every glyph in his time; the Wound mark in
+# particular makes him careful with his words.
+const GLYPH_GREETINGS := {
+	"wound":      "I see the Wound's mark on you. The Sanctum-Mother chose well, or you chose her, hard to say which way that arrow flies. Either way, sit. Drink.",
+	"crown":      "Crown's seal at your throat. That's a heavy thing to wear into MY hall. We'll talk anyway, but understand: in Ashurim, the Crown speaks last and quietest.",
+	"inquisition":"Inquisition mark. Let me be plain: I've watched what your order does to the bodies it leaves behind. We'll talk if you can hear me through that. Not before.",
+}
+
 func _ready() -> void:
 	npc_id = &"storyteller"
 	display_name = "The Storyteller"
@@ -124,11 +143,14 @@ func _on_node_added(node: Node) -> void:
 func _set_greeting_for(player: Node) -> void:
 	if player == null:
 		return
-	# Heaven-Rule: walk-back overrides the class-greeting permanently.
-	if player.get("character_appearance") and player.character_appearance and player.character_appearance.lucifer_walked_back:
-		greeting = WALKED_BACK_GREETING
-		return
-	var class_id: StringName = &""
-	if player.get("stats") and player.stats != null and player.stats.get("class_def") and player.stats.class_def:
-		class_id = player.stats.class_def.class_id
-	greeting = CLASS_GREETINGS.get(class_id, DEFAULT_GREETING)
+	# Layered selection via shared helper: walk-back -> glyph -> dread
+	# tier -> class -> default. Storyteller authors lines for every
+	# layer; the helper picks the most-specific match.
+	greeting = NPCLines.pick_contextual_greeting(
+		player,
+		CLASS_GREETINGS,
+		DEFAULT_GREETING,
+		DREAD_GREETINGS,
+		GLYPH_GREETINGS,
+		WALKED_BACK_GREETING
+	)

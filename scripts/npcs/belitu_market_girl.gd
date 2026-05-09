@@ -22,6 +22,23 @@ const CLASS_GREETINGS := {
 
 const DEFAULT_GREETING := "Excuse me, I sell fish, and I have a question. My brother. Have you seen him?"
 
+# Tiamat awareness dread: Belitu doesn't know what's stirring. She just
+# knows the kettle won't boil right anymore, and the river ran sour
+# yesterday. Class-blind because dread is bigger than class flavor.
+const DREAD_GREETINGS := {
+	"WAKING":   "The fish don't bite right anymore. The water tastes wrong. Something's coming. My brother is still gone. Both things keep me up.",
+	"WAKING_2": "There were rats in the storehouse last night that didn't look right. Three legs each, and they were singing. I don't know who to tell. You look like someone who'd believe me.",
+	"AWAKE":    "I haven't slept since the moon turned purple. None of us have. The inn is empty. Find my brother before whatever is coming gets here. Please.",
+}
+
+# Glyph-aware: Belitu reads marks in a folk way. The Wound mark she
+# distrusts (most market folk do); the Crown mark she defers to but
+# also resents.
+const GLYPH_GREETINGS := {
+	"wound":      "Your skin's marked with the Wound. Mama says people like you bring trouble. I'm too tired for trouble. Please don't bring more.",
+	"inquisition":"Burner mark. The last one of you took my uncle. I'll still ask if you've seen my brother. I have to. But I'm not glad you're here.",
+}
+
 const BELITU_QUEST_LADDER := [
 	&"q_belitu_brother",       # lvl 1, find her missing brother
 	&"q_belitu_druid_friend",  # lvl 3, slay Inquisition Burners, +Druids / -Inquisition
@@ -48,10 +65,13 @@ func _on_node_added(node: Node) -> void:
 func _set_greeting_for(player: Node) -> void:
 	if player == null:
 		return
-	var class_id: StringName = &""
-	if player.get("stats") and player.stats != null and player.stats.get("class_def") and player.stats.class_def:
-		class_id = player.stats.class_def.class_id
-	greeting = CLASS_GREETINGS.get(class_id, DEFAULT_GREETING)
+	greeting = NPCLines.pick_contextual_greeting(
+		player,
+		CLASS_GREETINGS,
+		DEFAULT_GREETING,
+		DREAD_GREETINGS,
+		GLYPH_GREETINGS
+	)
 
 func _refresh_quest_offer() -> void:
 	has_quest = false

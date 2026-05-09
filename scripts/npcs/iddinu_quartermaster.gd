@@ -22,6 +22,25 @@ const CLASS_GREETINGS := {
 
 const DEFAULT_GREETING := "Quartermaster's hut. State your business. I have ledgers."
 
+# Tiamat awareness dread: Iddinu is Crown logistics. He notices the
+# system breaking before he notices the cause. Receipts come back
+# wrong. Caravans miss waypoints. He's the kind of man who treats
+# cosmic horror as a paperwork problem until he can't.
+const DREAD_GREETINGS := {
+	"WAKING":   "Two of last night's caravans are missing receipts. Three of yesterday's. The handwriting on the recovered ones is not the handwriting that left here. Sit. We're behind.",
+	"WAKING_2": "I have a ledger entry for a delivery I did not make. The ink is wet. The clerk who would have written it has been dead nine years. State your business quickly. I have a fire to start.",
+	"AWAKE":    "The Crown won't pay. The seals are dissolving on the page when the candle gets too close. Whatever you came here for, take it. The Quartermaster's office is closing. I am closing it.",
+}
+
+# Glyph-aware. Iddinu reads Crown marks favorably (same team), Black
+# Sail with sour pragmatism (does business anyway), Wound with active
+# distrust (Wound-Marked are Druid territory and he resents them).
+const GLYPH_GREETINGS := {
+	"crown":      "Crown seal at your collar. Welcome. The ledger is open. Your business gets prioritized over whatever the front of the line is here for.",
+	"black_sail": "I see the captain's mark. I sell to anyone with coin. I file the paperwork as 'unspecified buyer' so my superiors don't ask. Sit down. Make it quick.",
+	"wound":      "Wound mark. Wipe your boots BEFORE you cross the threshold. I will not have green on my floor. State your business in three sentences or fewer.",
+}
+
 const IDDINU_QUEST_LADDER := [
 	&"q_iddinu_supplies",          # lvl 1, kill 6 Tashmu's Footmen, +Crown
 	&"q_iddinu_crown_loyalty",     # lvl 3, Caravan Toll, big +Crown
@@ -49,10 +68,13 @@ func _on_node_added(node: Node) -> void:
 func _set_greeting_for(player: Node) -> void:
 	if player == null:
 		return
-	var class_id: StringName = &""
-	if player.get("stats") and player.stats != null and player.stats.get("class_def") and player.stats.class_def:
-		class_id = player.stats.class_def.class_id
-	greeting = CLASS_GREETINGS.get(class_id, DEFAULT_GREETING)
+	greeting = NPCLines.pick_contextual_greeting(
+		player,
+		CLASS_GREETINGS,
+		DEFAULT_GREETING,
+		DREAD_GREETINGS,
+		GLYPH_GREETINGS
+	)
 
 func _refresh_quest_offer() -> void:
 	has_quest = false
