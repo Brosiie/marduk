@@ -99,5 +99,23 @@ func _on_accept_quest(dialog_panel: Control) -> void:
 	_refresh_quest_offer()
 
 func _open_dialogue() -> void:
+	# Dual-purpose NPC: opens the VendorPanel directly because Iddinu's a
+	# quartermaster (selling > talking). Quest offer comes through the
+	# vendor panel header line; players can decline and walk back for the
+	# old NPC dialog flow if needed.
 	_refresh_quest_offer()
+	var sk: Node = get_node_or_null("/root/ShopkeeperRegistry")
+	if sk and sk.has_method("get_vendor"):
+		# Iddinu's vendor in Babilim was named babilim_market_general; in
+		# Ashurim he runs the quartermaster station — wire through ashurim_general
+		# as a fallback so Belitu/Iddinu both have a stocked shop.
+		var vendor = sk.get_vendor(&"ashurim_general")
+		if vendor:
+			var packed: PackedScene = load("res://scenes/ui/panels/vendor_panel.tscn")
+			if packed:
+				var p_panel = packed.instantiate()
+				get_tree().current_scene.add_child(p_panel)
+				p_panel.open(vendor, _find_active_player(), self)
+				return
+	# Fallback to standard NPC quest dialog
 	super._open_dialogue()

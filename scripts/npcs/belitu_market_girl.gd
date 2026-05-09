@@ -99,5 +99,25 @@ func _on_accept_quest(dialog_panel: Control) -> void:
 	_refresh_quest_offer()
 
 func _open_dialogue() -> void:
+	# Belitu runs the Singing Goat — opens the inn vendor (potions + drinks)
+	# rather than the quest dialog. Her quest offer toasts when active so
+	# players know to look for it.
 	_refresh_quest_offer()
+	if has_quest:
+		_toast("Belitu has a quest. Open the J panel after to take it.")
+	var sk: Node = get_node_or_null("/root/ShopkeeperRegistry")
+	if sk and sk.has_method("get_vendor"):
+		var vendor = sk.get_vendor(&"ashurim_innkeep")
+		if vendor:
+			var packed: PackedScene = load("res://scenes/ui/panels/vendor_panel.tscn")
+			if packed:
+				var p_panel = packed.instantiate()
+				get_tree().current_scene.add_child(p_panel)
+				p_panel.open(vendor, _find_active_player(), self)
+				return
 	super._open_dialogue()
+
+func _toast(msg: String) -> void:
+	var juice: Node = get_node_or_null("/root/Juice")
+	if juice and juice.has_method("toast"):
+		juice.toast(msg, Color(0.85, 0.78, 0.55), 2.5)
