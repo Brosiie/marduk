@@ -46,9 +46,24 @@ func _draw() -> void:
 	if not player or not is_instance_valid(player):
 		return
 
+	# Yaw offset rotates the world so the player's FORWARD always points
+	# UP on the minimap (Skyrim / WoW convention). Source of truth is the
+	# player's mesh.rotation.y, which Player._apply_horizontal sets to
+	# atan2(input_dir.x, input_dir.z) every frame. Falling back to
+	# camera_rig yaw worked for the old camera-locked rig, but in the
+	# free-look isometric build the camera and player can desync, and
+	# Bond reported the minimap not following player facing. Mesh-yaw
+	# fixes that without coupling the minimap to the camera.
 	var yaw_offset: float = 0.0
-	if camera_rig:
-		yaw_offset = camera_rig.rotation.y  # rotate map so camera-forward = up
+	var player_mesh: Node3D = player.get_node_or_null("MeshRoot") if player else null
+	if player_mesh == null and player and "mesh" in player:
+		player_mesh = player.get("mesh") as Node3D
+	if player_mesh:
+		yaw_offset = player_mesh.rotation.y
+	elif camera_rig:
+		# Fallback: pre-mesh-spawn frames (mesh hasn't loaded yet) -> use
+		# camera so the dots aren't wildly mis-rotated for one frame.
+		yaw_offset = camera_rig.rotation.y
 
 	# Helper: world position -> minimap pixel
 	var to_minimap = func(world_pos: Vector3) -> Vector2:

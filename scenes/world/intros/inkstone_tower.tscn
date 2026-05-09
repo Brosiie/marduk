@@ -1,4 +1,4 @@
-[gd_scene load_steps=10 format=3]
+[gd_scene load_steps=18 format=3]
 
 [ext_resource type="Script" path="res://scripts/player/player.gd" id="1_player"]
 [ext_resource type="Script" path="res://scripts/player/camera_rig.gd" id="2_cam"]
@@ -57,6 +57,37 @@ ambient_light_energy = 0.55
 fog_enabled = true
 fog_density = 0.022
 fog_light_color = Color(0.55, 0.40, 0.95, 1)
+
+[sub_resource type="CapsuleShape3D" id="player_shape"]
+radius = 0.4
+height = 1.7
+
+; ── Upper mezzanine balcony + spiral stair geometry ─────────────
+; Tower felt like a flat library room, not a tower. Add a U-shaped
+; mezzanine ringing the back half at y=5.5 and a 12-step spiral stair
+; on the east side that climbs from ground (y=0) to the mezzanine.
+; Each step is 0.45m tall, 1.2m wide, 0.6m deep.
+[sub_resource type="StandardMaterial3D" id="upper_mat"]
+albedo_color = Color(0.22, 0.18, 0.26, 1)
+roughness = 0.85
+
+[sub_resource type="BoxMesh" id="balcony_mesh"]
+size = Vector3(38, 0.4, 8)
+
+[sub_resource type="BoxShape3D" id="balcony_shape"]
+size = Vector3(38, 0.4, 8)
+
+[sub_resource type="BoxMesh" id="rail_mesh"]
+size = Vector3(38, 1.0, 0.2)
+
+[sub_resource type="BoxShape3D" id="rail_shape"]
+size = Vector3(38, 1.0, 0.2)
+
+[sub_resource type="BoxMesh" id="step_mesh"]
+size = Vector3(1.2, 0.45, 0.6)
+
+[sub_resource type="BoxShape3D" id="step_shape"]
+size = Vector3(1.2, 0.45, 0.6)
 
 [node name="InkstoneTower" type="Node3D"]
 
@@ -152,7 +183,8 @@ script = ExtResource("1_player")
 position = Vector3(0, 0.1, 12)
 
 [node name="PlayerShape" type="CollisionShape3D" parent="Player"]
-shape = SubResource("floor_shape")
+shape = SubResource("player_shape")
+position = Vector3(0, 0.85, 0)
 
 [node name="MeshRoot" type="Node3D" parent="Player"]
 
@@ -191,6 +223,130 @@ position = Vector3(0, 0.1, -6)
 
 ; ── HUD ─────────────────────────────────────────────────────────
 [node name="HUD" parent="." instance=ExtResource("3_hud")]
+
+; ── Upper mezzanine balcony (back wall, y=5.5) ──────────────────
+[node name="Mezzanine" type="StaticBody3D" parent="."]
+position = Vector3(0, 5.5, -22)
+[node name="MezzMesh" type="MeshInstance3D" parent="Mezzanine"]
+mesh = SubResource("balcony_mesh")
+material_override = SubResource("upper_mat")
+[node name="MezzCol" type="CollisionShape3D" parent="Mezzanine"]
+shape = SubResource("balcony_shape")
+
+; Mezzanine front rail so the player can read the edge + can't fall through
+[node name="MezzRail" type="StaticBody3D" parent="."]
+position = Vector3(0, 6.2, -18.0)
+[node name="RailMesh" type="MeshInstance3D" parent="MezzRail"]
+mesh = SubResource("rail_mesh")
+material_override = SubResource("upper_mat")
+[node name="RailCol" type="CollisionShape3D" parent="MezzRail"]
+shape = SubResource("rail_shape")
+
+; ── Spiral staircase: 12 steps, 0.45m rise each, climbs +5.4m total ─
+; Steps arc from ground east to the mezzanine. Each step rotated 18°
+; around the central axis so the climb spirals naturally.
+[node name="Stair01" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 14, 0.225, 0)
+[node name="StepMesh" type="MeshInstance3D" parent="Stair01"]
+mesh = SubResource("step_mesh")
+material_override = SubResource("upper_mat")
+[node name="StepCol" type="CollisionShape3D" parent="Stair01"]
+shape = SubResource("step_shape")
+
+[node name="Stair02" type="StaticBody3D" parent="."]
+transform = Transform3D(0.95, 0, -0.31, 0, 1, 0, 0.31, 0, 0.95, 13.5, 0.675, -1.5)
+[node name="StepMesh" type="MeshInstance3D" parent="Stair02"]
+mesh = SubResource("step_mesh")
+material_override = SubResource("upper_mat")
+[node name="StepCol" type="CollisionShape3D" parent="Stair02"]
+shape = SubResource("step_shape")
+
+[node name="Stair03" type="StaticBody3D" parent="."]
+transform = Transform3D(0.81, 0, -0.59, 0, 1, 0, 0.59, 0, 0.81, 12.5, 1.125, -3.0)
+[node name="StepMesh" type="MeshInstance3D" parent="Stair03"]
+mesh = SubResource("step_mesh")
+material_override = SubResource("upper_mat")
+[node name="StepCol" type="CollisionShape3D" parent="Stair03"]
+shape = SubResource("step_shape")
+
+[node name="Stair04" type="StaticBody3D" parent="."]
+transform = Transform3D(0.59, 0, -0.81, 0, 1, 0, 0.81, 0, 0.59, 11.0, 1.575, -4.5)
+[node name="StepMesh" type="MeshInstance3D" parent="Stair04"]
+mesh = SubResource("step_mesh")
+material_override = SubResource("upper_mat")
+[node name="StepCol" type="CollisionShape3D" parent="Stair04"]
+shape = SubResource("step_shape")
+
+[node name="Stair05" type="StaticBody3D" parent="."]
+transform = Transform3D(0.31, 0, -0.95, 0, 1, 0, 0.95, 0, 0.31, 9.0, 2.025, -6.0)
+[node name="StepMesh" type="MeshInstance3D" parent="Stair05"]
+mesh = SubResource("step_mesh")
+material_override = SubResource("upper_mat")
+[node name="StepCol" type="CollisionShape3D" parent="Stair05"]
+shape = SubResource("step_shape")
+
+[node name="Stair06" type="StaticBody3D" parent="."]
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 6.5, 2.475, -7.0)
+[node name="StepMesh" type="MeshInstance3D" parent="Stair06"]
+mesh = SubResource("step_mesh")
+material_override = SubResource("upper_mat")
+[node name="StepCol" type="CollisionShape3D" parent="Stair06"]
+shape = SubResource("step_shape")
+
+[node name="Stair07" type="StaticBody3D" parent="."]
+transform = Transform3D(-0.31, 0, -0.95, 0, 1, 0, 0.95, 0, -0.31, 4.0, 2.925, -7.5)
+[node name="StepMesh" type="MeshInstance3D" parent="Stair07"]
+mesh = SubResource("step_mesh")
+material_override = SubResource("upper_mat")
+[node name="StepCol" type="CollisionShape3D" parent="Stair07"]
+shape = SubResource("step_shape")
+
+[node name="Stair08" type="StaticBody3D" parent="."]
+transform = Transform3D(-0.59, 0, -0.81, 0, 1, 0, 0.81, 0, -0.59, 1.5, 3.375, -7.5)
+[node name="StepMesh" type="MeshInstance3D" parent="Stair08"]
+mesh = SubResource("step_mesh")
+material_override = SubResource("upper_mat")
+[node name="StepCol" type="CollisionShape3D" parent="Stair08"]
+shape = SubResource("step_shape")
+
+[node name="Stair09" type="StaticBody3D" parent="."]
+transform = Transform3D(-0.81, 0, -0.59, 0, 1, 0, 0.59, 0, -0.81, -1.0, 3.825, -7.0)
+[node name="StepMesh" type="MeshInstance3D" parent="Stair09"]
+mesh = SubResource("step_mesh")
+material_override = SubResource("upper_mat")
+[node name="StepCol" type="CollisionShape3D" parent="Stair09"]
+shape = SubResource("step_shape")
+
+[node name="Stair10" type="StaticBody3D" parent="."]
+transform = Transform3D(-0.95, 0, -0.31, 0, 1, 0, 0.31, 0, -0.95, -3.0, 4.275, -6.0)
+[node name="StepMesh" type="MeshInstance3D" parent="Stair10"]
+mesh = SubResource("step_mesh")
+material_override = SubResource("upper_mat")
+[node name="StepCol" type="CollisionShape3D" parent="Stair10"]
+shape = SubResource("step_shape")
+
+[node name="Stair11" type="StaticBody3D" parent="."]
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, -4.5, 4.725, -4.5)
+[node name="StepMesh" type="MeshInstance3D" parent="Stair11"]
+mesh = SubResource("step_mesh")
+material_override = SubResource("upper_mat")
+[node name="StepCol" type="CollisionShape3D" parent="Stair11"]
+shape = SubResource("step_shape")
+
+[node name="Stair12" type="StaticBody3D" parent="."]
+transform = Transform3D(-0.95, 0, 0.31, 0, 1, 0, -0.31, 0, -0.95, -5.5, 5.175, -3.0)
+[node name="StepMesh" type="MeshInstance3D" parent="Stair12"]
+mesh = SubResource("step_mesh")
+material_override = SubResource("upper_mat")
+[node name="StepCol" type="CollisionShape3D" parent="Stair12"]
+shape = SubResource("step_shape")
+
+; Reading-light up on the mezzanine so the upper level isn't pitch-black
+[node name="MezzCandle" type="OmniLight3D" parent="."]
+position = Vector3(0, 7.5, -22)
+light_color = Color(0.95, 0.80, 0.50)
+light_energy = 1.6
+omni_range = 12.0
 
 ; ── World Environment ───────────────────────────────────────────
 [node name="WorldEnv" type="WorldEnvironment" parent="."]

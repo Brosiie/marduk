@@ -3071,6 +3071,16 @@ func _read_input() -> void:
 		Input.get_action_strength("move_right") - Input.get_action_strength("move_left"),
 		Input.get_action_strength("move_down") - Input.get_action_strength("move_up")
 	)
+	# Lazy-resolve camera_rig if it wasn't ready when player._ready ran.
+	# CameraRig adds itself to the "camera_rig" group in its _ready, but
+	# Player._ready can fire BEFORE its CameraRig child's _ready (parent
+	# initialization order isn't guaranteed when scene-tree loads). Without
+	# this re-check, input falls through to world-axis (W = true north)
+	# instead of camera-relative (W = "forward from where you're looking").
+	# Bond reported this exact bug: "the movement doesn't track based on
+	# camera. camera angle is true north for movement."
+	if _camera_basis_provider == null or not is_instance_valid(_camera_basis_provider):
+		_camera_basis_provider = get_tree().get_first_node_in_group("camera_rig")
 	if _camera_basis_provider:
 		var basis := _camera_basis_provider.global_transform.basis
 		var fwd := -basis.z; fwd.y = 0; fwd = fwd.normalized()

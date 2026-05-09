@@ -151,11 +151,42 @@ func _load_marduk_animation_library() -> void:
 		sample.append(String(ap_anims[i]))
 	print("[EnemyAnim] %s sample names: %s" % [name, str(sample)])
 	# Resolve aliases against what's actually in the library
-	_resolved_idle = _resolve_first(["marduk/idle", "marduk/unarmed_idle", "marduk/katana_idle"])
-	_resolved_walk = _resolve_first(["marduk/walk", "marduk/walk_back", "marduk/walk_left"])
-	_resolved_attack = _resolve_first(["marduk/attack_basic"])
-	_resolved_die = _resolve_first(["marduk/death", "marduk/death_forward", "marduk/death_react_forward"])
-	_resolved_hit = _resolve_first(["marduk/hit_react_left", "marduk/hit_react_right", "marduk/hit_react"])
+	# Resolve canonical alias chains. Each chain tries marduk/<name>
+	# first (loaded by AnimationLibraryLoader), then falls through to
+	# bare/embedded anim names so mobs whose marduk lib failed to bind
+	# still play SOMETHING from their .glb's embedded AnimationPlayer
+	# instead of T-posing forever. Bond reported T-pose mobs in the
+	# inkstone tower; root cause was animated_book/binding_construct
+	# having an empty marduk anim folder on disk + no embedded fallback.
+	_resolved_idle = _resolve_first([
+		"marduk/idle", "marduk/unarmed_idle", "marduk/katana_idle",
+		"idle", "Idle", "Mixamo_Idle", "Standing_Idle",
+		"mixamorig_Idle", "Armature|idle"
+	])
+	_resolved_walk = _resolve_first([
+		"marduk/walk", "marduk/walk_back", "marduk/walk_left",
+		"walk", "Walk", "Walking", "Mixamo_Walking", "mixamorig_Walk"
+	])
+	_resolved_attack = _resolve_first([
+		"marduk/attack_basic", "marduk/attack",
+		"attack", "Attack", "attack_basic", "Mixamo_Attack"
+	])
+	_resolved_die = _resolve_first([
+		"marduk/death", "marduk/death_forward", "marduk/death_react_forward",
+		"death", "Death", "Die", "Mixamo_Death"
+	])
+	_resolved_hit = _resolve_first([
+		"marduk/hit_react_left", "marduk/hit_react_right", "marduk/hit_react",
+		"hit_react", "hit_reaction", "HitReact", "Mixamo_Hit"
+	])
+	# Final safety net: if STILL nothing resolved, take the FIRST animation
+	# in the player's library list and use it as idle so the mob at least
+	# moves a little instead of T-posing. Better a wrong anim than no anim.
+	if _resolved_idle == "" and _anim_player_ref:
+		var any_anims: PackedStringArray = _anim_player_ref.get_animation_list()
+		if any_anims.size() > 0:
+			_resolved_idle = String(any_anims[0])
+			print("[EnemyAnim] %s falling back to first available anim: %s" % [name, _resolved_idle])
 	# Probe what got resolved so Bond can see in the log whether the
 	# alias chain matched anything in the merged library.
 	print("[EnemyAnim] %s resolved idle=%s walk=%s attack=%s die=%s hit=%s" % [name, _resolved_idle, _resolved_walk, _resolved_attack, _resolved_die, _resolved_hit])
