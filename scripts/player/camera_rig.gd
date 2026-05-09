@@ -40,6 +40,12 @@ var _last_lock_target: Node3D = null
 # the user's chosen distance once outside.
 const INTERIOR_DISTANCE: float = 5.5
 var _interior_blend: float = 0.0  # 0..1, lerps toward 1 when inside
+# Boss-windup zoom: when the locked boss enters a windup state, pull
+# the spring 30% closer for the windup duration. Reads as the camera
+# 'leaning in' for the danger moment. Auto-releases when windup ends.
+const WINDUP_ZOOM_FACTOR: float = 0.70  # 0.70 = 30% closer than current
+var _windup_zoom_until: float = 0.0
+var _windup_locked_boss: Node = null
 
 # Mouse drag rotate: hold RMB or MMB and move mouse to spin the camera.
 # Standard ARPG control. Sensitivity in radians per pixel.
@@ -101,7 +107,33 @@ func _process(delta: float) -> void:
 	# roof. Smooth blend (3s) so transitions don't feel jerky.
 	_update_interior_blend(delta)
 	var goal_distance: float = lerp(distance, INTERIOR_DISTANCE, _interior_blend)
+	# Hook the locked boss's windup signals lazily — we can't connect
+	# in _ready because the boss may not exist yet.
+	_attach_boss_windup_signals()
+	# During boss windup, tighten the spring further. Multiplicative
+	# on top of interior tightness so dojo + boss windup compound.
+	var now: float = Time.get_ticks_msec() / 1000.0
+	if now < _windup_zoom_until:
+		goal_distance *= WINDUP_ZOOM_FACTOR
 	spring.spring_length = lerp(spring.spring_length, goal_distance, 6.0 * delta)
+
+func _attach_boss_windup_signals() -> void:
+	if _windup_locked_boss == lock_target or lock_target == null:
+		return
+	# Disconnect from previous boss
+	if _windup_locked_boss and is_instance_valid(_windup_locked_boss):
+		var cb := Callable(self, "_on_boss_windup_started")
+		if _windup_locked_boss.has_signal("windup_started") and _windup_locked_boss.windup_started.is_connected(cb):
+			_windup_locked_boss.windup_started.disconnect(cb)
+	# Connect to new boss if it has the windup signal
+	if lock_target and lock_target.has_signal("windup_started"):
+		var cb2 := Callable(self, "_on_boss_windup_started")
+		if not lock_target.windup_started.is_connected(cb2):
+			lock_target.windup_started.connect(cb2)
+		_windup_locked_boss = lock_target
+
+func _on_boss_windup_started(_pattern_id: StringName, windup_seconds: float) -> void:
+	_windup_zoom_until = (Time.get_ticks_msec() / 1000.0) + windup_seconds + 0.05
 
 # Raycast up from the player's head; if we're under a ceiling within
 # 6m, fade _interior_blend toward 1.0 over ~0.6s. Released back to

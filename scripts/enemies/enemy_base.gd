@@ -361,7 +361,15 @@ func _attack() -> void:
 	if target and is_instance_valid(target):
 		var d := global_position.distance_to(target.global_position)
 		if d <= attack_range + 0.5 and target.has_method("take_damage"):
-			target.take_damage(contact_damage, self)
+			# Perfect-dodge gate: if the player is in the LATE i-frame
+			# slice when the strike commits, this triggers their Riposte
+			# buff and we skip damage entirely (they 'parried' the hit).
+			# Otherwise the regular take_damage path runs (which itself
+			# checks is_invulnerable for the broader i-frame window).
+			if target.has_method("check_perfect_dodge") and target.check_perfect_dodge():
+				pass  # Riposte triggered; no damage
+			else:
+				target.take_damage(contact_damage, self)
 	_attack_timer = attack_cooldown
 	state = State.RECOVER
 	get_tree().create_timer(0.3).timeout.connect(func():

@@ -45,6 +45,51 @@ func _seed_glyphs() -> void:
 		"They say Kazat broke his own nose every dawn so he'd remember pain. The mark you carry is the line that finally broke his."
 	)
 
+	_add_glyph(&"glyph_tower_warden",
+		"Sigil of the Bound",
+		"A circle bisected by a vertical line, ending in a teardrop. The mark of those who put down the Tower Warden bound to the Inkstone Sanctum.",
+		&"tower_warden",
+		"The Tower Warden",
+		1,  # circle
+		Color(0.65, 0.40, 0.95),
+		&"inkstone_keepers",
+		0.005,
+		180,
+		&"warden_inkstone_staff",
+		1,
+		"The Warden was a mage once. They wove the binding themselves and forgot why halfway through. The sigil you bear is the line they could not finish."
+	)
+
+	_add_glyph(&"glyph_sahirum_witch_burner",
+		"Witch-Burner Brand",
+		"A torch crossed by an iron pole. The mark of those who put down Sahirum at the Coven Glen.",
+		&"sahirum_witch_burner",
+		"Sahirum the Witch-Burner",
+		6,  # cross
+		Color(1.00, 0.55, 0.20),
+		&"inquisition",
+		0.005,
+		200,
+		&"sahirum_inquisitor_mace",
+		1,
+		"Sahirum burned three Druids before you. The torch on his belt was lit from the funeral pyre of the first. You let it go out."
+	)
+
+	_add_glyph(&"glyph_beleti_siege_master",
+		"Breach-Hammer Mark",
+		"A cracked shield with a hammer through it. The mark of those who put down Beleti at the Sun-Sworn Chapel doors.",
+		&"beleti_siege_master",
+		"Beleti the Siege-Master",
+		7,  # crown — closest to a battered helm-shape in the placeholder set
+		Color(1.00, 0.85, 0.45),
+		&"crown_siege",
+		0.005,
+		200,
+		&"beleti_breach_hammer",
+		1,
+		"Beleti broke seventeen doors before the chapel. The chapel was never going to be the eighteenth. He just hadn't realized yet."
+	)
+
 	_add_glyph(&"glyph_glade_terror",
 		"Antler Brand",
 		"A four-pointed antler over a single eye. The mark of those who put down the Tiamat-spawn that came through the Greenheart Glade.",

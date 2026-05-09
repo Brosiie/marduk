@@ -207,6 +207,11 @@ func _ready() -> void:
 	# QuestLog itself listens for game events (kills, collects) to advance
 	# objectives. No quests will track if the log node is missing.
 	_attach_quest_log()
+	# Achievement tracker: same pattern as QuestLog. Listens for CombatBus
+	# kill_registered + Player.take_damage to evaluate triggers (kill counts,
+	# no-hit boss fights, time-attack, etc). Without this hook the
+	# AchievementCodexPanel only ever shows locked entries.
+	_attach_achievement_tracker()
 	# Class aura: subtle particle ring at the player's feet, color
 	# matching the class buff palette (Ronin gold, Mage blue, etc).
 	# Spawned once class is set; reads as 'this character is powered'.
@@ -841,7 +846,15 @@ func _cast_ability_slot(slot: int) -> void:
 	var swing := Ability.new()
 	swing.id = StringName(k.get("id", "ability"))
 	swing.display_name = String(k.get("name", "Ability"))
-	swing.base_damage = float(k.get("damage", 30.0)) * chain_mult
+	# Riposte buff: if the player just perfect-dodged, the next swing
+	# does +50% damage and is consumed on first hit. Apply BEFORE
+	# chain_mult so the rewards stack — a perfect-dodge into a chain
+	# combo is the highest-DPS expression of skill.
+	var dmg: float = float(k.get("damage", 30.0)) * chain_mult
+	if has_riposte_buff():
+		dmg *= RIPOSTE_DAMAGE_MULT
+		consume_riposte_buff()
+	swing.base_damage = dmg
 	swing.damage_type = int(k.get("element", Ability.DamageType.PHYSICAL))
 	swing.target_mode = int(k.get("target_mode", Ability.TargetMode.FORWARD_CONE))
 	swing.range = float(k.get("range", 3.0))
@@ -2038,6 +2051,121 @@ func _classify_dodge_dir(world_dir: Vector3) -> String:
 func is_invulnerable() -> bool:
 	return Time.get_ticks_msec() / 1000.0 < _dodge_iframes_until
 
+# --- PERFECT DODGE / RIPOSTE ---
+#
+# Perfect-dodge window = the LAST 0.10s of the dodge i-frame window.
+# If an enemy attack hitbox overlaps the player during that narrow
+# slice, we trigger a Riposte buff:
+#   - 1.0s window during which the player's NEXT attack does +50%
+#     damage and crits automatically
+#   - 0.40s slowmo at 0.30x time scale
+#   - Gold ring VFX expands from the player's feet
+#   - Audio chord + camera flash
+#   - "PERFECT DODGE" toast
+#
+# This is the Sekiro/Bloodborne risk-reward: the player is rewarded
+# for dodging AT THE LAST possible frame, not jumping early. Without
+# this mechanic, dodge is a binary 'safe / not safe' choice; with it,
+# dodge becomes a SKILL EXPRESSION.
+const PERFECT_DODGE_WINDOW: float = 0.10
+const RIPOSTE_DURATION: float = 1.0
+const RIPOSTE_DAMAGE_MULT: float = 1.5
+var _riposte_until: float = 0.0
+signal perfect_dodge_triggered
+
+# Called by enemies/bosses when their attack would have hit the player.
+# If the player is in the LATE i-frame slice (perfect-dodge window),
+# this triggers Riposte and returns true (caller should treat the
+# attack as "dodged with style"); else returns false.
+#
+# Attacks that hit the player NORMALLY just call is_invulnerable()
+# and skip damage; perfect_dodge_check is for the more rewarding
+# cinematic path.
+func check_perfect_dodge() -> bool:
+	if not _dodging:
+		return false
+	var now: float = Time.get_ticks_msec() / 1000.0
+	# The perfect window is the LAST 0.10s of the i-frame duration —
+	# i.e. the player dodged AT THE LAST FRAME. Compute the window
+	# start as iframe_end - PERFECT_DODGE_WINDOW.
+	var perfect_window_start: float = _dodge_iframes_until - PERFECT_DODGE_WINDOW
+	if now >= perfect_window_start and now <= _dodge_iframes_until:
+		_trigger_riposte()
+		return true
+	return false
+
+func _trigger_riposte() -> void:
+	_riposte_until = Time.get_ticks_msec() / 1000.0 + RIPOSTE_DURATION
+	perfect_dodge_triggered.emit()
+	# Slowmo punch — 0.30x for 0.40s
+	var juice: Node = get_node_or_null("/root/Juice")
+	if juice:
+		if juice.has_method("slowmo"):
+			juice.slowmo(0.30, 0.40)
+		if juice.has_method("flash"):
+			juice.flash(Color(1.0, 0.92, 0.55), 0.20, 0.25)
+		if juice.has_method("toast"):
+			juice.toast("PERFECT DODGE", Color(1.0, 0.92, 0.55), 1.5)
+		if juice.has_method("hit_stop"):
+			juice.hit_stop(0.10)
+	# Audio chord (use victory cue at higher pitch — short triumphant)
+	var ab: Node = get_node_or_null("/root/AudioBus")
+	if ab and ab.has_method("play_cue"):
+		ab.play_cue(&"crit", global_position, -3.0, 1.4)
+	# Gold ring VFX expanding from player's feet
+	_spawn_riposte_ring()
+
+func _spawn_riposte_ring() -> void:
+	var ring := GPUParticles3D.new()
+	ring.name = "RiposteRing"
+	ring.amount = 60
+	ring.lifetime = 0.7
+	ring.one_shot = true
+	ring.explosiveness = 1.0
+	ring.visibility_aabb = AABB(Vector3(-5, -1, -5), Vector3(10, 3, 10))
+	var pm := ParticleProcessMaterial.new()
+	pm.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_RING
+	pm.emission_ring_axis = Vector3(0, 1, 0)
+	pm.emission_ring_radius = 0.3
+	pm.emission_ring_inner_radius = 0.15
+	pm.emission_ring_height = 0.05
+	pm.direction = Vector3(0, 0.4, 0)
+	pm.spread = 25.0
+	pm.initial_velocity_min = 5.0
+	pm.initial_velocity_max = 8.0
+	pm.gravity = Vector3.ZERO
+	pm.tangential_accel_min = 1.5
+	pm.tangential_accel_max = 3.0
+	pm.scale_min = 0.18
+	pm.scale_max = 0.32
+	pm.color = Color(1.0, 0.92, 0.55, 1.0)
+	ring.process_material = pm
+	var quad := QuadMesh.new()
+	quad.size = Vector2(0.20, 0.20)
+	var smat := StandardMaterial3D.new()
+	smat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	smat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	smat.albedo_color = Color(1.0, 0.92, 0.55, 0.95)
+	smat.emission_enabled = true
+	smat.emission = Color(1.0, 0.95, 0.65)
+	smat.emission_energy_multiplier = 3.5
+	smat.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
+	quad.material = smat
+	ring.draw_pass_1 = quad
+	get_tree().current_scene.add_child(ring)
+	ring.global_position = global_position + Vector3(0, 0.1, 0)
+	get_tree().create_timer(1.5).timeout.connect(func():
+		if is_instance_valid(ring): ring.queue_free())
+
+func has_riposte_buff() -> bool:
+	return Time.get_ticks_msec() / 1000.0 < _riposte_until
+
+# Consume the Riposte buff. Called by attack code AFTER the damage
+# calc reads has_riposte_buff() and applies the multiplier — this
+# clears the buff so it only applies to the FIRST hit.
+func consume_riposte_buff() -> void:
+	_riposte_until = 0.0
+
 # --- Lock-on targeting ---
 # Tab toggles a target lock. While locked: camera auto-yaws to keep the
 # target framed; player faces the target every frame; dodge becomes
@@ -3061,6 +3189,39 @@ func _attach_quest_log() -> void:
 	qlog.name = "QuestLog"
 	qlog.owner_player = self
 	add_child(qlog)
+
+func _attach_achievement_tracker() -> void:
+	if get_node_or_null("AchievementTracker"):
+		return
+	var tr_script: GDScript = load("res://scripts/achievements/achievement_tracker.gd")
+	if not tr_script:
+		return
+	var tracker: Node = tr_script.new()
+	tracker.name = "AchievementTracker"
+	tracker.owner_player = self
+	add_child(tracker)
+	# Bridge CombatBus.kill_registered -> tracker.on_enemy_killed.
+	# CombatBus emits the killed Node; the tracker decides which trigger applies.
+	var cb: Node = get_node_or_null("/root/CombatBus")
+	if cb and cb.has_signal("kill_registered"):
+		if not cb.kill_registered.is_connected(_on_combatbus_kill):
+			cb.kill_registered.connect(_on_combatbus_kill)
+
+# Forwards CombatBus.kill_registered into the local AchievementTracker. We
+# infer tags from the killed node — bosses always count, mobs use their
+# `mob_id` as a tag, and demon/undead/human group memberships add tags.
+func _on_combatbus_kill(target: Node, _killer: Node) -> void:
+	var tracker: Node = get_node_or_null("AchievementTracker")
+	if not tracker or not tracker.has_method("on_enemy_killed") or not target or not is_instance_valid(target):
+		return
+	var tags: Array = []
+	if target.is_in_group("demon"):    tags.append("demon")
+	if target.is_in_group("undead"):   tags.append("undead")
+	if target.is_in_group("boss"):     tags.append("boss")
+	if target.is_in_group("tiamat_spawn"): tags.append("tiamat_spawn")
+	if "mob_id" in target and target.mob_id != &"":
+		tags.append(String(target.mob_id))
+	tracker.on_enemy_killed(target, tags)
 
 func _consume_pending_appearance() -> void:
 	var ar: Node = get_node_or_null("/root/AppearanceRegistry")

@@ -63,6 +63,11 @@ const _LEAP_ARC_HEIGHT: float = 5.5
 
 signal phase_changed(phase_index: int, phase_name: String)
 signal boss_defeated(boss_id: StringName, killer: Node)
+# Cinematic windup signal — emitted when a pattern enters its
+# WINDUP state. The HUD / camera can use this to tighten framing
+# during the danger window. Boss arena listens too for camera shake.
+signal windup_started(pattern_id: StringName, windup_seconds: float)
+signal windup_ended(pattern_id: StringName)
 
 func _ready() -> void:
 	super._ready()
@@ -228,6 +233,89 @@ func _spawn_landing_shockwave(p: BossAttackPattern) -> void:
 	ring.global_position = global_position + Vector3(0, 0.1, 0)
 	get_tree().create_timer(1.5).timeout.connect(func():
 		if is_instance_valid(ring): ring.queue_free())
+	# PERSISTENT IMPACT CRATER — leaves a battle scar at the landing
+	# spot. The player can SEE that the boss was here, then here, then
+	# here over the course of the fight. Stays for the rest of the
+	# encounter (cleaned up when the boss queue_frees, since it's
+	# parented under current_scene).
+	var crater := MeshInstance3D.new()
+	crater.name = "LeapCrater"
+	var qm := QuadMesh.new()
+	qm.size = Vector2(p.radius * 2.4, p.radius * 2.4)
+	# Lay flat on the ground (rotate -90 around X so the QuadMesh
+	# becomes horizontal)
+	crater.mesh = qm
+	crater.rotation_degrees = Vector3(-90, 0, 0)
+	# Crack-pattern shader: dark center with branching lighter veins
+	# computed via voronoi-like cellular noise. Static so we don't
+	# pay GPU cost beyond the one-time draw.
+	var cs := Shader.new()
+	cs.code = """
+shader_type spatial;
+render_mode unshaded, blend_mix, depth_draw_opaque, cull_disabled;
+uniform vec4 char_color : source_color = vec4(0.18, 0.06, 0.04, 0.85);
+uniform vec4 ember_color : source_color = vec4(1.0, 0.55, 0.20, 1.0);
+float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+void fragment() {
+	vec2 uv = UV - vec2(0.5);
+	float r = length(uv) * 2.0;
+	if (r > 0.95) { discard; }
+	// Cracks: thin radial lines where hash(angle) crosses a threshold
+	float ang = atan(uv.y, uv.x);
+	float crack_seed = hash(vec2(floor(ang * 8.0), 0.0));
+	float angular_band = smoothstep(0.04, 0.01, abs(fract(ang * 2.0 / 6.283 + crack_seed) - 0.5));
+	// Burn intensity falls off with radius
+	float burn = mix(1.0, 0.0, smoothstep(0.0, 0.85, r));
+	vec3 col = mix(char_color.rgb, ember_color.rgb, angular_band * burn);
+	float alpha = char_color.a * (1.0 - smoothstep(0.6, 0.95, r));
+	ALBEDO = col;
+	EMISSION = ember_color.rgb * angular_band * burn * 1.5;
+	ALPHA = alpha;
+}
+"""
+	var cm := ShaderMaterial.new()
+	cm.shader = cs
+	crater.material_override = cm
+	crater.position = global_position + Vector3(0, 0.02, 0)  # just above floor
+	get_tree().current_scene.add_child(crater)
+	# Glowing ember pile in the crater center
+	var embers := GPUParticles3D.new()
+	embers.name = "CraterEmbers"
+	embers.amount = 14
+	embers.lifetime = 4.0
+	embers.preprocess = 1.0
+	embers.visibility_aabb = AABB(Vector3(-2, -1, -2), Vector3(4, 4, 4))
+	var em := ParticleProcessMaterial.new()
+	em.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_RING
+	em.emission_ring_axis = Vector3(0, 1, 0)
+	em.emission_ring_radius = 0.5
+	em.emission_ring_inner_radius = 0.1
+	em.emission_ring_height = 0.05
+	em.direction = Vector3(0, 1, 0)
+	em.spread = 25.0
+	em.initial_velocity_min = 0.5
+	em.initial_velocity_max = 1.2
+	em.gravity = Vector3(0, 0.3, 0)
+	em.scale_min = 0.05
+	em.scale_max = 0.10
+	em.color = Color(1.0, 0.50, 0.18, 0.85)
+	embers.process_material = em
+	var equad := QuadMesh.new()
+	equad.size = Vector2(0.10, 0.10)
+	var emat := StandardMaterial3D.new()
+	emat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	emat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	emat.albedo_color = Color(1.0, 0.55, 0.20, 0.9)
+	emat.emission_enabled = true
+	emat.emission = Color(1.0, 0.65, 0.30)
+	emat.emission_energy_multiplier = 2.0
+	emat.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
+	equad.material = emat
+	embers.draw_pass_1 = equad
+	get_tree().current_scene.add_child(embers)
+	embers.global_position = global_position + Vector3(0, 0.1, 0)
+	# Crater + embers persist for the rest of the fight (cleaned up
+	# automatically when the scene unloads on player exit).
 
 func _tick_attack_pattern_ai(_delta: float) -> void:
 	# Drive the boss attack pattern state machine: windup -> execute -> recovery -> idle.
@@ -249,9 +337,11 @@ func _tick_attack_pattern_ai(_delta: float) -> void:
 		if now >= _pattern_state_until:
 			match _pattern_state:
 				&"windup":
+					var ended_id: StringName = _current_pattern.id
 					_execute_pattern(_current_pattern)
 					_pattern_state = &"execute"
 					_pattern_state_until = now + _current_pattern.execute_seconds
+					windup_ended.emit(ended_id)
 				&"execute":
 					_pattern_state = &"recovery"
 					_pattern_state_until = now + _current_pattern.recovery_seconds
@@ -349,6 +439,10 @@ func _begin_pattern(p: BossAttackPattern, now: float) -> void:
 	# Spawn the danger-zone telegraph decal so the player can read the
 	# attack BEFORE it lands. Removed when execute begins.
 	_spawn_telegraph(p)
+	# Announce windup so HUD + camera can react. Camera rig tightens
+	# the spring length during this window for the cinematic threat
+	# read.
+	windup_started.emit(p.id, p.windup_seconds)
 
 func _execute_pattern(p: BossAttackPattern) -> void:
 	# Telegraph served its purpose: the strike has begun. Hitbox now
@@ -583,6 +677,112 @@ func _play_phase_transition_cinematic(idx: int, p: Phase) -> void:
 
 # One-shot ground burst when the boss enters a new phase. Visible
 # 'transformation' read separate from the slowmo flash.
+func _spawn_loot_reveal_ring(killer: Node) -> void:
+	# Estimate how many orbs based on the actual rolls + known
+	# guaranteed drops. We sample the loot_table once (separately
+	# from the actual award) to know how many visual orbs to spawn,
+	# then 1 extra for the legendary chance.
+	var estimated_count: int = 0
+	if loot_table:
+		var prestige_node: Node = get_node_or_null("/root/Prestige")
+		var cycle: int = prestige_node.current_prestige_level() if prestige_node else 0
+		var preview: Array = loot_table.roll(cycle)
+		estimated_count = preview.size()
+	# Always show at least 4 orbs so the moment reads as 'a meaningful
+	# drop' even when the loot table is sparse.
+	estimated_count = max(4, estimated_count)
+	# Cap at 12 orbs so the screen doesn't get visually overrun.
+	estimated_count = min(12, estimated_count)
+	# Rarity color cycle for the orbs (cosmetic only — actual rarity
+	# resolution still happens via receive_loot below). Cycles common
+	# -> rare -> epic -> legendary so the reveal builds visually.
+	var rarity_colors := [
+		Color(0.85, 0.85, 0.85, 1.0),  # common (silver)
+		Color(0.40, 0.85, 0.45, 1.0),  # uncommon (green)
+		Color(0.30, 0.55, 1.00, 1.0),  # rare (blue)
+		Color(0.78, 0.30, 1.00, 1.0),  # epic (purple)
+		Color(1.00, 0.55, 0.18, 1.0),  # legendary (orange)
+	]
+	for i in range(estimated_count):
+		var angle: float = float(i) * TAU / float(estimated_count)
+		var ring_radius: float = 1.4
+		var origin: Vector3 = global_position + Vector3(0, 0.5, 0)
+		var orb_pos: Vector3 = origin + Vector3(cos(angle) * ring_radius, 0, sin(angle) * ring_radius)
+		# Pick a rarity color — bias toward higher tiers as i grows so
+		# the LAST orb in the reveal is always epic/legendary glow
+		# (final-flourish read).
+		var color_idx: int = min(int(float(i) / float(estimated_count) * 5.0), rarity_colors.size() - 1)
+		var orb_color: Color = rarity_colors[color_idx]
+		_spawn_loot_orb(orb_pos, orb_color, float(i) * 0.08)
+
+func _spawn_loot_orb(start_pos: Vector3, color: Color, delay: float) -> void:
+	# Sphere mesh + emission + particle trail. Tween upward + outward
+	# over 2.0s, then fade out over 1.0s. Total lifetime 3.5s.
+	var orb := MeshInstance3D.new()
+	orb.name = "LootOrb"
+	var sm := SphereMesh.new()
+	sm.radius = 0.16
+	sm.height = 0.32
+	orb.mesh = sm
+	var smat := StandardMaterial3D.new()
+	smat.albedo_color = color
+	smat.emission_enabled = true
+	smat.emission = color
+	smat.emission_energy_multiplier = 3.0
+	smat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	orb.material_override = smat
+	orb.position = start_pos
+	orb.modulate = Color(1, 1, 1, 0)  # fade in via tween
+	get_tree().current_scene.add_child(orb)
+	# Particle trail attached to the orb so it streams as the orb moves
+	var trail := GPUParticles3D.new()
+	trail.amount = 20
+	trail.lifetime = 0.8
+	trail.preprocess = 0.0
+	trail.visibility_aabb = AABB(Vector3(-2, -2, -2), Vector3(4, 4, 4))
+	var pm := ParticleProcessMaterial.new()
+	pm.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_SPHERE
+	pm.emission_sphere_radius = 0.08
+	pm.direction = Vector3(0, -0.5, 0)
+	pm.spread = 30.0
+	pm.initial_velocity_min = 0.3
+	pm.initial_velocity_max = 0.8
+	pm.gravity = Vector3(0, 0.3, 0)
+	pm.scale_min = 0.06
+	pm.scale_max = 0.12
+	pm.color = color
+	trail.process_material = pm
+	var tquad := QuadMesh.new()
+	tquad.size = Vector2(0.10, 0.10)
+	var tmat := StandardMaterial3D.new()
+	tmat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	tmat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	tmat.albedo_color = color
+	tmat.emission_enabled = true
+	tmat.emission = color
+	tmat.emission_energy_multiplier = 2.0
+	tmat.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
+	tquad.material = tmat
+	trail.draw_pass_1 = tquad
+	orb.add_child(trail)
+	# OmniLight inside the orb so it casts color on the floor
+	var light := OmniLight3D.new()
+	light.light_color = color
+	light.light_energy = 1.4
+	light.omni_range = 3.0
+	orb.add_child(light)
+	# Tween: delay → fade-in → drift up + outward → fade out → free
+	var dir_xz: Vector3 = (start_pos - global_position).normalized()
+	dir_xz.y = 0
+	var end_pos: Vector3 = start_pos + Vector3(dir_xz.x * 0.6, 1.8, dir_xz.z * 0.6)
+	var tw := orb.create_tween()
+	tw.tween_interval(delay)
+	tw.tween_property(orb, "modulate:a", 1.0, 0.2)
+	tw.parallel().tween_property(orb, "position", end_pos, 2.0).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	tw.tween_property(orb, "modulate:a", 0.0, 1.0)
+	tw.tween_callback(func():
+		if is_instance_valid(orb): orb.queue_free())
+
 func _spawn_phase_burst(color: Color) -> void:
 	var burst := GPUParticles3D.new()
 	burst.name = "PhaseBurst"
@@ -743,6 +943,12 @@ func _play_boss_death_cinematic() -> void:
 func _award_guaranteed_drops(killer: Node) -> void:
 	if not killer or not killer.has_method("receive_loot"):
 		return
+	# CEREMONIAL LOOT REVEAL — items still go into the player's
+	# inventory via receive_loot below, but we ALSO spawn ghost orbs
+	# in a ring around the corpse for a visible 'spoils of victory'
+	# moment. Each orb drifts up + outward, glows in rarity color,
+	# and dissipates after 4s. Pure visual; no inventory side effects.
+	_spawn_loot_reveal_ring(killer)
 
 	# Guaranteed VERY_RARE
 	if loot_table:
