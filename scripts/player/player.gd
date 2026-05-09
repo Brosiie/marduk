@@ -2021,6 +2021,94 @@ func get_combo_count() -> int:
 func is_guarding() -> bool:
 	return Time.get_ticks_msec() / 1000.0 < _guard_until
 
+# --- BLOCK + PARRY (universal defensive verb) ---
+#
+# Sekiro pattern: single input (block), the first 0.15s of holding it
+# is the PARRY window. Tap-time correctly = deflect + boss posture
+# damage + brief riposte; hold through the strike = standard block
+# (65% damage soak, drains stamina).
+#
+# Why one input instead of two: avoids decision-paralysis between
+# "block now" vs "parry now". The input is the SAME; only timing
+# differentiates outcome. This is the Sekiro design choice that made
+# its combat feel approachable AND skill-rewarding.
+const BLOCK_DAMAGE_SOAK: float = 0.65   # 35% damage taken while blocking
+const BLOCK_STAMINA_DRAIN_PER_SEC: float = 22.0  # cost of holding block
+const PARRY_WINDOW: float = 0.15
+const PARRY_POSTURE_DAMAGE: float = 60.0  # added to boss posture on parry
+var _blocking: bool = false
+var _block_started_at: float = 0.0
+
+func is_blocking() -> bool:
+	return _blocking
+
+# Called by take_damage to determine what happened to an incoming hit.
+# Returns:
+#   "parry" — the player deflected at the perfect moment (ZERO damage,
+#             brief riposte buff applied, attacker's posture damaged)
+#   "block" — soaked 65% (caller multiplies amount by 0.35)
+#   ""      — not blocking; full damage applies
+func resolve_block_state(attacker: Node) -> String:
+	if not _blocking:
+		return ""
+	var now: float = Time.get_ticks_msec() / 1000.0
+	if now - _block_started_at <= PARRY_WINDOW:
+		_fire_parry(attacker)
+		return "parry"
+	return "block"
+
+func _fire_parry(attacker: Node) -> void:
+	# Cinematic feedback: gold flash + audio chord + brief slowmo
+	var juice: Node = get_node_or_null("/root/Juice")
+	if juice:
+		if juice.has_method("flash"):
+			juice.flash(Color(1.0, 0.92, 0.55), 0.18, 0.30)
+		if juice.has_method("shake"):
+			juice.shake(0.15, 0.12)
+		if juice.has_method("hit_stop"):
+			juice.hit_stop(0.10)
+		if juice.has_method("toast"):
+			juice.toast("PARRY!", Color(1.0, 0.92, 0.45), 1.4)
+	var ab: Node = get_node_or_null("/root/AudioBus")
+	if ab and ab.has_method("play_cue"):
+		ab.play_cue(&"block", global_position, -3.0, 1.30)
+		ab.play_cue(&"crit", global_position, -7.0, 1.50)
+	# Riposte buff: parry sets up the same +50% damage window as
+	# perfect-dodge. Stacking the two systems means players can chain
+	# parry -> heavy hit for max damage on parryable patterns.
+	_riposte_until = Time.get_ticks_msec() / 1000.0 + RIPOSTE_DURATION
+	emit_signal("perfect_dodge_triggered")
+	# Damage attacker's posture if they're a boss-class enemy
+	if attacker and attacker.has_method("_apply_posture_damage"):
+		attacker._apply_posture_damage(PARRY_POSTURE_DAMAGE)
+	# Spawn a small deflect-ring at the player's chest
+	_spawn_riposte_ring()
+
+func _tick_block(delta: float) -> void:
+	# Read input every frame. Block requires the F key held; we also
+	# require some stamina (or the resource_value pool) so blocking
+	# isn't free.
+	if locked or _dodging or stats == null or not InputMap.has_action("block"):
+		if _blocking:
+			_blocking = false
+		return
+	var holding: bool = Input.is_action_pressed("block")
+	if holding and not _blocking:
+		# Block-start
+		_blocking = true
+		_block_started_at = Time.get_ticks_msec() / 1000.0
+	elif not holding and _blocking:
+		_blocking = false
+	# Drain stamina while blocking. If stamina runs out, force-release
+	# the block — player has to catch their breath.
+	if _blocking:
+		# Use stamina_value (always present) rather than resource_value
+		# (which may be mana for Mage, blood for Demon, etc.) so block
+		# is class-agnostic.
+		stamina_value = max(0.0, stamina_value - BLOCK_STAMINA_DRAIN_PER_SEC * delta)
+		if stamina_value <= 0.0:
+			_blocking = false
+
 func _trigger_guard() -> void:
 	var now: float = Time.get_ticks_msec() / 1000.0
 	_guard_until = now + GUARD_DURATION
@@ -2778,6 +2866,7 @@ func _physics_process(delta: float) -> void:
 	_tick_form(delta)
 	_tick_heaven_aura(delta)
 	_tick_posture_decay(delta)
+	_tick_block(delta)
 
 func _tick_posture_decay(delta: float) -> void:
 	if player_posture <= 0.0:
@@ -2992,6 +3081,21 @@ func take_damage(amount: float, source: Node = null) -> void:
 	# Remember who hit us last so the death replay can pan to them
 	if source and is_instance_valid(source):
 		_last_damage_source = source
+	# BLOCK / PARRY resolution. Tap-time within 0.15s of block-start
+	# = parry (zero damage, riposte buff, +60 attacker posture).
+	# Hold-through = block (65% soaked, stamina drained).
+	var block_state: String = resolve_block_state(source)
+	if block_state == "parry":
+		return  # Parry zeroed the damage entirely
+	if block_state == "block":
+		amount *= (1.0 - BLOCK_DAMAGE_SOAK)
+		# Block hit feedback (smaller than parry)
+		var jc: Node = get_node_or_null("/root/Juice")
+		if jc and jc.has_method("shake"):
+			jc.shake(0.08, 0.10)
+		var ab2: Node = get_node_or_null("/root/AudioBus")
+		if ab2 and ab2.has_method("play_cue"):
+			ab2.play_cue(&"block", global_position, -8.0, 0.95)
 	# PLAYER POSTURE — each hit adds clamped posture. Full = brief
 	# stagger (locks input for 1s). Symmetric to the boss posture
 	# system so combat is bidirectional risk.

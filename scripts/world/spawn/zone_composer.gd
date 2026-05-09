@@ -431,6 +431,71 @@ func _spawn(asset: String, pos: Vector3, rot_y_deg: float = 0.0, scale: float = 
 		_ensure_collision(inst)
 	return inst
 
+# Per-zone ambient audio loop. Plays a SIGNATURE sound at randomized
+# intervals (bell every 18-30s, bird chirp every 4-9s, water drip
+# every 6-12s). Each zone gets its own palette so the player learns
+# 'this place feels like THIS' from sound alone. Procedural via
+# AudioBus.play_cue so no .ogg pipeline needed.
+#
+# Layered on top of MusicDirector pad — the music is the harmonic
+# bed, the ambient cues are the texture markers.
+func _install_zone_ambient_audio(zone_id: StringName) -> void:
+	var palette: Array = []  # [{cue, min_interval_s, max_interval_s, pitch_min, pitch_max, volume_db}, ...]
+	match zone_id:
+		&"sword_vow_ruins":
+			palette = [
+				{"cue": &"button", "min_s": 18.0, "max_s": 30.0, "pitch_min": 0.20, "pitch_max": 0.28, "volume_db": -10.0},  # distant temple bell (button cue at low pitch)
+				{"cue": &"pickup", "min_s": 4.0, "max_s": 9.0, "pitch_min": 1.30, "pitch_max": 1.85, "volume_db": -22.0},     # bird chirps (pickup chirp at high pitch)
+				{"cue": &"step",   "min_s": 12.0, "max_s": 22.0, "pitch_min": 0.55, "pitch_max": 0.75, "volume_db": -28.0},   # wind through bamboo (step burst low pitch)
+			]
+		&"ash_step_camp":
+			palette = [
+				{"cue": &"thunder", "min_s": 25.0, "max_s": 45.0, "pitch_min": 0.65, "pitch_max": 0.90, "volume_db": -16.0}, # distant thunder
+				{"cue": &"pickup", "min_s": 6.0, "max_s": 14.0, "pitch_min": 0.45, "pitch_max": 0.65, "volume_db": -25.0},   # crow caws (chirp lowered)
+				{"cue": &"step", "min_s": 18.0, "max_s": 30.0, "pitch_min": 0.40, "pitch_max": 0.55, "volume_db": -28.0},     # ash wind
+			]
+		&"whisper_shrine":
+			palette = [
+				{"cue": &"shadow_cast", "min_s": 16.0, "max_s": 28.0, "pitch_min": 0.55, "pitch_max": 0.75, "volume_db": -14.0}, # shrine resonance
+				{"cue": &"step", "min_s": 8.0, "max_s": 16.0, "pitch_min": 1.55, "pitch_max": 1.95, "volume_db": -28.0},          # water drips (step at high pitch = bright tick)
+			]
+		&"coven_glen":
+			palette = [
+				{"cue": &"pickup", "min_s": 3.0, "max_s": 7.0, "pitch_min": 1.10, "pitch_max": 1.55, "volume_db": -22.0},        # birds + frogs
+				{"cue": &"frost_cast", "min_s": 22.0, "max_s": 36.0, "pitch_min": 0.75, "pitch_max": 1.10, "volume_db": -18.0},  # mystical chime
+			]
+		&"sunsworn_chapel":
+			palette = [
+				{"cue": &"button", "min_s": 24.0, "max_s": 40.0, "pitch_min": 0.18, "pitch_max": 0.25, "volume_db": -10.0},      # cathedral bell
+				{"cue": &"holy_cast", "min_s": 30.0, "max_s": 50.0, "pitch_min": 0.50, "pitch_max": 0.65, "volume_db": -20.0},   # choir hum (holy arpeggio low)
+			]
+		_:
+			return  # unknown zone — silent (music director still plays)
+	# Build a per-cue Timer that fires at random intervals. Timers
+	# parented to self so they auto-free with the zone scene.
+	for entry in palette:
+		var t := Timer.new()
+		t.one_shot = false
+		t.wait_time = randf_range(entry["min_s"], entry["max_s"])
+		t.timeout.connect(func():
+			# Re-randomize the next interval inside the timeout so the
+			# pattern feels organic, not metronomic.
+			t.wait_time = randf_range(entry["min_s"], entry["max_s"])
+			t.start()
+			var ab: Node = get_node_or_null("/root/AudioBus")
+			if ab and ab.has_method("play_cue"):
+				var pitch: float = randf_range(entry["pitch_min"], entry["pitch_max"])
+				# Position the cue near the player so 3D attenuation
+				# feels right; fall back to zone center if no player.
+				var pos: Vector3 = Vector3.ZERO
+				var p: Node = get_tree().get_first_node_in_group("player") if get_tree() else null
+				if p and p is Node3D:
+					pos = (p as Node3D).global_position
+				ab.play_cue(entry["cue"], pos, entry["volume_db"], pitch)
+		)
+		add_child(t)
+		t.start()
+
 func _torch(pos: Vector3, lit: bool = true) -> void:
 	var asset: String = "torch_lit.gltf.glb" if lit else "torch.gltf.glb"
 	var t: Node3D = _spawn(asset, pos)
@@ -626,6 +691,10 @@ func _build_sword_vow_ruins() -> void:
 		# Pale pink motes hanging at the dojo (sacred grove vibe, NOT the
 		# orange/cursed-throne reading from the original castle layout)
 		wl.spawn_intro_motes(self, Vector3(0, 1.5, -size / 2 + 5), 4.5, Color(1.0, 0.85, 0.92, 1.0))
+	# Ambient zone audio: distant temple bell every 18-30s + bird-song
+	# layer that drifts across the grove. Built procedurally on top of
+	# AudioBus so we don't need .ogg files.
+	_install_zone_ambient_audio(&"sword_vow_ruins")
 
 # ----------------------------------------------------------------
 # ASH-STEP CAMP — Berserker intro. Raider camp on the burned steppe.
@@ -706,6 +775,7 @@ func _build_ash_step_camp() -> void:
 			wl.spawn_intro_motes(self, Vector3(0, 1.5, -size / 2 + 5), 4.0, Color(0.95, 0.55, 0.20, 1.0))
 		# Chimney smoke from the central fire (vertical column)
 		wl.spawn_chimney_smoke(self, Vector3(0, 1.5, 0))
+	_install_zone_ambient_audio(&"ash_step_camp")
 
 # ----------------------------------------------------------------
 # WHISPER SHRINE — underground corridor, columns, dim
@@ -773,6 +843,7 @@ func _build_whisper_shrine() -> void:
 	if wl:
 		if wl.has_method("spawn_intro_motes"):
 			wl.spawn_intro_motes(self, Vector3(0, 1.5, dais_z), 4.0, Color(0.65, 0.30, 0.85, 1.0))
+	_install_zone_ambient_audio(&"whisper_shrine")
 
 # ----------------------------------------------------------------
 # GREENHEART GLADE — Ranger intro forest clearing, dense canopy
@@ -915,6 +986,7 @@ func _build_coven_glen() -> void:
 		if wl.has_method("spawn_intro_motes"):
 			wl.spawn_intro_motes(self, Vector3(0, 2.0, 0), 6.0, Color(0.65, 0.85, 0.45, 1.0))
 		wl.spawn_bird_flock(self, 4, Vector3(0, 14, 0), size * 0.5)
+	_install_zone_ambient_audio(&"coven_glen")
 
 # ----------------------------------------------------------------
 # SUNSWORN CHAPEL — interior chapel courtyard

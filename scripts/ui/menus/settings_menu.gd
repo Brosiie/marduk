@@ -181,8 +181,84 @@ func _build() -> void:
 	if not settings:
 		content.add_child(_make_label("GameSettings autoload not available."))
 		return
+
+	# Display tab: render the graphics-quality preset row above the
+	# individual sliders so players can one-click set a coherent baseline.
+	if _current_tab == "Display":
+		content.add_child(_make_quality_preset_row())
+		var sep := HSeparator.new()
+		sep.custom_minimum_size = Vector2(0, 8)
+		content.add_child(sep)
+
 	for field_def in FIELDS.get(_current_tab, []):
 		content.add_child(_make_field_row(field_def))
+
+# Graphics-quality preset: one click sets msaa / resolution_scale / fog
+# / shadow values to a coherent baseline, then re-renders the tab so
+# the sliders show the new values.
+const QUALITY_PRESETS := {
+	"Low": {
+		"msaa": 0,
+		"resolution_scale": 0.75,
+		"vsync": false,
+		"fps_cap": 60,
+		"brightness": 1.0,
+	},
+	"Medium": {
+		"msaa": 2,
+		"resolution_scale": 1.0,
+		"vsync": true,
+		"fps_cap": 60,
+		"brightness": 1.0,
+	},
+	"High": {
+		"msaa": 4,
+		"resolution_scale": 1.0,
+		"vsync": true,
+		"fps_cap": 90,
+		"brightness": 1.0,
+	},
+	"Ultra": {
+		"msaa": 8,
+		"resolution_scale": 1.25,
+		"vsync": true,
+		"fps_cap": 144,
+		"brightness": 1.0,
+	},
+}
+
+func _make_quality_preset_row() -> Control:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 12)
+
+	var lab := Label.new()
+	lab.text = "Quality Preset"
+	lab.add_theme_font_size_override("font_size", 13)
+	lab.add_theme_color_override("font_color", Color(0.85, 0.80, 0.65))
+	lab.custom_minimum_size = Vector2(280, 32)
+	row.add_child(lab)
+
+	for preset_name in ["Low", "Medium", "High", "Ultra"]:
+		var btn := Button.new()
+		btn.text = preset_name
+		btn.custom_minimum_size = Vector2(80, 32)
+		btn.pressed.connect(_apply_quality_preset.bind(preset_name))
+		row.add_child(btn)
+
+	return row
+
+func _apply_quality_preset(preset_name: String) -> void:
+	var preset: Dictionary = QUALITY_PRESETS.get(preset_name, {})
+	if preset.is_empty() or not settings:
+		return
+	for key in preset.keys():
+		settings.set(key, preset[key])
+	if settings.has_method("apply_all"):
+		settings.apply_all()
+	if settings.has_method("save_settings"):
+		settings.save_settings()
+	_show_toast("Quality: %s" % preset_name)
+	_build()  # re-render so slider values reflect the new state
 
 # ───────── Keybinds tab ─────────
 

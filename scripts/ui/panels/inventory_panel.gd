@@ -148,4 +148,149 @@ func _paint_slot(slot: Control, item: Item, qty: int) -> void:
 	else:
 		icon.texture = item.icon
 	label.text = ("x%d" % qty) if qty > 1 else ""
-	slot.tooltip_text = "%s\n%s" % [item.display_name, item.description]
+	slot.tooltip_text = _compose_tooltip(item)
+
+# Builds a plain-text tooltip with rarity, slot/weapon type, stats, bonuses,
+# and an equip-compare diff against the currently-equipped item in the same
+# slot. Plain text (no BBCode) — Godot's slot tooltips don't render markup,
+# so we use ASCII +/-/= prefixes for the diff to read at a glance.
+func _compose_tooltip(item: Item) -> String:
+	var lines: Array[String] = []
+	# Header: name + rarity tag
+	var rarity_tag: String = item.rarity_name() if item.has_method("rarity_name") else ""
+	lines.append("%s%s" % [item.display_name, "  (" + rarity_tag + ")" if rarity_tag != "" else ""])
+
+	# Sub-line: slot + weapon/armor type + item level + soulbound flag
+	var subs: Array[String] = []
+	if item.weapon_type != Item.WeaponType.NONE and item.has_method("weapon_type_name"):
+		subs.append(item.weapon_type_name())
+	if item.armor_type != Item.ArmorType.NONE:
+		match item.armor_type:
+			Item.ArmorType.CLOTH:   subs.append("Cloth")
+			Item.ArmorType.LEATHER: subs.append("Leather")
+			Item.ArmorType.MAIL:    subs.append("Mail")
+			Item.ArmorType.PLATE:   subs.append("Plate")
+	if item.item_level > 0:
+		subs.append("Item lvl %d" % item.item_level)
+	if item.is_soulbound:
+		subs.append("Soulbound")
+	if item.is_two_handed:
+		subs.append("Two-Handed")
+	if not subs.is_empty():
+		lines.append("  ·  ".join(subs))
+
+	# Weapon stats line
+	if item.is_weapon():
+		var w_bits: Array[String] = []
+		w_bits.append("%d dmg" % int(item.base_damage))
+		if item.attack_speed != 1.0:
+			w_bits.append("%.2fx spd" % item.attack_speed)
+		if item.weapon_range > 0:
+			w_bits.append("%.1fm reach" % item.weapon_range)
+		if item.element != Item.Element.PHYSICAL and item.element_damage_pct > 0:
+			w_bits.append("+%d%% %s" % [int(item.element_damage_pct * 100), item.element_name() if item.has_method("element_name") else ""])
+		lines.append("  ·  ".join(w_bits))
+
+	# Bonuses (only non-zero shown)
+	var bonus_lines: Array[String] = _format_bonuses(item)
+	for b in bonus_lines:
+		lines.append(b)
+
+	# Class restriction
+	if item.class_restriction.size() > 0:
+		var class_names: Array[String] = []
+		for c in item.class_restriction:
+			class_names.append(String(c).capitalize())
+		lines.append("Class: %s only" % ", ".join(class_names))
+
+	# Implicit + description
+	if item.implicit_text != "":
+		lines.append("")
+		lines.append(item.implicit_text)
+	if item.description != "":
+		lines.append("")
+		lines.append(item.description)
+
+	# Equip-compare against currently-equipped item in the same slot
+	var compare: String = _compose_compare(item)
+	if compare != "":
+		lines.append("")
+		lines.append(compare)
+
+	return "\n".join(lines)
+
+# Returns a list of "+N stat" strings for non-zero bonuses on the item.
+func _format_bonuses(item: Item) -> Array[String]:
+	var out: Array[String] = []
+	var checks := [
+		["hp_bonus",            "HP",         "%+d"],
+		["mana_bonus",          "Mana",       "%+d"],
+		["strength_bonus",      "Str",        "%+d"],
+		["dexterity_bonus",     "Dex",        "%+d"],
+		["intellect_bonus",     "Int",        "%+d"],
+		["vitality_bonus",      "Vit",        "%+d"],
+		["armor_bonus",         "Armor",      "%+d"],
+		["magic_resist_bonus",  "MR",         "%+d"],
+		["crit_chance_bonus",   "Crit",       "%+.0f%%"],
+		["crit_multiplier_bonus","Crit Mult", "%+.0f%%"],
+		["damage_bonus_pct",    "Dmg",        "%+.0f%%"],
+		["attack_speed_bonus",  "Atk Spd",    "%+.0f%%"],
+		["move_speed_bonus",    "Move Spd",   "%+.0f%%"],
+	]
+	var line_bits: Array[String] = []
+	for check in checks:
+		var key: String = check[0]
+		var label: String = check[1]
+		var fmt: String = check[2]
+		var v: float = float(item.get(key)) if item.get(key) != null else 0.0
+		if v == 0.0:
+			continue
+		# Percent-style fields are stored as 0..1 fractions
+		if fmt.ends_with("%%"):
+			line_bits.append("%s %s" % [fmt % (v * 100.0), label])
+		else:
+			line_bits.append("%s %s" % [fmt % int(v), label])
+	if not line_bits.is_empty():
+		# Wrap two bonuses per line for readability
+		var i: int = 0
+		while i < line_bits.size():
+			out.append("  ".join(line_bits.slice(i, min(i + 3, line_bits.size()))))
+			i += 3
+	return out
+
+# Build the diff section against the currently-equipped item in the same
+# slot. Returns "" if nothing equipped or item has no slot.
+func _compose_compare(item: Item) -> String:
+	if not _player or not _player.inventory or not _player.inventory.has_method("equipped_in"):
+		return ""
+	if item.slot == Item.Slot.NONE:
+		return ""
+	var equipped = _player.inventory.equipped_in(item.slot)
+	if equipped == null or equipped == item:
+		return ""
+	# Compute key diffs
+	var diffs: Array[String] = []
+	_diff_stat(diffs, item, equipped, "base_damage",      "dmg",      "%+d", false)
+	_diff_stat(diffs, item, equipped, "attack_speed",     "spd",      "%+.2f", false)
+	_diff_stat(diffs, item, equipped, "armor_bonus",      "armor",    "%+d", false)
+	_diff_stat(diffs, item, equipped, "strength_bonus",   "str",      "%+d", false)
+	_diff_stat(diffs, item, equipped, "dexterity_bonus",  "dex",      "%+d", false)
+	_diff_stat(diffs, item, equipped, "intellect_bonus",  "int",      "%+d", false)
+	_diff_stat(diffs, item, equipped, "vitality_bonus",   "vit",      "%+d", false)
+	_diff_stat(diffs, item, equipped, "crit_chance_bonus","crit",     "%+.0f%%", true)
+	if diffs.is_empty():
+		return "vs %s: identical." % equipped.display_name
+	return "vs %s:  %s" % [equipped.display_name, "  ".join(diffs)]
+
+func _diff_stat(out: Array[String], a: Item, b: Item, key: String, label: String, fmt: String, is_pct: bool) -> void:
+	var av: float = float(a.get(key)) if a.get(key) != null else 0.0
+	var bv: float = float(b.get(key)) if b.get(key) != null else 0.0
+	var d: float = av - bv
+	if abs(d) < 0.01:
+		return
+	if is_pct:
+		out.append("%s %s" % [fmt % (d * 100.0), label])
+	elif fmt == "%+d":
+		out.append("%s %s" % [fmt % int(round(d)), label])
+	else:
+		out.append("%s %s" % [fmt % d, label])
