@@ -9,6 +9,8 @@ class_name VendorPanel
 # Spawned by NPCs (Iddinu, Belitu, etc) on player interact instead of
 # their dialog flow.
 
+const T := preload("res://scripts/ui/ui_theme.gd")
+
 signal closed
 
 const TAB_BUY := 0
@@ -67,46 +69,35 @@ func _build() -> void:
 		c.queue_free()
 
 	var margin := MarginContainer.new()
-	margin.add_theme_constant_override("margin_left", 24)
-	margin.add_theme_constant_override("margin_right", 24)
-	margin.add_theme_constant_override("margin_top", 22)
-	margin.add_theme_constant_override("margin_bottom", 22)
+	margin.add_theme_constant_override("margin_left", T.PANEL_MARGIN_X)
+	margin.add_theme_constant_override("margin_right", T.PANEL_MARGIN_X)
+	margin.add_theme_constant_override("margin_top", T.PANEL_MARGIN_Y)
+	margin.add_theme_constant_override("margin_bottom", T.PANEL_MARGIN_Y)
 	panel.add_child(margin)
 
 	var vbox := VBoxContainer.new()
-	vbox.add_theme_constant_override("separation", 12)
+	vbox.add_theme_constant_override("separation", T.VBOX_SEPARATION)
 	margin.add_child(vbox)
 
-	# Header — vendor name + greeting + gold + close
+	# Header: vendor name + gold + close
 	var header := HBoxContainer.new()
 	vbox.add_child(header)
-	var title := Label.new()
-	title.text = vendor.display_name if vendor else "Vendor"
-	title.add_theme_font_size_override("font_size", 22)
-	title.add_theme_color_override("font_color", Color(0.95, 0.85, 0.45))
-	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	header.add_child(title)
+	header.add_child(T.make_title(vendor.display_name if vendor else "Vendor"))
 	_gold_label = Label.new()
 	_gold_label.text = _gold_text()
-	_gold_label.add_theme_font_size_override("font_size", 16)
-	_gold_label.add_theme_color_override("font_color", Color(1.00, 0.85, 0.30))
+	_gold_label.add_theme_font_size_override("font_size", T.FONT_BUTTON)
+	_gold_label.add_theme_color_override("font_color", T.CURRENCY_GOLD)
 	header.add_child(_gold_label)
 	var close_btn := Button.new()
 	close_btn.text = "Leave [Esc]"
-	close_btn.custom_minimum_size = Vector2(120, 32)
+	close_btn.custom_minimum_size = T.BUTTON_SIZE_MEDIUM
 	close_btn.pressed.connect(close)
 	header.add_child(close_btn)
 
 	if vendor and vendor.greeting != "":
-		var greeting := Label.new()
-		greeting.text = vendor.greeting
-		greeting.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		greeting.custom_minimum_size = Vector2(720, 0)
-		greeting.add_theme_font_size_override("font_size", 12)
-		greeting.add_theme_color_override("font_color", Color(0.78, 0.72, 0.60))
-		vbox.add_child(greeting)
+		vbox.add_child(T.make_hint(vendor.greeting))
 
-	# Faction badge — shows the player's tier with this vendor and the
+	# Faction badge: shows the player's tier with this vendor and the
 	# resulting price modifier. Skipped for vendors with no faction.
 	var badge := _make_faction_badge()
 	if badge:
@@ -117,15 +108,11 @@ func _build() -> void:
 	if not _vendor_will_trade:
 		var refusal := Label.new()
 		refusal.text = "%s refuses to trade with you." % (vendor.display_name if vendor else "The vendor")
-		refusal.add_theme_font_size_override("font_size", 16)
-		refusal.add_theme_color_override("font_color", Color(0.85, 0.30, 0.25))
-		refusal.custom_minimum_size = Vector2(720, 0)
+		refusal.add_theme_font_size_override("font_size", T.FONT_BUTTON)
+		refusal.add_theme_color_override("font_color", T.DANGER_RED)
+		refusal.custom_minimum_size = Vector2(T.CONTENT_WIDTH, 0)
 		vbox.add_child(refusal)
-		var hint := Label.new()
-		hint.text = "Earn standing with their faction first."
-		hint.add_theme_font_size_override("font_size", 12)
-		hint.add_theme_color_override("font_color", Color(0.65, 0.55, 0.45))
-		vbox.add_child(hint)
+		vbox.add_child(T.make_hint("Earn standing with their faction first."))
 		return
 
 	# Tabs
@@ -137,12 +124,12 @@ func _build() -> void:
 
 	# Content
 	var scroll := ScrollContainer.new()
-	scroll.custom_minimum_size = Vector2(720, 420)
+	scroll.custom_minimum_size = Vector2(T.CONTENT_WIDTH, T.CONTENT_HEIGHT)
 	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	vbox.add_child(scroll)
 	var content := VBoxContainer.new()
-	content.add_theme_constant_override("separation", 6)
+	content.add_theme_constant_override("separation", T.VBOX_SEPARATION_TIGHT)
 	content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scroll.add_child(content)
 
@@ -154,8 +141,8 @@ func _build() -> void:
 func _make_tab(text: String, tab_id: int) -> Button:
 	var b := Button.new()
 	b.text = text
-	b.custom_minimum_size = Vector2(120, 32)
-	b.modulate = Color(1, 1, 1) if _current_tab == tab_id else Color(0.65, 0.65, 0.65)
+	b.custom_minimum_size = T.BUTTON_SIZE_TAB
+	b.modulate = Color(1, 1, 1) if _current_tab == tab_id else T.DIM_GRAY
 	b.pressed.connect(func():
 		_current_tab = tab_id
 		_build()
@@ -182,13 +169,13 @@ func _render_buy(content: VBoxContainer) -> void:
 
 func _make_buy_row(item: Item, qty: int, stock) -> Control:
 	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 14)
+	row.add_theme_constant_override("separation", T.HBOX_SEPARATION)
 
 	var name_label := Label.new()
 	var qty_str: String = ("  (×%d)" % qty) if qty > 1 else ("  (∞)" if qty < 0 else "")
 	name_label.text = item.display_name + qty_str
-	name_label.add_theme_font_size_override("font_size", 13)
-	name_label.add_theme_color_override("font_color", item.rarity_color() if item.has_method("rarity_color") else Color(0.95, 0.92, 0.80))
+	name_label.add_theme_font_size_override("font_size", T.FONT_ITEM_NAME)
+	name_label.add_theme_color_override("font_color", item.rarity_color() if item.has_method("rarity_color") else T.BODY_CREAM)
 	name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	name_label.tooltip_text = item.description
 	row.add_child(name_label)
@@ -196,14 +183,14 @@ func _make_buy_row(item: Item, qty: int, stock) -> Control:
 	var price: int = vendor.sell_price(item, _player_rep) if vendor.has_method("sell_price") else int(item.sell_value)
 	var price_label := Label.new()
 	price_label.text = "%d g" % price
-	price_label.add_theme_font_size_override("font_size", 13)
-	price_label.add_theme_color_override("font_color", Color(1.00, 0.85, 0.30))
+	price_label.add_theme_font_size_override("font_size", T.FONT_ITEM_NAME)
+	price_label.add_theme_color_override("font_color", T.CURRENCY_GOLD)
 	price_label.custom_minimum_size = Vector2(80, 0)
 	row.add_child(price_label)
 
 	var buy_btn := Button.new()
 	buy_btn.text = "Buy"
-	buy_btn.custom_minimum_size = Vector2(80, 28)
+	buy_btn.custom_minimum_size = T.BUTTON_SIZE_SMALL
 	buy_btn.disabled = not _player_has_gold(price) or qty == 0
 	buy_btn.pressed.connect(_on_buy.bind(item, price, stock))
 	row.add_child(buy_btn)
@@ -245,12 +232,12 @@ func _render_sell(content: VBoxContainer) -> void:
 
 func _make_sell_row(item: Item, qty: int) -> Control:
 	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 14)
+	row.add_theme_constant_override("separation", T.HBOX_SEPARATION)
 
 	var name_label := Label.new()
 	name_label.text = "%s%s" % [item.display_name, "  (×%d)" % qty if qty > 1 else ""]
-	name_label.add_theme_font_size_override("font_size", 13)
-	name_label.add_theme_color_override("font_color", item.rarity_color() if item.has_method("rarity_color") else Color(0.95, 0.92, 0.80))
+	name_label.add_theme_font_size_override("font_size", T.FONT_ITEM_NAME)
+	name_label.add_theme_color_override("font_color", item.rarity_color() if item.has_method("rarity_color") else T.BODY_CREAM)
 	name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	name_label.tooltip_text = item.description
 	row.add_child(name_label)
@@ -258,14 +245,14 @@ func _make_sell_row(item: Item, qty: int) -> Control:
 	var price: int = vendor.buy_price(item, _player_rep) if vendor.has_method("buy_price") else int(item.sell_value * 0.35)
 	var price_label := Label.new()
 	price_label.text = "%d g" % price
-	price_label.add_theme_font_size_override("font_size", 13)
-	price_label.add_theme_color_override("font_color", Color(0.85, 0.78, 0.55))
+	price_label.add_theme_font_size_override("font_size", T.FONT_ITEM_NAME)
+	price_label.add_theme_color_override("font_color", T.HINT_BRONZE)
 	price_label.custom_minimum_size = Vector2(80, 0)
 	row.add_child(price_label)
 
 	var sell_btn := Button.new()
 	sell_btn.text = "Sell"
-	sell_btn.custom_minimum_size = Vector2(80, 28)
+	sell_btn.custom_minimum_size = T.BUTTON_SIZE_SMALL
 	sell_btn.disabled = item.is_soulbound or item.is_quest_item
 	sell_btn.pressed.connect(_on_sell.bind(item, price))
 	row.add_child(sell_btn)
@@ -350,7 +337,7 @@ func _make_faction_badge() -> Control:
 	# Renders a colored "Crown - Friendly (-5%/+5%)" line so the player
 	# can see exactly what their reputation buys them at this vendor.
 	# Returns null when the vendor has no faction or registries are
-	# missing — caller skips on null.
+	# missing, caller skips on null.
 	if vendor == null or not "faction" in vendor or vendor.faction == &"":
 		return null
 	var fr: Node = get_node_or_null("/root/FactionRegistry")
@@ -370,14 +357,14 @@ func _make_faction_badge() -> Control:
 		var sell_str: String = ("%+d%%" % sell_pct) if sell_pct != 0 else "0%"
 		var buy_str: String = ("%+d%%" % buy_pct) if buy_pct != 0 else "0%"
 		lab.text = "%s · %s   (buy %s · sell %s)" % [fname, tier, sell_str, buy_str]
-	lab.add_theme_font_size_override("font_size", 12)
+	lab.add_theme_font_size_override("font_size", T.FONT_HINT)
 	lab.add_theme_color_override("font_color", tier_color)
 	return lab
 
 func _toast(msg: String) -> void:
 	var juice: Node = get_node_or_null("/root/Juice")
 	if juice and juice.has_method("toast"):
-		juice.toast(msg, Color(0.85, 0.78, 0.55), 2.0)
+		juice.toast(msg, T.HINT_BRONZE, 2.0)
 
 func _play_pickup_cue() -> void:
 	var ab: Node = get_node_or_null("/root/AudioBus")

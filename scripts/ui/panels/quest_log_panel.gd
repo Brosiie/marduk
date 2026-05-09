@@ -1,6 +1,8 @@
 extends CanvasLayer
 class_name QuestLogPanel
 
+const T := preload("res://scripts/ui/ui_theme.gd")
+
 # Quest log UI. J toggles open/close. Two-tab layout: Active / Completed.
 # Active tab lists each quest with its description and per-objective progress
 # bar (current/required). Completed tab is the history of turned-in quests.
@@ -106,30 +108,17 @@ func _build() -> void:
 		c.queue_free()
 
 	var margin := MarginContainer.new()
-	margin.add_theme_constant_override("margin_left", 24)
-	margin.add_theme_constant_override("margin_right", 24)
-	margin.add_theme_constant_override("margin_top", 22)
-	margin.add_theme_constant_override("margin_bottom", 22)
+	margin.add_theme_constant_override("margin_left", T.PANEL_MARGIN_X)
+	margin.add_theme_constant_override("margin_right", T.PANEL_MARGIN_X)
+	margin.add_theme_constant_override("margin_top", T.PANEL_MARGIN_Y)
+	margin.add_theme_constant_override("margin_bottom", T.PANEL_MARGIN_Y)
 	panel.add_child(margin)
 
 	var vbox := VBoxContainer.new()
-	vbox.add_theme_constant_override("separation", 14)
+	vbox.add_theme_constant_override("separation", T.HBOX_SEPARATION)
 	margin.add_child(vbox)
 
-	# Header
-	var header := HBoxContainer.new()
-	vbox.add_child(header)
-	var title := Label.new()
-	title.text = "Quest Log"
-	title.add_theme_font_size_override("font_size", 22)
-	title.add_theme_color_override("font_color", Color(0.95, 0.85, 0.45))
-	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	header.add_child(title)
-	var close_btn := Button.new()
-	close_btn.text = "Close [J / Esc]"
-	close_btn.custom_minimum_size = Vector2(140, 32)
-	close_btn.pressed.connect(_close)
-	header.add_child(close_btn)
+	vbox.add_child(T.make_header_row("Quest Log", _close, "Close [J / Esc]"))
 
 	# Tabs
 	var tabs := HBoxContainer.new()
@@ -142,12 +131,12 @@ func _build() -> void:
 
 	# Content
 	var scroll := ScrollContainer.new()
-	scroll.custom_minimum_size = Vector2(720, 460)
+	scroll.custom_minimum_size = Vector2(T.CONTENT_WIDTH, T.CARD_INNER_HEIGHT)
 	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	vbox.add_child(scroll)
 	var content := VBoxContainer.new()
-	content.add_theme_constant_override("separation", 12)
+	content.add_theme_constant_override("separation", T.VBOX_SEPARATION)
 	content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scroll.add_child(content)
 
@@ -164,7 +153,7 @@ func _make_tab_button(text: String, tab_id: int) -> Button:
 	var b := Button.new()
 	b.text = text
 	b.custom_minimum_size = Vector2(180, 36)
-	b.modulate = Color(1, 1, 1) if _current_tab == tab_id else Color(0.65, 0.65, 0.65)
+	b.modulate = Color(1, 1, 1) if _current_tab == tab_id else T.DIM_GRAY
 	b.pressed.connect(func():
 		_current_tab = tab_id
 		_build()
@@ -182,63 +171,56 @@ func _build_active(content: VBoxContainer) -> void:
 
 func _make_active_quest_card(aq) -> Control:
 	var card := PanelContainer.new()
-	var bg := StyleBoxFlat.new()
-	bg.bg_color = Color(0.08, 0.06, 0.05, 0.92)
-	# Color the border by quest state — yellow during active, green when ready to turn in.
+	# Color the border by quest state: green when ready to turn in,
+	# warm gold while still active.
 	var ready_to_turn_in: bool = false
 	if aq and "state" in aq:
 		ready_to_turn_in = (aq.state == 3)  # Quest.State.COMPLETED
-	bg.border_color = Color(0.55, 0.85, 0.45, 0.85) if ready_to_turn_in else Color(0.85, 0.75, 0.30, 0.75)
-	bg.border_width_left = 1; bg.border_width_right = 1
-	bg.border_width_top = 1; bg.border_width_bottom = 1
-	bg.corner_radius_top_left = 4; bg.corner_radius_top_right = 4
-	bg.corner_radius_bottom_left = 4; bg.corner_radius_bottom_right = 4
-	bg.content_margin_left = 14; bg.content_margin_right = 14
-	bg.content_margin_top = 12; bg.content_margin_bottom = 12
-	card.add_theme_stylebox_override("panel", bg)
+	var border := T.SUCCESS_GREEN if ready_to_turn_in else T.QUEST_ACTIVE
+	card.add_theme_stylebox_override("panel", T.panel_box(border))
 
 	var v := VBoxContainer.new()
-	v.add_theme_constant_override("separation", 6)
+	v.add_theme_constant_override("separation", T.VBOX_SEPARATION_TIGHT)
 	card.add_child(v)
 
 	var name_row := HBoxContainer.new()
 	v.add_child(name_row)
 	var name_label := Label.new()
 	name_label.text = aq.quest.display_name
-	name_label.add_theme_font_size_override("font_size", 16)
-	name_label.add_theme_color_override("font_color", Color(0.95, 0.92, 0.80))
+	name_label.add_theme_font_size_override("font_size", T.FONT_BUTTON)
+	name_label.add_theme_color_override("font_color", T.BODY_CREAM)
 	name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	name_row.add_child(name_label)
 	if ready_to_turn_in:
 		var ready_label := Label.new()
 		ready_label.text = "READY TO TURN IN"
-		ready_label.add_theme_font_size_override("font_size", 11)
-		ready_label.add_theme_color_override("font_color", Color(0.55, 0.95, 0.45))
+		ready_label.add_theme_font_size_override("font_size", T.FONT_TINY)
+		ready_label.add_theme_color_override("font_color", T.SUCCESS_GREEN)
 		name_row.add_child(ready_label)
 
 	var desc_label := Label.new()
 	desc_label.text = aq.quest.description
 	desc_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	desc_label.custom_minimum_size = Vector2(680, 0)
-	desc_label.add_theme_font_size_override("font_size", 12)
-	desc_label.add_theme_color_override("font_color", Color(0.78, 0.72, 0.60))
+	desc_label.custom_minimum_size = Vector2(T.CARD_INNER_WIDTH, 0)
+	desc_label.add_theme_font_size_override("font_size", T.FONT_HINT)
+	desc_label.add_theme_color_override("font_color", T.HINT_BRONZE)
 	v.add_child(desc_label)
 
 	# Objectives with progress
 	for i in range(aq.objectives.size()):
 		var obj = aq.objectives[i]
 		var obj_row := HBoxContainer.new()
-		obj_row.add_theme_constant_override("separation", 12)
+		obj_row.add_theme_constant_override("separation", T.VBOX_SEPARATION)
 		v.add_child(obj_row)
 		var bullet := Label.new()
 		bullet.text = "•" if not obj.is_complete() else "✓"
-		bullet.add_theme_color_override("font_color", Color(0.55, 0.95, 0.45) if obj.is_complete() else Color(0.85, 0.75, 0.30))
+		bullet.add_theme_color_override("font_color", T.SUCCESS_GREEN if obj.is_complete() else T.QUEST_ACTIVE)
 		bullet.custom_minimum_size = Vector2(20, 0)
 		obj_row.add_child(bullet)
 		var obj_label := Label.new()
 		obj_label.text = "%s  (%d / %d)" % [obj.description, obj.current_count, obj.required_count]
-		obj_label.add_theme_font_size_override("font_size", 12)
-		obj_label.add_theme_color_override("font_color", Color(0.75, 0.70, 0.60))
+		obj_label.add_theme_font_size_override("font_size", T.FONT_HINT)
+		obj_label.add_theme_color_override("font_color", T.HINT_BRONZE)
 		obj_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		obj_row.add_child(obj_label)
 
@@ -250,8 +232,8 @@ func _make_active_quest_card(aq) -> Control:
 		"  ·  %d skill points" % aq.quest.skill_point_reward if aq.quest.skill_point_reward > 0 else "",
 		"  ·  %d items" % aq.quest.item_rewards.size() if aq.quest.item_rewards.size() > 0 else "",
 	]
-	reward_label.add_theme_font_size_override("font_size", 11)
-	reward_label.add_theme_color_override("font_color", Color(0.55, 0.50, 0.40))
+	reward_label.add_theme_font_size_override("font_size", T.FONT_TINY)
+	reward_label.add_theme_color_override("font_color", T.HINT_BRONZE)
 	v.add_child(reward_label)
 
 	return card

@@ -1,6 +1,8 @@
 extends CanvasLayer
 class_name FactionRepPanel
 
+const T := preload("res://scripts/ui/ui_theme.gd")
+
 # Faction reputation panel. Lists all 5 factions with rep bars showing
 # current tier + progress within tier + numeric value + lore description.
 # Subscribes to FactionRegistry.rep_changed for live updates.
@@ -70,34 +72,21 @@ func _build() -> void:
 		c.queue_free()
 
 	var margin := MarginContainer.new()
-	margin.add_theme_constant_override("margin_left", 24)
-	margin.add_theme_constant_override("margin_right", 24)
-	margin.add_theme_constant_override("margin_top", 22)
-	margin.add_theme_constant_override("margin_bottom", 22)
+	margin.add_theme_constant_override("margin_left", T.PANEL_MARGIN_X)
+	margin.add_theme_constant_override("margin_right", T.PANEL_MARGIN_X)
+	margin.add_theme_constant_override("margin_top", T.PANEL_MARGIN_Y)
+	margin.add_theme_constant_override("margin_bottom", T.PANEL_MARGIN_Y)
 	panel.add_child(margin)
 
 	var vbox := VBoxContainer.new()
-	vbox.add_theme_constant_override("separation", 14)
+	vbox.add_theme_constant_override("separation", T.HBOX_SEPARATION)
 	margin.add_child(vbox)
 
-	# Header
-	var header := HBoxContainer.new()
-	vbox.add_child(header)
-	var title := Label.new()
-	title.text = "Reputation"
-	title.add_theme_font_size_override("font_size", 22)
-	title.add_theme_color_override("font_color", Color(0.95, 0.85, 0.45))
-	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	header.add_child(title)
-	var close_btn := Button.new()
-	close_btn.text = "Close [U / Esc]"
-	close_btn.custom_minimum_size = Vector2(140, 32)
-	close_btn.pressed.connect(_close)
-	header.add_child(close_btn)
+	vbox.add_child(T.make_header_row("Reputation", _close, "Close [U / Esc]"))
 
 	# Body
 	var scroll := ScrollContainer.new()
-	scroll.custom_minimum_size = Vector2(720, 460)
+	scroll.custom_minimum_size = Vector2(T.CONTENT_WIDTH, T.CARD_INNER_HEIGHT)
 	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	vbox.add_child(scroll)
@@ -122,38 +111,29 @@ func _make_faction_card(f) -> Control:
 	var tier_color: Color = fr.tier_color_for(current)
 
 	var card := PanelContainer.new()
-	var bg := StyleBoxFlat.new()
-	bg.bg_color = Color(0.08, 0.06, 0.05, 0.92)
-	bg.border_color = f.color
-	bg.border_width_left = 2; bg.border_width_right = 1
-	bg.border_width_top = 1; bg.border_width_bottom = 1
-	bg.corner_radius_top_left = 4; bg.corner_radius_top_right = 4
-	bg.corner_radius_bottom_left = 4; bg.corner_radius_bottom_right = 4
-	bg.content_margin_left = 14; bg.content_margin_right = 14
-	bg.content_margin_top = 12; bg.content_margin_bottom = 12
-	card.add_theme_stylebox_override("panel", bg)
+	card.add_theme_stylebox_override("panel", T.panel_box(f.color))
 
 	var v := VBoxContainer.new()
-	v.add_theme_constant_override("separation", 6)
+	v.add_theme_constant_override("separation", T.VBOX_SEPARATION_TIGHT)
 	card.add_child(v)
 
 	var name_row := HBoxContainer.new()
 	v.add_child(name_row)
 	var motif := Label.new()
 	motif.text = f.motif
-	motif.add_theme_font_size_override("font_size", 22)
+	motif.add_theme_font_size_override("font_size", T.FONT_HEADING)
 	motif.add_theme_color_override("font_color", f.color)
 	motif.custom_minimum_size = Vector2(34, 0)
 	name_row.add_child(motif)
 	var name_label := Label.new()
 	name_label.text = f.display_name
-	name_label.add_theme_font_size_override("font_size", 16)
-	name_label.add_theme_color_override("font_color", Color(0.95, 0.92, 0.80))
+	name_label.add_theme_font_size_override("font_size", T.FONT_BUTTON)
+	name_label.add_theme_color_override("font_color", T.BODY_CREAM)
 	name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	name_row.add_child(name_label)
 	var tier_label := Label.new()
 	tier_label.text = tier
-	tier_label.add_theme_font_size_override("font_size", 14)
+	tier_label.add_theme_font_size_override("font_size", T.FONT_BODY)
 	tier_label.add_theme_color_override("font_color", tier_color)
 	name_row.add_child(tier_label)
 
@@ -162,31 +142,25 @@ func _make_faction_card(f) -> Control:
 	bar.max_value = span
 	bar.value = into_tier
 	bar.show_percentage = false
-	bar.custom_minimum_size = Vector2(680, 12)
+	bar.custom_minimum_size = Vector2(T.CARD_INNER_WIDTH, 12)
 	bar.modulate = tier_color
 	v.add_child(bar)
 
 	var sub := Label.new()
 	sub.text = "%d  ·  %d into %s, %d to next" % [current, into_tier, tier, max(0, span - into_tier)]
-	sub.add_theme_font_size_override("font_size", 11)
-	sub.add_theme_color_override("font_color", Color(0.65, 0.60, 0.50))
+	sub.add_theme_font_size_override("font_size", T.FONT_TINY)
+	sub.add_theme_color_override("font_color", T.HINT_BRONZE)
 	v.add_child(sub)
 
 	var desc := Label.new()
 	desc.text = f.description
 	desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	desc.custom_minimum_size = Vector2(680, 0)
-	desc.add_theme_font_size_override("font_size", 12)
-	desc.add_theme_color_override("font_color", Color(0.78, 0.72, 0.60))
+	desc.custom_minimum_size = Vector2(T.CARD_INNER_WIDTH, 0)
+	desc.add_theme_font_size_override("font_size", T.FONT_HINT)
+	desc.add_theme_color_override("font_color", T.HINT_BRONZE)
 	v.add_child(desc)
 
 	return card
 
 func _make_label(text: String) -> Label:
-	var lab := Label.new()
-	lab.text = text
-	lab.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	lab.custom_minimum_size = Vector2(680, 0)
-	lab.add_theme_font_size_override("font_size", 14)
-	lab.add_theme_color_override("font_color", Color(0.75, 0.70, 0.60))
-	return lab
+	return T.make_body(text)

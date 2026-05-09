@@ -1,10 +1,11 @@
 extends CanvasLayer
 class_name PauseMenu
 
-# Preload-shadowed alias — bypasses the global class_name cache. Without
+# Preload-shadowed alias, bypasses the global class_name cache. Without
 # this, a stale .godot/global_script_class_cache.cfg leaves SaveSlotPicker
 # unresolved and the entire pause menu fails to load, taking Esc with it.
 const SaveSlotPicker := preload("res://scripts/ui/menus/save_slot_picker.gd")
+const T := preload("res://scripts/ui/ui_theme.gd")
 
 # Esc-toggle pause menu. Lives in the HUD so it ships in every in-game scene.
 # Five actions: Resume / Save / Load / Settings / Quit to Title.
@@ -48,7 +49,7 @@ func _input(event: InputEvent) -> void:
 	if visible:
 		_resume()
 		return
-	# Don't open if any other modal is visible — let those handle their own Esc.
+	# Don't open if any other modal is visible, let those handle their own Esc.
 	if _another_modal_visible():
 		return
 	_open()
@@ -85,20 +86,20 @@ func _build() -> void:
 		c.queue_free()
 
 	var margin := MarginContainer.new()
-	margin.add_theme_constant_override("margin_left", 32)
-	margin.add_theme_constant_override("margin_right", 32)
-	margin.add_theme_constant_override("margin_top", 28)
-	margin.add_theme_constant_override("margin_bottom", 28)
+	margin.add_theme_constant_override("margin_left", T.PANEL_MARGIN_X_LG)
+	margin.add_theme_constant_override("margin_right", T.PANEL_MARGIN_X_LG)
+	margin.add_theme_constant_override("margin_top", T.PANEL_MARGIN_Y_LG)
+	margin.add_theme_constant_override("margin_bottom", T.PANEL_MARGIN_Y_LG)
 	panel.add_child(margin)
 
 	var vbox := VBoxContainer.new()
-	vbox.add_theme_constant_override("separation", 12)
+	vbox.add_theme_constant_override("separation", T.VBOX_SEPARATION)
 	margin.add_child(vbox)
 
 	var title := Label.new()
 	title.text = "Paused"
-	title.add_theme_font_size_override("font_size", 24)
-	title.add_theme_color_override("font_color", Color(0.95, 0.85, 0.45))
+	title.add_theme_font_size_override("font_size", T.FONT_TITLE)
+	title.add_theme_color_override("font_color", T.HEADING_GOLD)
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	vbox.add_child(title)
 
@@ -120,8 +121,8 @@ func _build() -> void:
 func _make_button(text: String, on_press: Callable) -> Button:
 	var b := Button.new()
 	b.text = text
-	b.custom_minimum_size = Vector2(280, 44)
-	b.add_theme_font_size_override("font_size", 16)
+	b.custom_minimum_size = T.BUTTON_SIZE_MENU
+	b.add_theme_font_size_override("font_size", T.FONT_BUTTON)
 	b.pressed.connect(on_press)
 	return b
 
