@@ -16,8 +16,12 @@ signal respawn_chosen(player: Node)
 signal revive_requested(player: Node)
 signal quit_chosen()
 
-# Bond's design call — see the Bond Review section below for the trade-off.
-const REVIVE_TIMEOUT_SECONDS: float = 60.0
+# 45s = committed but not punitive. Solo players almost never pick Wait
+# (they Respawn instantly), so the value primarily defines the multiplayer
+# revive window. 30s is too short for a party member to react; 90s makes
+# solo wait-and-see feel like the game is sulking. 45 reads as deliberate
+# without being slow.
+const REVIVE_TIMEOUT_SECONDS: float = 45.0
 const HEARTBEAT_PERIOD: float = 1.6
 
 var player: Node = null

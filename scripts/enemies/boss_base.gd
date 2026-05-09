@@ -595,9 +595,32 @@ func _begin_pattern(p: BossAttackPattern, now: float) -> void:
 	_current_pattern = p
 	_pattern_state = &"windup"
 	_pattern_state_until = now + p.windup_seconds
+	# First-pattern hook: tell the AchievementTracker we're engaged so it
+	# starts the no-hit + time-attack timers. Idempotent — tracker
+	# re-stamps start_time on each call. Once-per-engagement is the
+	# achievable behavior; even if the boss resets, current_boss_fight
+	# entry just gets refreshed.
+	_notify_achievement_engaged()
 	# Spawn the danger-zone telegraph decal so the player can read the
 	# attack BEFORE it lands. Removed when execute begins.
 	_spawn_telegraph(p)
+
+# One-shot per fight: tells the active player's AchievementTracker to
+# start the no-hit + under-time timers. Re-firing within the same fight
+# is harmless (tracker just overwrites start_time, which would defeat
+# the time-attack — so we guard with _achievement_engaged_fired).
+var _achievement_engaged_fired: bool = false
+
+func _notify_achievement_engaged() -> void:
+	if _achievement_engaged_fired:
+		return
+	_achievement_engaged_fired = true
+	var p: Node = get_tree().get_first_node_in_group("player") if get_tree() else null
+	if p == null:
+		return
+	var tracker: Node = p.get_node_or_null("AchievementTracker")
+	if tracker and tracker.has_method("on_boss_engaged"):
+		tracker.on_boss_engaged(self)
 	# Announce windup so HUD + camera can react. Camera rig tightens
 	# the spring length during this window for the cinematic threat
 	# read.
