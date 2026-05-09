@@ -34,6 +34,13 @@ class Objective:
 @export var sets_run_flag: StringName = &""    # eg &"prologue_complete"
 @export var sets_permanent_flag: StringName = &""
 
+@export_group("Faction Reputation")
+# Map of faction_id -> rep delta applied on quest turn-in. Negative values
+# damage rep with that faction. Empty by default; only quests with
+# diplomatic stakes use this.
+# Example: {&"crown": 250, &"black_sail": -100} for a Crown loyalty quest.
+@export var faction_rep_changes: Dictionary = {}
+
 func build_objectives() -> Array:
 	# Inflate inspector data into Objective instances
 	var arr: Array = []

@@ -12,6 +12,9 @@ class_name HassuTheHooked
 
 func _ready() -> void:
 	boss_id = &"hassu_hooked"
+	# Hassu was a steppe-clan warlord; the Crown views him as an outlaw.
+	# Killing him is mildly Crown-friendly.
+	faction_rep_on_kill = {&"crown": 50}
 	display_name = "Hassu the Hooked"
 	encounter_level = 1
 	is_main_boss = false

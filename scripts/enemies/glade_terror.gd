@@ -14,6 +14,9 @@ class_name GladeTerror
 
 func _ready() -> void:
 	boss_id = &"glade_terror"
+	# A Tiamat-spawn — every faction has reason to want it dead.
+	# Crown + Druids both notice.
+	faction_rep_on_kill = {&"crown": 75, &"druids": 75, &"inquisition": 50}
 	display_name = "The Glade Terror"
 	encounter_level = 1
 	is_main_boss = false

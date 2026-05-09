@@ -13,6 +13,9 @@ class_name SahirumWitchBurner
 
 func _ready() -> void:
 	boss_id = &"sahirum_witch_burner"
+	# Sahirum was Inquisition-prime. Killing him is a major Druid win and
+	# a major Inquisition loss. Crown tolerates the act but doesn't reward.
+	faction_rep_on_kill = {&"inquisition": -200, &"druids": 200}
 	display_name = "Sahirum the Witch-Burner"
 	encounter_level = 1
 	is_main_boss = false

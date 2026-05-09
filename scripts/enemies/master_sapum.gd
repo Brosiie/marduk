@@ -13,6 +13,10 @@ class_name MasterSapum
 
 func _ready() -> void:
 	boss_id = &"master_sapum"
+	# Sapum's Whisper-cult sat outside any official faction. The Crown
+	# tolerates him; the Inquisition wanted him dead. Killing him is
+	# mildly Inquisition-friendly + nothing else.
+	faction_rep_on_kill = {&"inquisition": 50}
 	display_name = "Master Sapum, Five-Mouthed"
 	encounter_level = 1
 	is_main_boss = false

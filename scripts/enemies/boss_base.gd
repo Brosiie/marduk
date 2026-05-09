@@ -29,6 +29,13 @@ class Phase:
 @export var is_secret_boss: bool = false  # Lucifer
 @export var phases_data: Array = []  # serialized; each entry: {hp_pct, name, dmg_mult, speed_mult}
 
+# Faction reputation impact on death. Per-faction integer deltas that the
+# Player's _on_combatbus_kill bridge applies to FactionRegistry. Negative
+# values DAMAGE rep (eg killing a Crown enforcer drops Crown rep, raises
+# Druid rep). Empty by default — only bosses with diplomatic stakes set
+# this. Set in _ready of subclasses.
+@export var faction_rep_on_kill: Dictionary = {}
+
 # Attack patterns. Each phase pulls from this list filtered by min_phase/max_phase.
 # AI picks the highest-priority off-cooldown pattern within range.
 @export var attack_patterns: Array[BossAttackPattern] = []

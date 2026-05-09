@@ -14,6 +14,10 @@ class_name BeletiSiegeMaster
 
 func _ready() -> void:
 	boss_id = &"beleti_siege_master"
+	# Beleti was a brigand siege-captain. Crown loves him dead. The
+	# Sun-Sworn Chapel's bounty is gold, but the Crown gives diplomatic
+	# weight too.
+	faction_rep_on_kill = {&"crown": 100}
 	display_name = "Beleti the Siege-Master"
 	encounter_level = 1
 	is_main_boss = false

@@ -10,6 +10,9 @@ class_name EnforcerKazat
 
 func _ready() -> void:
 	boss_id = &"enforcer_kazat"
+	# Kazat served the Crown — killing him gives the rebel/druid factions
+	# a small win. Crown notices.
+	faction_rep_on_kill = {&"crown": -100, &"druids": 50}
 	display_name = "Enforcer Kazat the Iron-Faced"
 	encounter_level = 1
 	is_main_boss = false

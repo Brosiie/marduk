@@ -3565,17 +3565,52 @@ func _attach_achievement_tracker() -> void:
 # infer tags from the killed node — bosses always count, mobs use their
 # `mob_id` as a tag, and demon/undead/human group memberships add tags.
 func _on_combatbus_kill(target: Node, _killer: Node) -> void:
-	var tracker: Node = get_node_or_null("AchievementTracker")
-	if not tracker or not tracker.has_method("on_enemy_killed") or not target or not is_instance_valid(target):
+	if not target or not is_instance_valid(target):
 		return
-	var tags: Array = []
-	if target.is_in_group("demon"):    tags.append("demon")
-	if target.is_in_group("undead"):   tags.append("undead")
-	if target.is_in_group("boss"):     tags.append("boss")
-	if target.is_in_group("tiamat_spawn"): tags.append("tiamat_spawn")
-	if "mob_id" in target and target.mob_id != &"":
-		tags.append(String(target.mob_id))
-	tracker.on_enemy_killed(target, tags)
+	# Achievement tracker first (counters, no-hit window, etc)
+	var tracker: Node = get_node_or_null("AchievementTracker")
+	if tracker and tracker.has_method("on_enemy_killed"):
+		var tags: Array = []
+		if target.is_in_group("demon"):    tags.append("demon")
+		if target.is_in_group("undead"):   tags.append("undead")
+		if target.is_in_group("boss"):     tags.append("boss")
+		if target.is_in_group("tiamat_spawn"): tags.append("tiamat_spawn")
+		if "mob_id" in target and target.mob_id != &"":
+			tags.append(String(target.mob_id))
+		tracker.on_enemy_killed(target, tags)
+	# Faction reputation: bosses with faction_rep_on_kill apply their deltas
+	# directly. Mobs without explicit deltas use a small generic table by
+	# affiliation group (crown/inquisition/druids/black_sail).
+	_apply_kill_rep(target)
+
+const _MOB_GROUP_TO_FACTION_REP := {
+	"crown_loyal":   {"crown": 5, "druids": -3},
+	"inquisition":   {"inquisition": 5, "druids": -5},
+	"druids":        {"druids": 5, "inquisition": -3},
+	"six_breaths":   {"six_breaths": 5},
+	"black_sail":    {"black_sail": 5, "crown": -3},
+	"tiamat_spawn":  {"crown": 3, "druids": 2, "inquisition": 3},
+}
+
+func _apply_kill_rep(target: Node) -> void:
+	var fr: Node = get_node_or_null("/root/FactionRegistry")
+	if not fr or not fr.has_method("add_rep"):
+		return
+	# Boss override: explicit faction_rep_on_kill wins over any group-based default
+	if target.is_in_group("boss") and "faction_rep_on_kill" in target:
+		var changes: Dictionary = target.faction_rep_on_kill
+		if changes.size() > 0:
+			for fid in changes.keys():
+				fr.add_rep(fid, int(changes[fid]))
+			return
+	# Mob fallback: walk group memberships against the table. Stops on first
+	# match so a mob in two faction groups isn't double-counted.
+	for group_name in _MOB_GROUP_TO_FACTION_REP.keys():
+		if target.is_in_group(group_name):
+			var changes2: Dictionary = _MOB_GROUP_TO_FACTION_REP[group_name]
+			for fid in changes2.keys():
+				fr.add_rep(fid, int(changes2[fid]))
+			return
 
 func _consume_pending_appearance() -> void:
 	var ar: Node = get_node_or_null("/root/AppearanceRegistry")

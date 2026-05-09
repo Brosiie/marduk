@@ -14,6 +14,9 @@ class_name TowerWarden
 
 func _ready() -> void:
 	boss_id = &"tower_warden"
+	# Warden was bound to Inkstone (Six Breaths' sister-temple). Killing
+	# unbinds the spirit; Six Breaths sees this as mercy.
+	faction_rep_on_kill = {&"six_breaths": 75}
 	display_name = "The Tower Warden"
 	encounter_level = 1
 	is_main_boss = false
