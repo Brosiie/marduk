@@ -163,13 +163,16 @@ func _confirm_respec() -> void:
 	stats_obj.unlocked_skill_node_ids = []
 	stats_obj.node_ranks = {}
 	stats_obj.unspent_skill_points += refunded
-	# Toast + flash
+	# Toast + flash + audio
 	var juice: Node = get_node_or_null("/root/Juice")
 	if juice:
 		if juice.has_method("flash"):
 			juice.flash(Color(0.85, 0.45, 0.95), 0.4, 0.9)
 		if juice.has_method("toast"):
 			juice.toast("The tree resets. %d skill points returned to your hand." % refunded, Color(0.85, 0.45, 0.95), 3.0)
+	var ab: Node = get_node_or_null("/root/AudioBus")
+	if ab and ab.has_method("play_cue") and player is Node3D:
+		ab.play_cue(&"warp", player.global_position, -4.0, 0.85)
 	_respec_sacrifices = []
 	_build()
 
@@ -402,6 +405,12 @@ func _confirm_binding(slot_id: int) -> void:
 			juice.flash(Color(1.0, 0.85, 0.30), 0.4, 0.9)
 		if juice.has_method("toast"):
 			juice.toast("Bound: %s. The stone will not let go." % _bind_target.display_name, Color(1.0, 0.85, 0.30), 3.0)
+	# Audio: layered cue — level_up arpeggio + lodestone chirp underneath.
+	# Reads as ceremony.
+	var ab: Node = get_node_or_null("/root/AudioBus")
+	if ab and ab.has_method("play_cue") and player is Node3D:
+		ab.play_cue(&"level_up", player.global_position, -3.0, 0.7)
+		ab.play_cue(&"lodestone", player.global_position, -5.0, 0.5)
 	_reset_pending()
 	_build()
 

@@ -216,6 +216,13 @@ func inscribe_glyph(character_id: String, glyph_id: StringName, location: String
 		"location": location,
 	})
 	glyph_inscribed.emit(glyphs[glyph_id], location, character_id)
+	# Audio: lodestone chirp at higher pitch — the Inkstone "settling" the
+	# mark into skin. Distinguishes inscription from a generic pickup.
+	var ab: Node = get_node_or_null("/root/AudioBus")
+	if ab and ab.has_method("play_cue"):
+		var p: Node = get_tree().get_first_node_in_group("player") if get_tree() else null
+		var pos: Vector3 = p.global_position if p and p is Node3D else Vector3.ZERO
+		ab.play_cue(&"lodestone", pos, -4.0, 1.6)
 	return true
 
 # Remove an inscribed glyph (free; lore-allowed via Inkstone Sage purification).

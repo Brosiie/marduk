@@ -184,6 +184,12 @@ static func _play_walk_back_cinematic(player: Node) -> void:
 			juice.flash(Color(0.95, 0.92, 0.80), 0.8, 1.6)  # warm dawn-light flash
 		if juice.has_method("toast"):
 			juice.toast("THE GATE DOES NOT OPEN TWICE", Color(0.95, 0.92, 0.80), 3.0)
+	# Audio: layered cue — victory arpeggio (the player won) + lodestone
+	# (the gate-walk-out). The combo sells "this was a transformation, not
+	# a defeat." `&"sacrifice"` was a hypothetical cue name; using existing
+	# cues so the audio actually plays.
 	var audio: Node = player.get_node_or_null("/root/AudioBus")
 	if audio and audio.has_method("play_cue"):
-		audio.play_cue(&"sacrifice", player.global_position if player is Node3D else Vector3.ZERO, -2.0, 0.85)
+		var pos: Vector3 = player.global_position if player is Node3D else Vector3.ZERO
+		audio.play_cue(&"victory", pos, -2.0, 0.65)
+		audio.play_cue(&"lodestone", pos, -4.0, 0.55)
