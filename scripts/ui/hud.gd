@@ -942,6 +942,20 @@ func _build_boss_bar() -> Control:
 	_attach_value_label(hp, "%d / %d", "boss_hp")
 	v.add_child(hp)
 
+	# Posture meter — sits ABOVE the cast row but below HP. Thin gold
+	# bar that fills as the player lands hits; full = boss staggered,
+	# vulnerable to a finisher. Sekiro/Bloodborne convention.
+	var posture := ProgressBar.new()
+	posture.name = "Posture"
+	posture.custom_minimum_size = Vector2(700, 8)
+	posture.show_percentage = false
+	posture.max_value = 100.0
+	posture.value = 0.0
+	# Gold-on-black styling distinct from the red HP fill — players
+	# read 'this is a different mechanic' at a glance.
+	_apply_bar_style(posture, Color(1.00, 0.78, 0.32), Color(1.00, 0.92, 0.55), Color(0.45, 0.32, 0.10))
+	v.add_child(posture)
+
 	# Cast bar — shown only while boss is winding up an attack. Reads
 	# the boss's _current_pattern and _pattern_state in _process.
 	# Without this the player has to guess from ground decals what's

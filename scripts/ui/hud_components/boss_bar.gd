@@ -14,6 +14,7 @@ const FRAME_PADDING: int = 8
 @onready var _name_label: Label = $Frame/V/Name
 @onready var _phase_label: Label = $Frame/V/Phase
 @onready var _hp_bar: ProgressBar = $Frame/V/HP
+@onready var _posture_bar: ProgressBar = $Frame/V/Posture if has_node("Frame/V/Posture") else null
 
 var _boss: Node = null
 # Cast bar children — looked up lazily because they're only built when
@@ -34,6 +35,7 @@ func _ready() -> void:
 	_cast_row = get_node_or_null("Frame/V/CastRow")
 	_cast_label = get_node_or_null("Frame/V/CastRow/CastLabel")
 	_cast_bar = get_node_or_null("Frame/V/CastRow/CastBar")
+	_posture_bar = get_node_or_null("Frame/V/Posture")
 
 # Public: bind to a BossBase. Hooks into hp_changed-equivalent and
 # boss_defeated. Safe to call multiple times: re-binds to the new boss.
@@ -51,6 +53,16 @@ func bind_to_boss(boss: Node) -> void:
 	if boss.has_signal("boss_defeated"):
 		if not boss.boss_defeated.is_connected(_on_boss_defeated):
 			boss.boss_defeated.connect(_on_boss_defeated)
+	# Posture: live-update the gold bar from the boss's `posture` /
+	# `max_posture` state. Connect signal if available; otherwise
+	# fall through to _process polling (already runs).
+	if boss.has_signal("posture_changed") and not boss.posture_changed.is_connected(_on_posture_changed):
+		boss.posture_changed.connect(_on_posture_changed)
+	# Initialize posture bar
+	if _posture_bar:
+		var pmax: float = float(boss.get("max_posture") if boss.has_method("get") else 100.0)
+		_posture_bar.max_value = max(1.0, pmax)
+		_posture_bar.value = float(boss.get("posture") if boss.has_method("get") else 0.0)
 	if boss.has_signal("phase_changed"):
 		if not boss.phase_changed.is_connected(_on_phase_changed):
 			boss.phase_changed.connect(_on_phase_changed)
@@ -133,6 +145,23 @@ func hide_bar() -> void:
 		visible = false
 		_boss = null
 	)
+
+func _on_posture_changed(cur: float, mx: float) -> void:
+	if _posture_bar == null:
+		return
+	_posture_bar.max_value = max(1.0, mx)
+	_posture_bar.value = cur
+	# Color shift: when posture is full, the bar flashes white-ish
+	# gold so the staggered window reads at a glance.
+	var fill_sb: StyleBoxFlat = _posture_bar.get_theme_stylebox("fill") as StyleBoxFlat
+	if fill_sb:
+		var pct: float = cur / max(1.0, mx)
+		if pct >= 0.95:
+			fill_sb.bg_color = Color(1.00, 0.95, 0.65)
+			fill_sb.border_color = Color(1.0, 1.0, 0.85)
+		else:
+			fill_sb.bg_color = Color(1.00, 0.78, 0.32)
+			fill_sb.border_color = Color(1.00, 0.92, 0.55)
 
 func _on_boss_defeated(_id: StringName, _killer: Node) -> void:
 	hide_bar()

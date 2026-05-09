@@ -911,6 +911,11 @@ func _cast_ability_slot(slot: int) -> void:
 	# AND coat the katana blade in matching elemental material for
 	# the duration of the swing. Demon-Slayer style.
 	_spawn_breath_vfx(StringName(k.get("id", "")))
+	# Weapon trail arc — element-tinted curve sweeping in front of
+	# the player to read the SWING SHAPE clearly. Distinct from the
+	# blade-coat (which sticks to the katana mesh) — this is the
+	# motion-blur read of the strike itself.
+	_spawn_swing_arc(int(k.get("element", Ability.DamageType.PHYSICAL)))
 	on_combat_event(2.0)
 
 # Maps Ability.DamageType to the AudioBus cue name. Each element gets
@@ -998,6 +1003,67 @@ const BREATH_COLORS := {
 
 func _breath_color_for(style: StringName) -> Color:
 	return BREATH_COLORS.get(style, Color(0.95, 0.95, 0.95, 1.0))
+
+# Per-swing weapon-trail arc. Spawns a curved ribbon of alpha quads
+# that sweep horizontally in front of the player, then fade. Distinct
+# from the breath/blade-coat VFX:
+#   blade-coat = particles attached to the KatanaSocket
+#   swing-arc  = a one-shot CURVE of quads anchored in world space
+# that captures the SWEEP shape of the strike.
+#
+# Color matches the ability element (fire = orange, frost = blue, etc).
+func _spawn_swing_arc(element: int) -> void:
+	if mesh == null:
+		return
+	var color: Color = _color_for_element(element)
+	# Build a Node3D parent so we can anchor + tween + queue_free as a unit
+	var arc := Node3D.new()
+	arc.name = "SwingArc"
+	get_tree().current_scene.add_child(arc)
+	arc.global_position = global_position + Vector3(0, 1.4, 0)
+	# Orient the arc to face along the player's mesh forward (+Z for
+	# Mixamo) so the sweep cuts in the swing direction.
+	var fwd: Vector3 = mesh.global_transform.basis.z
+	fwd.y = 0
+	if fwd.length_squared() > 0.001:
+		fwd = fwd.normalized()
+		arc.look_at(arc.global_position + fwd, Vector3.UP)
+	# Build the arc as 8 quads sampled along a horizontal half-circle
+	# in front of the player, radius 1.2m. Each quad is rotated to
+	# tangent the arc at its sample angle.
+	var segments: int = 8
+	var arc_radius: float = 1.2
+	var arc_angle_total: float = deg_to_rad(140.0)  # ~140deg sweep
+	for i in range(segments):
+		var t: float = float(i) / float(segments - 1)
+		var ang: float = -arc_angle_total * 0.5 + arc_angle_total * t
+		var local_pos: Vector3 = Vector3(sin(ang) * arc_radius, 0, cos(ang) * arc_radius)
+		var quad := MeshInstance3D.new()
+		var qm := QuadMesh.new()
+		qm.size = Vector2(0.30, 0.55)
+		quad.mesh = qm
+		var smat := StandardMaterial3D.new()
+		smat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		smat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		# Alpha taper toward arc tail (last segment darkest)
+		var seg_alpha: float = 1.0 - t * 0.65
+		smat.albedo_color = Color(color.r, color.g, color.b, 0.95 * seg_alpha)
+		smat.emission_enabled = true
+		smat.emission = color
+		smat.emission_energy_multiplier = 2.5
+		smat.cull_mode = BaseMaterial3D.CULL_DISABLED
+		quad.material_override = smat
+		quad.position = local_pos
+		# Tangent: face perpendicular to the arc curve so the quad
+		# reads as motion blur along the sweep direction.
+		quad.rotation = Vector3(0, ang + PI * 0.5, 0)
+		arc.add_child(quad)
+	# Fade out + scale up over 280ms
+	var tw := arc.create_tween()
+	tw.tween_property(arc, "scale", Vector3(1.15, 1.0, 1.15), 0.28).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	tw.parallel().tween_property(arc, "modulate:a", 0.0, 0.28)
+	tw.tween_callback(func():
+		if is_instance_valid(arc): arc.queue_free())
 
 func _spawn_breath_vfx(ability_id: StringName) -> void:
 	var style: StringName = _trail_style_for(ability_id)

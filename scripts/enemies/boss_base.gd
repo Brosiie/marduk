@@ -68,6 +68,32 @@ signal boss_defeated(boss_id: StringName, killer: Node)
 # during the danger window. Boss arena listens too for camera shake.
 signal windup_started(pattern_id: StringName, windup_seconds: float)
 signal windup_ended(pattern_id: StringName)
+# Posture gauge — fills with player damage, decays over time. When
+# full, the boss is staggered (cannot act for STAGGER_DURATION) and
+# the player can fire an EXECUTION attack for massive bonus damage.
+# Sekiro/Bloodborne/Lies-of-P pattern. Reads as a SECOND meter above
+# the HP bar.
+signal posture_changed(current: float, max_posture: float)
+signal posture_broken
+signal posture_recovered  # stagger ended, boss back in pattern AI
+# Enrage signal — fires at the 25% HP gate. HUD picks up to flash a
+# warning + tint the boss bar red.
+signal enraged
+
+@export var max_posture: float = 200.0
+var posture: float = 0.0
+const POSTURE_DECAY_PER_SEC: float = 12.0  # passive decay (Sekiro is faster)
+const POSTURE_DECAY_DELAY: float = 1.5  # delay after a hit before decay starts
+var _last_posture_hit_at: float = 0.0
+const STAGGER_DURATION: float = 4.0  # vulnerable window after posture break
+var _staggered_until: float = 0.0
+# Per-attack posture damage. Raw damage * scaling so big swings break
+# posture faster than chip damage. Clamped so a single 200-damage
+# crit doesn't insta-stagger.
+const POSTURE_DAMAGE_SCALE: float = 0.55
+const POSTURE_DAMAGE_PER_HIT_MAX: float = 35.0
+# Enrage — flips at 25% HP gate, persists for the rest of the fight.
+var _enraged: bool = false
 
 func _ready() -> void:
 	super._ready()
@@ -116,6 +142,93 @@ func take_damage(amount: float, source: Node = null) -> void:
 		return
 	super.take_damage(amount, source)
 	_check_phase_transition()
+	# Posture: each hit adds clamped posture. Riposte-buffed attacks
+	# deal 2x posture (stronger 'parry into stagger' loop) — read via
+	# the source player's recently-consumed riposte buff isn't available
+	# here, so we approximate by checking if the current attacker_stats
+	# was the player who recently pressed a fresh attack (heuristic).
+	# Cleaner: caller passes a mult; for now we just apply scale and
+	# let the bonus stagger-break happen naturally via raw DPS.
+	var posture_dmg: float = min(POSTURE_DAMAGE_PER_HIT_MAX, amount * POSTURE_DAMAGE_SCALE)
+	_apply_posture_damage(posture_dmg)
+	_check_enrage()
+
+func _apply_posture_damage(dmg: float) -> void:
+	posture = clamp(posture + dmg, 0.0, max_posture)
+	_last_posture_hit_at = Time.get_ticks_msec() / 1000.0
+	posture_changed.emit(posture, max_posture)
+	if posture >= max_posture - 0.01:
+		_break_posture()
+
+func _break_posture() -> void:
+	posture_broken.emit()
+	_staggered_until = (Time.get_ticks_msec() / 1000.0) + STAGGER_DURATION
+	# Clear active pattern so the boss isn't 'mid-windup' while staggered
+	_current_pattern = null
+	_pattern_state = &""
+	# Cinematic stagger moment: slowmo + gold flash + audio
+	var juice: Node = get_node_or_null("/root/Juice")
+	if juice:
+		if juice.has_method("slowmo"):
+			juice.slowmo(0.30, 0.6)
+		if juice.has_method("flash"):
+			juice.flash(Color(1.0, 0.92, 0.55), 0.30, 0.45)
+		if juice.has_method("shake"):
+			juice.shake(0.35, 0.30)
+		if juice.has_method("toast"):
+			juice.toast("STAGGERED", Color(1.0, 0.92, 0.55), 1.5)
+	# Audio sting — a chord that says 'opening!'
+	var ab: Node = get_node_or_null("/root/AudioBus")
+	if ab and ab.has_method("play_cue"):
+		ab.play_cue(&"victory", global_position, -6.0, 1.4)
+	# Visual: boss aura flares gold for the duration via rim color
+	# rebuild. Saves the previous rim_color so we can restore on recover.
+	_pre_stagger_rim_color = rim_color
+	rim_color = Color(1.0, 0.92, 0.55, 1.0)
+	rim_strength = min(2.5, rim_strength + 0.5)
+	var shader: Shader = load("res://shaders/rim_pass.gdshader")
+	if shader:
+		_apply_rim_recurse(self, shader)
+
+var _pre_stagger_rim_color: Color = Color.RED
+
+func _check_enrage() -> void:
+	if _enraged:
+		return
+	if hp / max_hp <= 0.25:
+		_enraged = true
+		enraged.emit()
+		# Visual: rim shifts to deep red, stronger pulse, scale +5%
+		rim_color = Color(1.0, 0.10, 0.05, 1.0)
+		rim_strength = min(2.5, rim_strength + 0.6)
+		var shader: Shader = load("res://shaders/rim_pass.gdshader")
+		if shader:
+			_apply_rim_recurse(self, shader)
+		# Boss roars + cinematic
+		var juice: Node = get_node_or_null("/root/Juice")
+		if juice:
+			if juice.has_method("flash"):
+				juice.flash(Color(1.0, 0.10, 0.05), 0.35, 0.55)
+			if juice.has_method("shake"):
+				juice.shake(0.55, 0.45)
+			if juice.has_method("toast"):
+				var nm: String = String(display_name) if display_name != "" else "FOE"
+				juice.toast("⚠  %s ENRAGES  ⚠" % nm.to_upper(), Color(1.0, 0.18, 0.10), 3.5)
+			if juice.has_method("slowmo"):
+				juice.slowmo(0.25, 0.5)
+		var ab: Node = get_node_or_null("/root/AudioBus")
+		if ab and ab.has_method("play_cue"):
+			ab.play_cue(&"boss_intro_roar", global_position, -2.0, 0.85)
+		# Music tension bump
+		var md: Node = get_node_or_null("/root/MusicDirector")
+		if md and md.has_method("set_combat_intensity"):
+			md.set_combat_intensity(1.5)
+		# Stat bumps: faster move, faster cooldowns
+		move_speed *= 1.20
+		# Trim each pattern's cooldown by 25% so attacks come quicker
+		for p: BossAttackPattern in attack_patterns:
+			p.cooldown *= 0.75
+			p.windup_seconds *= 0.85  # also faster windups
 
 func _physics_process(delta: float) -> void:
 	if state == State.DEAD or _in_transition:
@@ -126,8 +239,47 @@ func _physics_process(delta: float) -> void:
 	if _move_pattern_active:
 		_advance_move_pattern()
 		return
+	# Stagger: while staggered, the boss is frozen — no chase, no
+	# attack patterns. This is the player's window to commit big
+	# damage / execution. Posture decays normally during stagger so
+	# the bar visibly empties as recovery progresses.
+	var now_s: float = Time.get_ticks_msec() / 1000.0
+	if now_s < _staggered_until:
+		_decay_posture(delta)
+		return
+	# Just exited stagger? Restore rim and re-emit signal.
+	if posture > 0.0 and _staggered_until > 0.0 and now_s >= _staggered_until:
+		_recover_from_stagger()
 	super._physics_process(delta)
 	_tick_attack_pattern_ai(delta)
+	_decay_posture(delta)
+
+func _decay_posture(delta: float) -> void:
+	if posture <= 0.0:
+		return
+	var now_s: float = Time.get_ticks_msec() / 1000.0
+	# Don't decay until the posture-hit-cool-down expires — ensures
+	# combos register as a single sustained pressure, not 'one hit
+	# then decay'.
+	if now_s - _last_posture_hit_at < POSTURE_DECAY_DELAY:
+		return
+	posture = max(0.0, posture - POSTURE_DECAY_PER_SEC * delta)
+	posture_changed.emit(posture, max_posture)
+
+func _recover_from_stagger() -> void:
+	# Posture drops to zero on recover (cleared during the stagger).
+	posture = 0.0
+	posture_changed.emit(posture, max_posture)
+	_staggered_until = 0.0
+	posture_recovered.emit()
+	# Restore pre-stagger rim color (don't override enrage color
+	# if we entered it during stagger).
+	if not _enraged:
+		rim_color = _pre_stagger_rim_color
+		rim_strength = max(1.0, rim_strength - 0.5)
+		var shader: Shader = load("res://shaders/rim_pass.gdshader")
+		if shader:
+			_apply_rim_recurse(self, shader)
 
 # Drives the per-frame motion for LEAP/CHARGE patterns. Both interpolate
 # along _move_start_pos -> _move_end_pos using a normalized 0..1 timer.
@@ -443,6 +595,37 @@ func _begin_pattern(p: BossAttackPattern, now: float) -> void:
 	# the spring length during this window for the cinematic threat
 	# read.
 	windup_started.emit(p.id, p.windup_seconds)
+	# Pattern-specific audio sting — different shapes get different
+	# tonal cues so the player can READ THE INCOMING ATTACK from
+	# audio alone. Pitch + volume tuned so the sting sits under the
+	# music but above ambient. Layers with the existing telegraph
+	# sound id field (left for designer overrides).
+	var ab: Node = get_node_or_null("/root/AudioBus")
+	if ab and ab.has_method("play_cue"):
+		match p.shape:
+			BossAttackPattern.Shape.LEAP:
+				# Low rumble — boss is COMING DOWN ON YOU
+				ab.play_cue(&"thunder", global_position, -4.0, 0.55)
+			BossAttackPattern.Shape.CHARGE:
+				# Sharp hiss/wind — boss is RUSHING
+				ab.play_cue(&"swing", global_position, -3.0, 0.50)
+			BossAttackPattern.Shape.AOE_AROUND_BOSS:
+				# Deep gathering tone — boss is CONCENTRATING
+				ab.play_cue(&"shadow_cast", global_position, -4.0, 0.85)
+			BossAttackPattern.Shape.AOE_GROUND:
+				# Falling chime — boss MARKED THE GROUND
+				ab.play_cue(&"frost_cast", global_position, -3.0, 0.70)
+			BossAttackPattern.Shape.FORWARD_CONE, BossAttackPattern.Shape.LINE:
+				# Sword draw — generic melee strike
+				ab.play_cue(&"swing", global_position, -4.0, 0.85)
+			BossAttackPattern.Shape.PROJECTILE:
+				# Bowstring tension — projectile loosed
+				ab.play_cue(&"hit", global_position, -5.0, 1.4)
+			BossAttackPattern.Shape.ARENA_WIDE:
+				# Catastrophic gathering — full warning chord
+				ab.play_cue(&"victory", global_position, -2.0, 0.45)
+			_:
+				ab.play_cue(&"swing", global_position, -5.0, 0.95)
 
 func _execute_pattern(p: BossAttackPattern) -> void:
 	# Telegraph served its purpose: the strike has begun. Hitbox now
