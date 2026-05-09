@@ -144,10 +144,16 @@ func bar_for(faction_id: StringName) -> Dictionary:
 
 func _toast_tier_change(faction_id: StringName, new_tier: String, was_gain: bool) -> void:
 	var juice: Node = get_node_or_null("/root/Juice")
-	if not juice or not juice.has_method("toast"):
-		return
-	var f := get_faction(faction_id)
-	var name: String = f.display_name if f else String(faction_id)
-	var prefix: String = "↑" if was_gain else "↓"
-	var color: Color = TIER_COLORS.get(new_tier, Color.WHITE)
-	juice.toast("%s %s — %s" % [prefix, name, new_tier], color, 3.0)
+	if juice and juice.has_method("toast"):
+		var f := get_faction(faction_id)
+		var name: String = f.display_name if f else String(faction_id)
+		var prefix: String = "↑" if was_gain else "↓"
+		var color: Color = TIER_COLORS.get(new_tier, Color.WHITE)
+		juice.toast("%s %s — %s" % [prefix, name, new_tier], color, 3.0)
+	# Audio: lodestone chirp ascends for gains, descends for losses (pitch
+	# shift). Picked because the cue is already a tonal sweep that suits
+	# both directions.
+	var ab: Node = get_node_or_null("/root/AudioBus")
+	if ab and ab.has_method("play_cue"):
+		var pitch: float = 1.4 if was_gain else 0.7
+		ab.play_cue(&"lodestone", Vector3.ZERO, -4.0, pitch)

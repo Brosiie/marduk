@@ -462,6 +462,13 @@ func unlock(id: StringName) -> bool:
 	if juice:
 		var ach: Achievement = achievements[id]
 		juice.toast("★  Achievement: %s" % ach.display_name, Color(1.0, 0.65, 0.10), 3.0)
+	# Audio cue — reuse the level_up arpeggio so unlocks have the same
+	# 'you-earned-something' shape players already learned.
+	var ab = get_node_or_null("/root/AudioBus")
+	if ab and ab.has_method("play_cue"):
+		var p: Node = get_tree().get_first_node_in_group("player") if get_tree() else null
+		var pos: Vector3 = p.global_position if p and p is Node3D else Vector3.ZERO
+		ab.play_cue(&"level_up", pos, -3.0, 0.85)
 	return true
 
 func is_unlocked(id: StringName) -> bool:
