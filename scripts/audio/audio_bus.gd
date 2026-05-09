@@ -136,6 +136,11 @@ func _fill_buffer(pb: AudioStreamGeneratorPlayback, name: StringName) -> void:
 		&"step_stone":    _gen_burst(pb, 110.0, 80.0, 0.05, 0.22)
 		&"step_wood":     _gen_burst(pb, 180.0, 140.0, 0.04, 0.16)
 		&"step_grass":    _gen_burst(pb, 70.0, 200.0, 0.06, 0.10)
+		# Mount hoofbeat: heavier + lower than a footstep so it reads
+		# as a beast underfoot. Played in time with mount stride by the
+		# Player mount tick. Pitch-shift down on the AudioStreamPlayer
+		# itself for class variation (Demon flame steed = lower).
+		&"hoof":          _gen_burst(pb, 55.0, 35.0, 0.10, 0.55)
 		# Combat, ambient and victory cues
 		&"victory":       _gen_arp(pb, [392.0, 523.0, 659.0, 880.0, 1047.0], 0.10)
 		&"boss_intro_roar": _gen_burst(pb, 60.0, 30.0, 0.45, 0.85)

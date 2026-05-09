@@ -640,6 +640,11 @@ func _notify_achievement_engaged() -> void:
 	# the spring length during this window for the cinematic threat
 	# read.
 	windup_started.emit(p.id, p.windup_seconds)
+	# Procedural breath ramp: spike intensity during windup so even an
+	# anim-less boss READS as tensing for the strike. Falls back to
+	# idle 1.0 after windup_seconds. Targets the MobMesh's breath
+	# child if present (attached by EnemyBase._install_procedural_breath).
+	_ramp_breath_intensity_for_windup(p.windup_seconds)
 	# Pattern-specific audio sting, different shapes get different
 	# tonal cues so the player can READ THE INCOMING ATTACK from
 	# audio alone. Pitch + volume tuned so the sting sits under the
@@ -1362,6 +1367,21 @@ func _resolve_telegraph_color(p: BossAttackPattern) -> Color:
 # Size the decal quad to match the attack's footprint. The quad's UVs
 # are 0..1 across the full surface, and the shader assumes the danger
 # zone fills the quad.
+# Spike the procedural breath intensity during a windup so even a boss
+# with no real attack anim VISUALLY READS as winding up. The breath
+# script self-installs via EnemyBase._install_procedural_breath; we
+# look it up via the standard MobMesh/ProceduralBreath path. Snap
+# back to idle (1.0) after windup_seconds via a one-shot timer.
+func _ramp_breath_intensity_for_windup(windup_seconds: float) -> void:
+	var breath: Node = get_node_or_null("MobMesh/ProceduralBreath")
+	if breath == null or not breath.has_method("set_intensity"):
+		return
+	breath.set_intensity(2.6)
+	get_tree().create_timer(max(windup_seconds, 0.1)).timeout.connect(func():
+		if is_instance_valid(breath) and breath.has_method("set_intensity"):
+			breath.set_intensity(1.0)
+	)
+
 func _telegraph_size_for(p: BossAttackPattern) -> Vector2:
 	match p.shape:
 		BossAttackPattern.Shape.SINGLE_TARGET, BossAttackPattern.Shape.PROJECTILE:

@@ -107,6 +107,18 @@ const RAGE_MAX_ATK_SPEED_BONUS := 0.30  # +30% atk speed
 const RAGE_MAX_MOVE_SPEED_BONUS := 0.15  # +15% move speed
 const RAGE_DECAY_PER_SEC := 4.0
 var _last_combat_time: float = -INF
+
+# Run-stats: per-life and per-run counters surfaced on the DeathScreen
+# so the player gets a "what happened this run?" recap on death. Per-
+# life resets on respawn. Per-run persists until the run actually ends
+# (player exits to title or reaches a checkpoint). All updated by
+# take_damage / on_kill_credit / _die hooks; consumed by death_screen.
+var _life_kills: int = 0
+var _life_damage_taken: float = 0.0
+var _life_damage_dealt: float = 0.0
+var _life_started_at: float = 0.0
+var _run_deaths: int = 0
+var _run_started_at: float = 0.0
 const RAGE_OUT_OF_COMBAT_GRACE := 5.0
 
 # Battle-cry / Power-up damage buff timers. Set by Q/E/R/F abilities
@@ -210,6 +222,12 @@ func _ready() -> void:
 	if not stats:
 		stats = PlayerStats.new()
 		stats.recompute_derived()
+	# Run-stats timers: stamp the start of the run + first life so the
+	# DeathScreen can show elapsed times. _life_started_at is also reset
+	# in _respawn so each life gets its own clock.
+	var now: float = Time.get_ticks_msec() / 1000.0
+	_run_started_at = now
+	_life_started_at = now
 	# Pending-appearance consumption: if the player just came through the
 	# CharacterCreator (Storyteller flow), AppearanceRegistry holds the
 	# created CharacterAppearance + chosen name. Apply them BEFORE class
@@ -765,6 +783,40 @@ func _dismount() -> void:
 	if _mount_visual and is_instance_valid(_mount_visual):
 		_mount_visual.queue_free()
 	_mount_visual = null
+
+# Hoofbeat cadence while mounted + moving. Plays the synthesized
+# &"hoof" cue at HOOF_INTERVAL when horizontal speed exceeds the
+# threshold. Pitch shifted down for Demon flame steed (lower hooves)
+# and up slightly for Assassin's black horse (lighter, faster). Keeps
+# silence when the player stands still on the mount so it doesn't
+# feel like we're running in place.
+const HOOF_INTERVAL: float = 0.34
+const HOOF_MIN_SPEED: float = 3.0
+var _hoof_timer: float = 0.0
+
+func _tick_mount_hoofbeats(delta: float) -> void:
+	if not _mounted:
+		_hoof_timer = 0.0
+		return
+	var speed: float = Vector2(velocity.x, velocity.z).length()
+	if speed < HOOF_MIN_SPEED:
+		_hoof_timer = 0.0
+		return
+	_hoof_timer += delta
+	if _hoof_timer < HOOF_INTERVAL:
+		return
+	_hoof_timer = 0.0
+	var ab = get_node_or_null("/root/AudioBus")
+	if not (ab and ab.has_method("play_cue")):
+		return
+	var pitch: float = 1.0
+	if stats and stats.class_def:
+		match stats.class_def.class_id:
+			&"demon":     pitch = 0.78  # heavier flame steed
+			&"assassin":  pitch = 1.15  # light black horse
+			&"berserker": pitch = 0.85  # boar = heavy
+			&"chaos_druid": pitch = 0.92
+	ab.play_cue(&"hoof", global_position, -8.0, pitch)
 
 # Combat-driven dismount. Called from take_damage when the player
 # takes a hit while mounted, so combat reads as "knocked off the
@@ -3037,6 +3089,7 @@ func _physics_process(delta: float) -> void:
 	_try_step_up()
 	_update_animation()
 	_tick_footsteps(delta)
+	_tick_mount_hoofbeats(delta)
 	_tick_combo(delta)
 	_tick_resource(delta)
 	_tick_form(delta)
@@ -3114,21 +3167,45 @@ func _tick_resource(delta: float) -> void:
 func _tick_hp_regen(delta: float, now: float) -> void:
 	if not stats:
 		return
-	if stats.hp >= stats.max_hp or stats.hp <= 0:
-		return
-	var cls := stats.class_def
-	var hp_surge: float = 10.0 if now < _hp_surge_until else 1.0
-	var regen: float = stats.hp_regen
-	# Demon: zero auto regen by day, 4 HP/sec at night
-	if cls and cls.class_id == &"demon":
-		var clock = get_tree().root.get_node_or_null("WorldClock")
-		if clock and clock.is_day():
-			regen = 0.0  # day: no auto regen
-		else:
-			regen = DEMON_NIGHT_HP_REGEN  # night: 4 HP/sec
-	if regen > 0.0:
-		stats.hp = min(stats.max_hp, stats.hp + regen * hp_surge * delta)
-		hp_changed.emit(stats.hp, stats.max_hp)
+	# Out-of-combat regen multiplier. After being safe for OOC_GRACE
+	# seconds (no hits given/taken), HP and mana refill faster so the
+	# player isn't waiting at every safe spot watching pots fill. In
+	# combat, regen drops back to base rate so health potions still
+	# matter mid-fight.
+	var ooc_mult: float = OOC_REGEN_MULT if (now - _last_combat_time) > OOC_REGEN_GRACE else 1.0
+	# HP regen
+	if stats.hp > 0 and stats.hp < stats.max_hp:
+		var cls := stats.class_def
+		var hp_surge: float = 10.0 if now < _hp_surge_until else 1.0
+		var regen: float = stats.hp_regen
+		# Demon: zero auto regen by day, DEMON_NIGHT_HP_REGEN at night.
+		# Honor day/night even out of combat (Demon balance choice).
+		if cls and cls.class_id == &"demon":
+			var clock = get_tree().root.get_node_or_null("WorldClock")
+			if clock and clock.is_day():
+				regen = 0.0
+			else:
+				regen = DEMON_NIGHT_HP_REGEN
+		if regen > 0.0:
+			stats.hp = min(stats.max_hp, stats.hp + regen * hp_surge * ooc_mult * delta)
+			hp_changed.emit(stats.hp, stats.max_hp)
+	# Mana regen: didn't exist before. Trickle 1.5/sec base in combat,
+	# 7.5/sec out of combat. Only applies to mana-based classes; rage /
+	# stamina / form_energy classes have their own resource pumps that
+	# fight a regen-during-OOC bonus would trivialize.
+	if stats.mana < stats.max_mana and stats.class_def and stats.class_def.resource_mechanic == &"mana":
+		var mana_surge_mult: float = 8.0 if now < _mana_surge_until else 1.0
+		var mana_regen_amt: float = MANA_REGEN_BASE * ooc_mult * mana_surge_mult * delta
+		stats.mana = min(stats.max_mana, stats.mana + mana_regen_amt)
+		mana_changed.emit(stats.mana, stats.max_mana)
+
+# Out-of-combat regen tuning. 5s grace before OOC kicks in (mirrors the
+# mount-allowed window in _mount). 5x multiplier feels SAFE to spam-rest
+# but doesn't make in-combat regen pointless. MANA_REGEN_BASE 1.5/s
+# means a 100-mana caster refills in ~13s out of combat (1.5 * 5 * 13).
+const OOC_REGEN_GRACE: float = 5.0
+const OOC_REGEN_MULT: float = 5.0
+const MANA_REGEN_BASE: float = 1.5
 
 # Returns the current pool reading for a given resource id.
 func get_pool(resource_id: StringName) -> Dictionary:
@@ -3267,6 +3344,9 @@ func take_damage(amount: float, source: Node = null) -> void:
 	# Remember who hit us last so the death replay can pan to them
 	if source and is_instance_valid(source):
 		_last_damage_source = source
+	# Run-stats: track raw incoming damage (before block/parry math)
+	# so the death screen can show "you took 4,832 damage this life."
+	_life_damage_taken += amount
 	# Knocked off the horse: any unblocked, undodged hit while mounted
 	# instantly drops the mount. Reads as a real combat consequence
 	# (ARPG convention) and prevents using mount as an immortal-Speed
@@ -3377,6 +3457,10 @@ func spend_mana(amount: float) -> bool:
 func _die() -> void:
 	locked = true
 	died.emit()
+	# Run-stats: bump death counter so DeathScreen can show
+	# "death #4 this run." Per-life kills/damage stay frozen here so the
+	# DeathScreen can read them; they get reset on the next _respawn.
+	_run_deaths += 1
 	# Achievement: first death
 	var ar = get_node_or_null("/root/AchievementRegistry")
 	if ar and ar.has_method("unlock"):
@@ -3499,6 +3583,13 @@ func _respawn() -> void:
 		stats.hp = stats.max_hp
 		hp_changed.emit(stats.hp, stats.max_hp)
 	locked = false
+	# Reset per-life run stats so the next death's recap covers only
+	# what happened between this respawn and that death. _run_deaths
+	# stays (it's run-scoped, not life-scoped).
+	_life_kills = 0
+	_life_damage_taken = 0.0
+	_life_damage_dealt = 0.0
+	_life_started_at = Time.get_ticks_msec() / 1000.0
 	# Trigger fast-travel
 	if registry and registry.has_method("travel"):
 		registry.travel(target_id)
@@ -3589,6 +3680,11 @@ func spend_stance_charges(amount: int) -> bool:
 
 func on_kill_credit(victim: Node = null) -> void:
 	gain_stance_charge(1)
+	# Run-stats tracking: bumped per kill so the YOU DIED screen can
+	# show "you killed 47 things this life" for context. Bosses count
+	# 5x toward the kill total because killing a boss means more than
+	# killing 47 grunts.
+	_life_kills += 5 if (victim and victim is BossBase) else 1
 	# Demon: gain Blood + heal a bit on kill (ignores time-of-day; lifesteal works always)
 	if stats and stats.class_def and stats.class_def.class_id == &"demon":
 		var blood_gain: float = DEMON_BLOOD_PER_KILL

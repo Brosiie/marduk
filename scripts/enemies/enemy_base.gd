@@ -713,18 +713,39 @@ func _spawn_pickups(items: Array[Item]) -> void:
 	var pickup_script: GDScript = load("res://scripts/items/item_pickup.gd")
 	if pickup_script == null:
 		return
-	var i: int = 0
-	for it in items:
+	# Radial lattice: sort by rarity ascending so commons spawn FIRST
+	# and rares spawn LAST (and end up on top visually + their pop-up
+	# tween fires after the eye has settled on the kill, drawing focus
+	# to the rare drop). Pattern radius scales with item count: a
+	# single drop sits right next to the corpse, a 6-drop boss kill
+	# fans out so the items don't pile.
+	var sorted_items: Array[Item] = items.duplicate()
+	sorted_items.sort_custom(func(a, b):
+		var ar: int = int(a.rarity) if a and "rarity" in a else 0
+		var br: int = int(b.rarity) if b and "rarity" in b else 0
+		return ar < br
+	)
+	var n: int = sorted_items.size()
+	var radius: float = lerp(0.5, 1.4, clamp(float(n - 1) / 6.0, 0.0, 1.0))
+	# Random angle offset so the lattice doesn't always start at the
+	# same orientation (would look mechanical across many kills).
+	var angle_offset: float = randf() * TAU
+	for i in range(n):
+		var it: Item = sorted_items[i]
 		if it == null:
 			continue
 		var pu = pickup_script.new()
 		pu.item = it
 		pu.quantity = 1
-		var angle: float = (TAU / max(items.size(), 1)) * float(i)
-		var radius: float = 0.6
-		pu.position = global_position + Vector3(cos(angle) * radius, 0.4, sin(angle) * radius)
+		# Even angle distribution + minor jitter so the ring reads as
+		# "deliberately scattered" not "geometrically perfect."
+		var angle: float = angle_offset + (TAU / max(n, 1)) * float(i) + randf_range(-0.08, 0.08)
+		# Rares get a slight vertical lift so they pop above commons in
+		# the same ring. Visual hierarchy = rarer = higher.
+		var rarity: int = int(it.rarity) if "rarity" in it else 0
+		var lift: float = 0.4 + 0.08 * float(rarity)
+		pu.position = global_position + Vector3(cos(angle) * radius, lift, sin(angle) * radius)
 		get_tree().current_scene.add_child(pu)
-		i += 1
 
 func get_attr(_a: StringName) -> float:
 	return 0.0

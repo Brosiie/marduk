@@ -94,6 +94,25 @@ func _build() -> void:
 	subtitle.offset_bottom = 320
 	content.add_child(subtitle)
 
+	# Run-stats recap: "this life: 47 kills, 4,832 dmg taken, 3:24 alive
+	# / run: death #4, 23m 11s elapsed". Pulled from player's run-stats
+	# tracking. Hidden if the player exposes none of the stats fields
+	# (e.g. older save loaded into newer build).
+	var recap_text: String = _build_recap_text()
+	if recap_text != "":
+		var recap := Label.new()
+		recap.text = recap_text
+		recap.add_theme_font_size_override("font_size", 13)
+		recap.add_theme_color_override("font_color", Color(0.55, 0.42, 0.30, 0.85))
+		recap.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		recap.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		recap.anchor_left = 0.0; recap.anchor_right = 1.0
+		recap.offset_left = 200
+		recap.offset_right = -200
+		recap.offset_top = 330
+		recap.offset_bottom = 380
+		content.add_child(recap)
+
 	# Buttons stacked center-bottom
 	var btns := VBoxContainer.new()
 	btns.anchor_left = 0.5; btns.anchor_right = 0.5
@@ -164,6 +183,64 @@ func _killer_subtitle() -> String:
 	if class_line != "":
 		return class_line
 	return killer_line
+
+# Run-stats recap line. Pulls the per-life and per-run counters off the
+# player and formats them like a soulslike post-death summary. Returns
+# empty string if the player doesn't carry any of the run-stats fields
+# so older save loads don't crash on a missing-field read.
+#
+# Format:
+#   THIS LIFE  ·  47 kills  ·  4,832 dmg taken  ·  3:24 alive
+#   THIS RUN   ·  death #4  ·  23m 11s elapsed
+func _build_recap_text() -> String:
+	if not player:
+		return ""
+	# Probe a representative field so we can short-circuit cleanly when
+	# the player object doesn't expose run-stats (older saves / unit tests).
+	if not ("_life_kills" in player):
+		return ""
+	var now: float = Time.get_ticks_msec() / 1000.0
+	var life_kills: int = int(player.get("_life_kills"))
+	var life_dmg: float = float(player.get("_life_damage_taken"))
+	var life_started_at: float = float(player.get("_life_started_at"))
+	var life_seconds: int = int(max(0.0, now - life_started_at))
+	var run_deaths: int = int(player.get("_run_deaths"))
+	var run_started_at: float = float(player.get("_run_started_at"))
+	var run_seconds: int = int(max(0.0, now - run_started_at))
+	var line1: String = "THIS LIFE  ·  %s kills  ·  %s dmg taken  ·  %s alive" % [
+		_pretty_int(life_kills),
+		_pretty_int(int(life_dmg)),
+		_pretty_time_short(life_seconds),
+	]
+	var line2: String = "THIS RUN  ·  death #%d  ·  %s elapsed" % [
+		max(1, run_deaths),
+		_pretty_time_long(run_seconds),
+	]
+	return "%s\n%s" % [line1, line2]
+
+# 1234 -> "1,234". Cheap, no Locale dependency.
+func _pretty_int(n: int) -> String:
+	var s: String = str(n)
+	var out: String = ""
+	for i in range(s.length()):
+		if i > 0 and (s.length() - i) % 3 == 0:
+			out += ","
+		out += s[i]
+	return out
+
+# 204 seconds -> "3:24"; 65 -> "1:05"
+func _pretty_time_short(seconds: int) -> String:
+	var m: int = seconds / 60
+	var s: int = seconds % 60
+	return "%d:%02d" % [m, s]
+
+# 1391 seconds -> "23m 11s"; 65 -> "1m 5s"; 7320 -> "2h 2m"
+func _pretty_time_long(seconds: int) -> String:
+	if seconds < 60:
+		return "%ds" % seconds
+	if seconds < 3600:
+		return "%dm %ds" % [seconds / 60, seconds % 60]
+	return "%dh %dm" % [seconds / 3600, (seconds % 3600) / 60]
 
 # Class-specific death whisper. Lore-flavored single-line that lands as
 # the player reads "YOU DIED." Each class has its own tone:

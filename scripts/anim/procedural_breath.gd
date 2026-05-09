@@ -30,6 +30,13 @@ var _t: float = 0.0
 var _phase_offset: float = 0.0
 var _baseline_pos: Vector3 = Vector3.ZERO
 var _baseline_rot_y: float = 0.0
+# Intensity multiplier: 1.0 = idle breath. >1.0 = bigger amplitude AND
+# faster period (winding up). Set by external callers (e.g. BossBase
+# during attack WINDUP) to make even an anim-less boss READ as tensing.
+# Lerps toward target each frame so transitions don't snap.
+var _intensity: float = 1.0
+var _intensity_target: float = 1.0
+const INTENSITY_LERP_SPEED: float = 4.0
 
 func _ready() -> void:
 	# Random phase offset so two NPCs side-by-side don't breathe in unison.
@@ -52,15 +59,30 @@ func _process(delta: float) -> void:
 			target_mesh.position = _baseline_pos
 			target_mesh.rotation.y = _baseline_rot_y
 			return
+	# Lerp intensity toward target so set_intensity transitions don't pop.
+	_intensity = lerp(_intensity, _intensity_target, clamp(delta * INTENSITY_LERP_SPEED, 0.0, 1.0))
+	# Higher intensity = bigger amplitude + faster period (boss tensing).
+	# Period scales INVERSELY with intensity so 2x intensity = 2x faster.
+	var period_eff: float = BREATH_PERIOD / max(_intensity, 0.1)
+	var amplitude_eff: float = BREATH_AMPLITUDE * _intensity
 	_t += delta
 	# Breath: scale Y + bob position
-	var breath_phase: float = (_t / BREATH_PERIOD) * TAU + _phase_offset
+	var breath_phase: float = (_t / period_eff) * TAU + _phase_offset
 	var breath: float = sin(breath_phase)
-	target_mesh.scale.y = 1.0 + breath * BREATH_AMPLITUDE
-	target_mesh.position = _baseline_pos + Vector3(0, breath * BREATH_AMPLITUDE, 0)
-	# Sway: yaw drift, longer period so it doesn't fight the breath
-	var sway_phase: float = (_t / SWAY_PERIOD) * TAU + _phase_offset * 0.5
-	target_mesh.rotation.y = _baseline_rot_y + deg_to_rad(SWAY_AMPLITUDE_DEG * sin(sway_phase))
+	target_mesh.scale.y = 1.0 + breath * amplitude_eff
+	target_mesh.position = _baseline_pos + Vector3(0, breath * amplitude_eff, 0)
+	# Sway: yaw drift, longer period so it doesn't fight the breath.
+	# Sway also accelerates under high intensity (boss looking around for player).
+	var sway_period_eff: float = SWAY_PERIOD / max(_intensity, 0.1)
+	var sway_phase: float = (_t / sway_period_eff) * TAU + _phase_offset * 0.5
+	target_mesh.rotation.y = _baseline_rot_y + deg_to_rad(SWAY_AMPLITUDE_DEG * _intensity * sin(sway_phase))
+
+# External API: callers ramp intensity to make breath read as tense
+# (boss windup, mob taking damage, etc). 1.0 = calm idle, 2.0 = winding
+# up, 3.0+ = unleashing. Lerps over INTENSITY_LERP_SPEED so it doesn't
+# snap visually.
+func set_intensity(target: float) -> void:
+	_intensity_target = max(0.5, target)
 
 # Static spawn helper. Call from any character _ready (after the anim
 # loader has had a chance to bind, or in a deferred call so the loader
