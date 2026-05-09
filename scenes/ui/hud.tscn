@@ -1,7 +1,8 @@
-[gd_scene load_steps=3 format=3]
+[gd_scene load_steps=4 format=3]
 
 [ext_resource type="Script" path="res://scripts/ui/hud.gd" id="1"]
 [ext_resource type="Script" path="res://scripts/ui/hud_components/ability_slot_bar.gd" id="2"]
+[ext_resource type="PackedScene" path="res://scenes/ui/panels/skill_tree_panel.tscn" id="3_skill_tree"]
 
 [node name="HUD" type="CanvasLayer"]
 script = ExtResource("1")
@@ -51,3 +52,5 @@ offset_top = -96.0
 offset_right = 144.0
 offset_bottom = -14.0
 mouse_filter = 2
+
+[node name="SkillTreePanel" parent="." instance=ExtResource("3_skill_tree")]
