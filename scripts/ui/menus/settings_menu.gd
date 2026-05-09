@@ -69,7 +69,36 @@ const FIELDS := {
 	],
 }
 
-const TAB_ORDER := ["Display", "Audio", "Controls", "Gameplay", "Accessibility", "Privacy"]
+const TAB_ORDER := ["Display", "Audio", "Controls", "Keybinds", "Gameplay", "Accessibility", "Privacy"]
+
+# Rebindable input actions surfaced in the Keybinds tab. Order matters;
+# the panel renders rows in this list-order.
+const REBINDABLE_ACTIONS: Array[Dictionary] = [
+	{"action": &"move_up",         "label": "Move Forward"},
+	{"action": &"move_down",       "label": "Move Back"},
+	{"action": &"move_left",       "label": "Move Left"},
+	{"action": &"move_right",      "label": "Move Right"},
+	{"action": &"jump",            "label": "Jump"},
+	{"action": &"dodge",           "label": "Dodge"},
+	{"action": &"attack_basic",    "label": "Basic Attack"},
+	{"action": &"interact",        "label": "Interact / Pickup"},
+	{"action": &"ability_1",       "label": "Ability Q"},
+	{"action": &"ability_2",       "label": "Ability E"},
+	{"action": &"ability_3",       "label": "Ability R"},
+	{"action": &"ability_4",       "label": "Ability F"},
+	{"action": &"toggle_inventory","label": "Inventory (I)"},
+	{"action": &"toggle_skills",   "label": "Skill Tree (K)"},
+	{"action": &"toggle_quests",   "label": "Quest Log (J)"},
+	{"action": &"toggle_map",      "label": "Map (M)"},
+	{"action": &"toggle_character","label": "Character Sheet (T)"},
+	{"action": &"toggle_mount",    "label": "Mount (H)"},
+	{"action": &"toggle_pet",      "label": "Pet (G)"},
+]
+
+# Capture state: when non-empty, the panel is listening for the next key
+# press to remap the named action. Set by clicking a Rebind button.
+var _rebinding_action: StringName = &""
+var _rebinding_button: Button = null
 
 @onready var dim: ColorRect = $Dim if has_node("Dim") else null
 @onready var panel: PanelContainer = $Panel if has_node("Panel") else null
@@ -94,10 +123,6 @@ func close() -> void:
 	if settings and settings.has_method("save_settings"):
 		settings.save_settings()
 	closed.emit()
-
-func _input(event: InputEvent) -> void:
-	if visible and event.is_action_pressed("ui_cancel"):
-		close()
 
 func _build() -> void:
 	if not panel:
@@ -149,11 +174,162 @@ func _build() -> void:
 	content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scroll.add_child(content)
 
+	if _current_tab == "Keybinds":
+		_render_keybinds(content)
+		return
+
 	if not settings:
 		content.add_child(_make_label("GameSettings autoload not available."))
 		return
 	for field_def in FIELDS.get(_current_tab, []):
 		content.add_child(_make_field_row(field_def))
+
+# ───────── Keybinds tab ─────────
+
+func _render_keybinds(content: VBoxContainer) -> void:
+	var hint := Label.new()
+	hint.text = "Click a key to rebind. Press Esc during capture to cancel."
+	hint.add_theme_font_size_override("font_size", 12)
+	hint.add_theme_color_override("font_color", Color(0.65, 0.60, 0.50))
+	content.add_child(hint)
+
+	for entry in REBINDABLE_ACTIONS:
+		content.add_child(_make_keybind_row(entry))
+
+	# Reset-to-defaults button at the bottom
+	var spacer := Control.new()
+	spacer.custom_minimum_size = Vector2(0, 12)
+	content.add_child(spacer)
+	var reset_btn := Button.new()
+	reset_btn.text = "Reset all keybinds to defaults"
+	reset_btn.custom_minimum_size = Vector2(0, 36)
+	reset_btn.pressed.connect(_reset_all_keybinds)
+	content.add_child(reset_btn)
+
+func _make_keybind_row(entry: Dictionary) -> Control:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 16)
+
+	var label := Label.new()
+	label.text = String(entry["label"])
+	label.add_theme_font_size_override("font_size", 13)
+	label.add_theme_color_override("font_color", Color(0.85, 0.80, 0.65))
+	label.custom_minimum_size = Vector2(280, 32)
+	row.add_child(label)
+
+	var action: StringName = entry["action"]
+	var btn := Button.new()
+	btn.text = _key_text_for_action(action)
+	btn.custom_minimum_size = Vector2(180, 32)
+	btn.pressed.connect(_begin_capture.bind(action, btn))
+	row.add_child(btn)
+
+	return row
+
+func _key_text_for_action(action: StringName) -> String:
+	if not InputMap.has_action(action):
+		return "(unbound)"
+	var events: Array[InputEvent] = InputMap.action_get_events(action)
+	for event in events:
+		if event is InputEventKey:
+			var k: InputEventKey = event
+			# Prefer label/keycode; fallback to physical
+			var keycode: int = k.physical_keycode if k.physical_keycode != 0 else k.keycode
+			return OS.get_keycode_string(keycode).capitalize()
+		if event is InputEventMouseButton:
+			var mb: InputEventMouseButton = event
+			match mb.button_index:
+				MOUSE_BUTTON_LEFT:   return "Mouse Left"
+				MOUSE_BUTTON_RIGHT:  return "Mouse Right"
+				MOUSE_BUTTON_MIDDLE: return "Mouse Middle"
+				_: return "Mouse %d" % mb.button_index
+	return "(unbound)"
+
+func _begin_capture(action: StringName, btn: Button) -> void:
+	# Cancel any other capture in flight
+	if _rebinding_button:
+		_rebinding_button.text = _key_text_for_action(_rebinding_action)
+	_rebinding_action = action
+	_rebinding_button = btn
+	btn.text = "...press a key..."
+
+func _input(event: InputEvent) -> void:
+	if visible and _rebinding_action != &"":
+		_handle_capture(event)
+		return
+	if visible and event.is_action_pressed("ui_cancel"):
+		close()
+
+func _handle_capture(event: InputEvent) -> void:
+	# Esc during capture cancels (instead of closing the menu)
+	if event is InputEventKey:
+		var k: InputEventKey = event
+		if not k.pressed or k.echo:
+			return
+		if k.physical_keycode == KEY_ESCAPE:
+			get_viewport().set_input_as_handled()
+			_cancel_capture()
+			return
+		# Bind the new key
+		_apply_new_binding(_rebinding_action, k)
+		get_viewport().set_input_as_handled()
+		return
+	if event is InputEventMouseButton:
+		var mb: InputEventMouseButton = event
+		if not mb.pressed:
+			return
+		_apply_new_binding(_rebinding_action, mb)
+		get_viewport().set_input_as_handled()
+
+func _apply_new_binding(action: StringName, event: InputEvent) -> void:
+	if not InputMap.has_action(action):
+		_cancel_capture()
+		return
+	# Strip key/mouse events from the action and add the new one. Leaves
+	# joypad bindings alone so a player who set both keyboard + gamepad
+	# keeps the gamepad mapping.
+	var existing: Array[InputEvent] = InputMap.action_get_events(action)
+	for e in existing:
+		if e is InputEventKey or e is InputEventMouseButton:
+			InputMap.action_erase_event(action, e)
+	InputMap.action_add_event(action, event)
+	# Refresh the button label
+	if _rebinding_button:
+		_rebinding_button.text = _key_text_for_action(action)
+	_rebinding_action = &""
+	_rebinding_button = null
+
+func _cancel_capture() -> void:
+	if _rebinding_button:
+		_rebinding_button.text = _key_text_for_action(_rebinding_action)
+	_rebinding_action = &""
+	_rebinding_button = null
+
+func _reset_all_keybinds() -> void:
+	# Godot's InputMap doesn't expose a "reset to project default" call, so
+	# we reload from ProjectSettings. Each action's default events are stored
+	# at "input/<action>" with the events array.
+	for entry in REBINDABLE_ACTIONS:
+		var action: StringName = entry["action"]
+		var key: String = "input/" + String(action)
+		if not ProjectSettings.has_setting(key):
+			continue
+		var data: Dictionary = ProjectSettings.get_setting(key)
+		# Erase current events
+		var existing: Array[InputEvent] = InputMap.action_get_events(action)
+		for e in existing:
+			InputMap.action_erase_event(action, e)
+		# Restore from project default
+		var events: Array = data.get("events", [])
+		for e in events:
+			InputMap.action_add_event(action, e)
+	_build()
+	_show_toast("All keybinds reset to defaults.")
+
+func _show_toast(msg: String) -> void:
+	var juice: Node = get_node_or_null("/root/Juice")
+	if juice and juice.has_method("toast"):
+		juice.toast(msg, Color(0.85, 0.78, 0.55), 2.0)
 
 func _make_tab(t: String) -> Button:
 	var b := Button.new()

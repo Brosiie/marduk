@@ -47,6 +47,7 @@ func _ready() -> void:
 	_install_combo_label()
 	_polish_bars()
 	_install_class_portrait()
+	_install_player_posture_bar()
 	# Bond's "cluttered" complaint had a concrete cause: hud.tscn ships
 	# the legacy AbilitySlotBar at the bottom-center AND _ready below
 	# adds the polished WowAbilityBar at the same anchor. Both rendered
@@ -431,6 +432,60 @@ func _pulse_bar_flash(bar: ProgressBar) -> void:
 # visual anchor — Bond called this "cluttered". The portrait is a 70px
 # disc with a class-themed glyph and a gold filigree ring; the bars
 # slide right by 78px so they read as rooted to it instead of orphans.
+# Thin gold posture bar layered just below the HP bar. Mirror of the
+# boss posture meter but for the player. Subscribes to posture_changed
+# on the player; auto-refreshes color toward red as posture climbs
+# above 70% (visible "you're about to get staggered" cue).
+func _install_player_posture_bar() -> void:
+	if not player:
+		return
+	if hp_bar == null:
+		return
+	if hp_bar.get_node_or_null("PlayerPostureBar") != null:
+		return
+	var posture := ProgressBar.new()
+	posture.name = "PlayerPostureBar"
+	posture.show_percentage = false
+	posture.max_value = 100.0
+	posture.value = 0.0
+	posture.custom_minimum_size = Vector2(0, 5)
+	# Anchor across the HP bar's bottom edge (so it appears as a thin
+	# gold strip under the HP fill — readable at a glance).
+	posture.anchor_left = 0.0
+	posture.anchor_top = 1.0
+	posture.anchor_right = 1.0
+	posture.anchor_bottom = 1.0
+	posture.offset_top = 1
+	posture.offset_bottom = 6
+	# Use the same polished bar styling as the rest of the HUD —
+	# starts gold and shifts red via _on_player_posture as it fills.
+	_apply_bar_style(posture, Color(1.0, 0.78, 0.32), Color(1.0, 0.92, 0.55), Color(0.45, 0.32, 0.10))
+	posture.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	hp_bar.add_child(posture)
+	if player.has_signal("posture_changed") and not player.posture_changed.is_connected(_on_player_posture):
+		player.posture_changed.connect(_on_player_posture)
+
+func _on_player_posture(cur: float, mx: float) -> void:
+	var posture: ProgressBar = hp_bar.get_node_or_null("PlayerPostureBar") if hp_bar else null
+	if posture == null:
+		return
+	posture.max_value = max(1.0, mx)
+	posture.value = cur
+	# Color escalation: gold under 70%, orange 70-90%, red 90%+. Tells
+	# the player visually how close they are to a stagger.
+	var pct: float = cur / max(1.0, mx)
+	var fill_sb: StyleBoxFlat = posture.get_theme_stylebox("fill") as StyleBoxFlat
+	if fill_sb:
+		if pct >= 0.90:
+			fill_sb.bg_color = Color(0.95, 0.20, 0.18)
+			fill_sb.border_color = Color(1.0, 0.50, 0.45)
+		elif pct >= 0.70:
+			fill_sb.bg_color = Color(0.95, 0.55, 0.20)
+			fill_sb.border_color = Color(1.0, 0.78, 0.40)
+		else:
+			fill_sb.bg_color = Color(1.0, 0.78, 0.32)
+			fill_sb.border_color = Color(1.0, 0.92, 0.55)
+
 func _install_class_portrait() -> void:
 	if not player or not player.stats or not player.stats.class_def:
 		return
@@ -671,19 +726,28 @@ func _pset(img: Image, x: int, y: int, c: Color) -> void:
 # Color crossfades from white -> yellow -> orange -> red as the combo
 # climbs, so the player feels the climb visually.
 func _install_combo_label() -> void:
+	# Polished combo readout: outline + drop shadow so it reads on
+	# every background, larger anchor area for the bigger pop scale,
+	# and a brighter palette ramp for higher visibility on the
+	# crimson/orange tier.
 	_combo_label = Label.new()
 	_combo_label.name = "ComboLabel"
 	_combo_label.anchor_left = 1.0
 	_combo_label.anchor_top = 0.5
 	_combo_label.anchor_right = 1.0
 	_combo_label.anchor_bottom = 0.5
-	_combo_label.offset_left = -260.0
-	_combo_label.offset_top = -36.0
+	_combo_label.offset_left = -320.0
+	_combo_label.offset_top = -50.0
 	_combo_label.offset_right = -20.0
-	_combo_label.offset_bottom = 36.0
+	_combo_label.offset_bottom = 50.0
 	_combo_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	_combo_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	_combo_label.add_theme_font_size_override("font_size", 28)
+	_combo_label.add_theme_font_size_override("font_size", 32)
+	_combo_label.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.95))
+	_combo_label.add_theme_constant_override("outline_size", 6)
+	_combo_label.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.85))
+	_combo_label.add_theme_constant_override("shadow_offset_x", 2)
+	_combo_label.add_theme_constant_override("shadow_offset_y", 3)
 	_combo_label.modulate = Color(1, 1, 1, 0)
 	$Root.add_child(_combo_label)
 
@@ -705,13 +769,23 @@ func _on_combo_changed(stacks: int, max_stacks: int) -> void:
 	else:
 		col = Color(1.0, 0.55, 0.20).lerp(Color(1.0, 0.20, 0.20), (t - 0.66) / 0.34)
 	col.a = 1.0
-	_combo_label.text = "x%d  COMBO" % stacks
-	_combo_label.add_theme_font_size_override("font_size", 24 + int(t * 28))  # 24..52 pt
-	_combo_label.modulate = col
-	# Pop scale: brief 1.2x then back to 1.0
-	_combo_label.scale = Vector2(1.2, 1.2)
+	# Tier prefix changes the read at high stacks — "INSANE" /
+	# "GODLIKE" call out the moment, not just numbers
+	var tier_label: String = "COMBO"
+	if stacks >= int(max_stacks * 0.85):
+		tier_label = "GODLIKE"
+	elif stacks >= int(max_stacks * 0.66):
+		tier_label = "INSANE"
+	elif stacks >= int(max_stacks * 0.40):
+		tier_label = "RAMPAGE"
+	_combo_label.text = "x%d  %s" % [stacks, tier_label]
+	_combo_label.add_theme_color_override("font_color", col)
+	_combo_label.modulate = Color(1, 1, 1, 1)
+	_combo_label.add_theme_font_size_override("font_size", 28 + int(t * 36))  # 28..64 pt
+	# Pop scale: brief 1.3x then back to 1.0
+	_combo_label.scale = Vector2(1.3, 1.3)
 	var tw := _combo_label.create_tween()
-	tw.tween_property(_combo_label, "scale", Vector2.ONE, 0.18)
+	tw.tween_property(_combo_label, "scale", Vector2.ONE, 0.22).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 
 func _on_mana(cur: float, mx: float) -> void:
 	mana_bar.max_value = mx

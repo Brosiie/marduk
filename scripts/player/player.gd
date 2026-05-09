@@ -184,6 +184,19 @@ signal resource_changed(current: float, max_value: float, mechanic: StringName)
 signal form_changed(form: Transformation)
 signal died
 signal item_collected(item: Item, quantity: int)
+# Player posture: symmetric to boss posture. Each hit taken adds
+# posture; full = brief stagger (1.0s). Decays passively. HUD
+# subscribes to draw a meter below the HP bar.
+signal posture_changed(current: float, max_posture: float)
+const PLAYER_MAX_POSTURE: float = 100.0
+const PLAYER_POSTURE_DAMAGE_SCALE: float = 0.40
+const PLAYER_POSTURE_DAMAGE_PER_HIT_MAX: float = 22.0
+const PLAYER_POSTURE_DECAY_PER_SEC: float = 18.0
+const PLAYER_POSTURE_DECAY_DELAY: float = 1.2
+const PLAYER_STAGGER_DURATION: float = 1.0
+var player_posture: float = 0.0
+var _last_player_posture_hit_at: float = 0.0
+var _player_staggered_until: float = 0.0
 
 func _ready() -> void:
 	add_to_group("player")
@@ -1064,6 +1077,125 @@ func _spawn_swing_arc(element: int) -> void:
 	tw.parallel().tween_property(arc, "modulate:a", 0.0, 0.28)
 	tw.tween_callback(func():
 		if is_instance_valid(arc): arc.queue_free())
+
+# Execution finisher: when the locked target is a STAGGERED boss within
+# 3m, the next basic-attack press triggers a cinematic instead of a
+# regular swing. Returns true if the execution fired (caller should
+# skip its normal attack path).
+#
+# Mechanics:
+# - 3.0x damage (closing the posture loop — staggering should mean
+#   real reward, not just a free hit)
+# - 0.20x slowmo for 0.8s (Mortal-Kombat-finisher cadence)
+# - Camera spring tightens via temporary distance override
+# - "EXECUTION!" toast in saturated gold
+# - Crit audio cue at low pitch (heavy strike)
+# - Burst of 80 gold particles at the boss's chest
+# - Player anim plays the heavy strike (katana_jump_attack) as the
+#   visible commit moment
+const EXECUTION_RANGE: float = 3.0
+const EXECUTION_DAMAGE_MULT: float = 3.0
+const EXECUTION_SLOWMO_SCALE: float = 0.20
+const EXECUTION_SLOWMO_DURATION: float = 0.80
+
+func _try_execution_on_staggered_boss() -> bool:
+	if not is_locked() or not is_instance_valid(_lock_target):
+		return false
+	var t: Node = _lock_target
+	# Boss must expose `posture` and be staggered (Time check via
+	# _staggered_until > now). Probe via duck-typing — only BossBase
+	# carries these fields.
+	if not ("_staggered_until" in t):
+		return false
+	var now: float = Time.get_ticks_msec() / 1000.0
+	if now >= float(t.get("_staggered_until")):
+		return false
+	# Range gate
+	var dist: float = global_position.distance_to((t as Node3D).global_position)
+	if dist > EXECUTION_RANGE:
+		return false
+	_fire_execution(t)
+	return true
+
+func _fire_execution(target_node: Node) -> void:
+	# Cinematic feedback
+	var juice: Node = get_node_or_null("/root/Juice")
+	if juice:
+		if juice.has_method("slowmo"):
+			juice.slowmo(EXECUTION_SLOWMO_SCALE, EXECUTION_SLOWMO_DURATION)
+		if juice.has_method("flash"):
+			juice.flash(Color(1.0, 0.92, 0.55), 0.50, 0.65)
+		if juice.has_method("shake"):
+			juice.shake(0.65, 0.40)
+		if juice.has_method("toast"):
+			juice.toast("EXECUTION!", Color(1.0, 0.92, 0.40), 2.5)
+		if juice.has_method("hit_stop"):
+			juice.hit_stop(0.18)
+	# Audio chord
+	var ab: Node = get_node_or_null("/root/AudioBus")
+	if ab and ab.has_method("play_cue"):
+		ab.play_cue(&"crit", target_node.global_position, -1.0, 0.55)
+		ab.play_cue(&"victory", target_node.global_position, -3.0, 1.20)
+	# Heavy strike anim if available — falls back to attack
+	if anim_player:
+		var heavy_name: String = _resolved_anims.get("heavy", _resolved_anims.get("attack", ""))
+		if heavy_name != "":
+			anim_player.stop()
+			anim_player.play(heavy_name)
+	# Camera dramatic zoom for the duration
+	var cam_rig: Node3D = get_tree().get_first_node_in_group("camera_rig")
+	if cam_rig and "distance" in cam_rig:
+		var saved_distance: float = cam_rig.distance
+		cam_rig.distance = max(3.5, saved_distance * 0.55)
+		get_tree().create_timer(EXECUTION_SLOWMO_DURATION + 0.4).timeout.connect(func():
+			if is_instance_valid(cam_rig):
+				cam_rig.distance = saved_distance)
+	# Apply 3.0x damage to the boss. Skip the hitbox path — direct
+	# take_damage so the cinematic is reliably-deterministic instead
+	# of dependent on hitbox overlap timing during slowmo.
+	if target_node.has_method("take_damage"):
+		var dmg: float = 35.0 + float(stats.strength) * 1.2 if stats else 50.0
+		dmg *= EXECUTION_DAMAGE_MULT
+		# Mark next attack as crit via direct call so the floater pops
+		# at the right tier
+		target_node.take_damage(dmg, self)
+	# Gold burst at boss chest
+	var burst := GPUParticles3D.new()
+	burst.amount = 80
+	burst.lifetime = 1.2
+	burst.one_shot = true
+	burst.explosiveness = 1.0
+	burst.visibility_aabb = AABB(Vector3(-3, -1, -3), Vector3(6, 4, 6))
+	var pm := ParticleProcessMaterial.new()
+	pm.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_SPHERE
+	pm.emission_sphere_radius = 0.3
+	pm.direction = Vector3(0, 0.5, 0)
+	pm.spread = 90.0
+	pm.initial_velocity_min = 4.0
+	pm.initial_velocity_max = 8.0
+	pm.gravity = Vector3(0, -1.0, 0)
+	pm.scale_min = 0.12
+	pm.scale_max = 0.28
+	pm.angular_velocity_min = -180.0
+	pm.angular_velocity_max = 180.0
+	pm.color = Color(1.0, 0.92, 0.45, 1.0)
+	burst.process_material = pm
+	var quad := QuadMesh.new()
+	quad.size = Vector2(0.16, 0.16)
+	var smat := StandardMaterial3D.new()
+	smat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	smat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	smat.albedo_color = Color(1.0, 0.92, 0.45, 0.95)
+	smat.emission_enabled = true
+	smat.emission = Color(1.0, 0.95, 0.55)
+	smat.emission_energy_multiplier = 3.5
+	smat.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
+	quad.material = smat
+	burst.draw_pass_1 = quad
+	get_tree().current_scene.add_child(burst)
+	burst.global_position = (target_node as Node3D).global_position + Vector3(0, 1.6, 0)
+	get_tree().create_timer(2.0).timeout.connect(func():
+		if is_instance_valid(burst): burst.queue_free())
 
 func _spawn_breath_vfx(ability_id: StringName) -> void:
 	var style: StringName = _trail_style_for(ability_id)
@@ -2436,6 +2568,12 @@ func _perform_basic_attack() -> void:
 	# Player (no class assigned yet) can still hit things in the demo arena.
 	if locked or not stats:
 		return
+	# EXECUTION CHECK — closes the posture loop. If the locked target
+	# is a boss in the staggered window AND the player is within 3m
+	# (deep melee range) AND facing it, fire the cinematic finisher
+	# instead of a regular swing.
+	if _try_execution_on_staggered_boss():
+		return
 	# Play attack animation if available
 	if anim_player:
 		var atk_name: String = _resolved_anims.get("attack", "")
@@ -2639,6 +2777,16 @@ func _physics_process(delta: float) -> void:
 	_tick_resource(delta)
 	_tick_form(delta)
 	_tick_heaven_aura(delta)
+	_tick_posture_decay(delta)
+
+func _tick_posture_decay(delta: float) -> void:
+	if player_posture <= 0.0:
+		return
+	var now: float = Time.get_ticks_msec() / 1000.0
+	if now - _last_player_posture_hit_at < PLAYER_POSTURE_DECAY_DELAY:
+		return
+	player_posture = max(0.0, player_posture - PLAYER_POSTURE_DECAY_PER_SEC * delta)
+	posture_changed.emit(player_posture, PLAYER_MAX_POSTURE)
 	# Heartbeat log — once per second print player position + on-floor
 	# state + input dir so we can see remotely whether movement is working.
 	_debug_tick += delta
@@ -2844,6 +2992,30 @@ func take_damage(amount: float, source: Node = null) -> void:
 	# Remember who hit us last so the death replay can pan to them
 	if source and is_instance_valid(source):
 		_last_damage_source = source
+	# PLAYER POSTURE — each hit adds clamped posture. Full = brief
+	# stagger (locks input for 1s). Symmetric to the boss posture
+	# system so combat is bidirectional risk.
+	var posture_dmg: float = min(PLAYER_POSTURE_DAMAGE_PER_HIT_MAX, amount * PLAYER_POSTURE_DAMAGE_SCALE)
+	player_posture = clamp(player_posture + posture_dmg, 0.0, PLAYER_MAX_POSTURE)
+	_last_player_posture_hit_at = Time.get_ticks_msec() / 1000.0
+	posture_changed.emit(player_posture, PLAYER_MAX_POSTURE)
+	if player_posture >= PLAYER_MAX_POSTURE - 0.01:
+		_player_staggered_until = Time.get_ticks_msec() / 1000.0 + PLAYER_STAGGER_DURATION
+		player_posture = 0.0  # consumed by stagger
+		posture_changed.emit(player_posture, PLAYER_MAX_POSTURE)
+		# Lock input for the duration
+		locked = true
+		# Cinematic feedback so the player KNOWS they got staggered
+		var jcs: Node = get_node_or_null("/root/Juice")
+		if jcs:
+			if jcs.has_method("shake"):
+				jcs.shake(0.45, 0.30)
+			if jcs.has_method("flash"):
+				jcs.flash(Color(0.95, 0.20, 0.18), 0.30, 0.40)
+		# Hit-react anim is already played below via take_damage flow
+		get_tree().create_timer(PLAYER_STAGGER_DURATION).timeout.connect(func():
+			if not is_instance_valid(self): return
+			locked = false)
 	# Guard stance: reduce damage by GUARD_DAMAGE_REDUCTION (e.g., 55%
 	# soaked, 45% taken). Parry-window classes can layer on top.
 	if is_guarding():
