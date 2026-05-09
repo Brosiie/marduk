@@ -84,11 +84,31 @@ func _nat(asset: String, pos: Vector3, rot_y_deg: float = 0.0, scale: float = 1.
 		_ensure_collision(inst)
 	return inst
 
+# Procedural cherry blossom tree. Replaces the older _sakura helper
+# that tinted Kenney's green trees pink. Real procedural construction
+# (trunk + branches + layered foliage spheres + petal scatter) reads
+# unmistakably as sakura instead of "leafy tree photographed through
+# a rose filter".
+const _CHERRY_BLOSSOM_SCRIPT: String = "res://scripts/world/procedural_cherry_blossom.gd"
+
+func _cherry_blossom(pos: Vector3, rot_y_deg: float = 0.0, scale: float = 1.0) -> Node3D:
+	var script: GDScript = load(_CHERRY_BLOSSOM_SCRIPT)
+	if script == null:
+		# Fall back to the old tinted-Kenney path if the script's
+		# missing for any reason — never break zone composition.
+		return _sakura("tree_default_fall.glb", pos, rot_y_deg, scale)
+	var tree := Node3D.new()
+	tree.set_script(script)
+	tree.position = pos
+	tree.rotation_degrees = Vector3(0, rot_y_deg, 0)
+	tree.scale = Vector3.ONE * scale
+	add_child(tree)
+	return tree
+
 # Cherry blossom helper: spawn a Kenney tree, then tint every surface's
-# albedo toward soft pink. Uses surface_material_override so the original
-# .glb textures are untouched (no perma-modifications). Used by the
-# Japanese-themed Sword-Vow Ruins to make a forest of regular Kenney
-# trees read as a sakura grove.
+# albedo toward soft pink. Kept as a fallback for any caller that
+# specifically wants the lightweight version. Most callers should use
+# _cherry_blossom instead for the new procedural one.
 func _sakura(asset: String, pos: Vector3, rot_y_deg: float = 0.0, scale: float = 1.0) -> Node3D:
 	var inst := _nat(asset, pos, rot_y_deg, scale)
 	if inst == null:
@@ -434,17 +454,24 @@ func _torch(pos: Vector3, lit: bool = true) -> void:
 # When a real Quaternius nature pack lands, swap rubble/columns for grass
 # tufts and tree stumps; swap walls for ruined-arch stone fragments.
 func _build_sword_vow_ruins() -> void:
-	# JAPANESE SAKURA GROVE & DOJO. Bond's spec:
-	#   - Cherry blossoms instead of generic trees
-	#   - Dojo style instead of stone castle
-	#   - Save medieval/castle for the Paladin location (Sunsworn Chapel)
+	# JAPANESE SAKURA GROVE & DOJO — extended journey layout. Bond's
+	# follow-up spec: bigger map, walking journey, building we ENTER
+	# to fight the boss, real procedural cherry blossoms (not tinted
+	# Kenney trees), beautiful.
 	#
-	# Layout (south = player spawn, north = boss/dojo):
-	#   SOUTH  vermilion torii gate flanked by stone lanterns
-	#   MID    stone-tile path through cherry grove, wooden bridge over a
-	#          dry stream of stones, bamboo perimeter
-	#   NORTH  raised wooden dojo platform (boss arena), large sakura tree
-	#          behind throne, two stone lanterns flanking, white-pink motes
+	# Layout (south = player spawn, north = boss/dojo INTERIOR):
+	#   FAR SOUTH  campfire at spawn marker
+	#   SOUTH      first vermilion torii gate flanked by stone lanterns
+	#   STAGE 1    stone path through opening cherry grove, lantern-lit
+	#              every 3m, koi pond + arched wooden bridge spans the
+	#              creek
+	#   STAGE 2    second torii gate halfway, marking the inner sanctum
+	#              (so the journey reads as 2 acts not 1)
+	#   STAGE 3    inner courtyard with denser cherry grove, zen rocks,
+	#              stone lanterns flanking
+	#   NORTH      raised dojo BUILDING (procedural, with walls + roof
+	#              + entrance the player walks INTO). Boss waits inside.
+	#   FAR NORTH  giant focal sakura behind the dojo as horizon anchor
 
 	# --- Ground decor: grass + flower scatter, avoiding center path ---
 	for _i in range(140):
@@ -495,21 +522,27 @@ func _build_sword_vow_ruins() -> void:
 	# Water plane sitting just below the bridge
 	_spawn_koi_pond(Vector3(0, 0.05, 0), Vector2(18, 5))
 
-	# --- Cherry blossom grove perimeter (instead of generic trees) ---
-	# Tinted to soft pink. We use the _fall variants because they have
-	# fluffier silhouettes than the green trees and read more like sakura
-	# canopies.
-	for i in range(48):
-		var ring: int = i / 24
-		var angle: float = (i % 24) * TAU / 24.0 + (PI / 24.0 if ring == 1 else 0.0)
-		var r: float = size / 2 + (1.5 + ring * 4.0) + randf_range(-1, 2)
+	# --- Procedural cherry blossom grove (replaces tinted Kenney trees)
+	# Two perimeter rings + denser inner clusters for depth. The new
+	# procedural trees are heavier than the .glb hack (~37 nodes each)
+	# but the grove reads as a real sakura forest.
+	for i in range(56):
+		var ring: int = i / 28
+		var angle: float = (i % 28) * TAU / 28.0 + (PI / 28.0 if ring == 1 else 0.0)
+		var r: float = size / 2 + (1.5 + ring * 5.5) + randf_range(-1.5, 2.5)
 		var tx: float = cos(angle) * r
 		var tz: float = sin(angle) * r
 		# Skip the south entry corridor so torii is visible from spawn
-		if abs(tx) < 4 and tz > size / 2 - 2:
+		if abs(tx) < 5 and tz > size / 2 - 2:
 			continue
-		var tree_pick: String = ["tree_default_fall.glb", "tree_detailed_fall.glb", "tree_fat_fall.glb", "tree_blocks_fall.glb"].pick_random()
-		_sakura(tree_pick, Vector3(tx, 0, tz), randf() * 360.0, randf_range(2.6, 4.0))
+		_cherry_blossom(Vector3(tx, 0, tz), randf() * 360.0, randf_range(0.85, 1.35))
+
+	# --- MID-PATH inner sanctum torii — second gate halfway, marking
+	# the journey's act break. Bond's 'feel like a journey' note. ---
+	_torii(Vector3(0, 0, 4), 4.5)
+	# Lanterns flanking the second torii
+	_lantern(Vector3(-2.8, 0, 4))
+	_lantern(Vector3(2.8, 0, 4))
 
 	# --- Tall bamboo grove woven into the cherry perimeter for vertical
 	# variety and dense Japanese-garden density ---
@@ -524,11 +557,13 @@ func _build_sword_vow_ruins() -> void:
 		_nat(["crops_bambooStageA.glb", "crops_bambooStageB.glb"].pick_random(), Vector3(bx, 0, bz), randf() * 360.0, randf_range(2.5, 3.8))
 
 	# --- Inner-arena cherry blossom scatter for foreground depth ---
-	for _i in range(8):
+	# Procedural trees only inside the play area — the perimeter
+	# already has the procedural grove.
+	for _i in range(12):
 		var ix: float = randf_range(-size / 2 + 6, size / 2 - 6)
 		var iz: float = randf_range(-size / 2 + 8, size / 2 - 8)
-		if abs(ix) < 5: continue  # keep central path clear
-		_sakura(["tree_default_fall.glb", "tree_detailed_fall.glb"].pick_random(), Vector3(ix, 0, iz), randf() * 360.0, randf_range(2.0, 3.0))
+		if abs(ix) < 6: continue  # keep central path clear
+		_cherry_blossom(Vector3(ix, 0, iz), randf() * 360.0, randf_range(0.7, 1.1))
 
 	# --- Stone scatter (zen rocks) instead of broken columns + rubble ---
 	# Replaces the Sumerian-ruin debris from the old layout.
@@ -544,22 +579,34 @@ func _build_sword_vow_ruins() -> void:
 			2: _nat("plant_bushDetailed.glb", Vector3(ox, 0, oz), randf() * 360.0, randf_range(1.0, 1.6))
 			3: _nat("plant_bushLarge.glb", Vector3(ox, 0, oz), randf() * 360.0, randf_range(0.8, 1.2))
 
-	# --- NORTH end: WOODEN DOJO PLATFORM (boss arena) ---
-	# Three-step rising wooden platform (use floor_dirt for warm wood read,
-	# scaled wider than tall so it presents as a temple stage)
-	for tier in range(3):
-		var w: int = 5 - tier
-		var y: float = 0.35 * float(tier + 1)
-		for dx in range(-w, w + 1):
-			_spawn("floor_dirt_large.gltf.glb", Vector3(float(dx) * 1.0, y, -size / 2 + 4 + tier))
-	# Twin stone lanterns flanking the dojo
-	_lantern(Vector3(-5, 1.05, -size / 2 + 4))
-	_lantern(Vector3(5, 1.05, -size / 2 + 4))
-	# Decorated columns at the back of the dojo (replace stone arches)
-	_spawn("pillar_decorated.gltf.glb", Vector3(-3, 1.05, -size / 2 + 6))
-	_spawn("pillar_decorated.gltf.glb", Vector3(3, 1.05, -size / 2 + 6))
-	# A single grand sakura behind the dojo as a focal point
-	_sakura("tree_fat_fall.glb", Vector3(0, 0, -size / 2 + 8), 0.0, 5.0)
+	# --- NORTH end: PROCEDURAL DOJO BUILDING (boss arena INTERIOR) ---
+	# Full walled building with floor / walls / roof / posts / lanterns.
+	# Player walks UP the front steps, INTO the entrance gap, and the
+	# boss fight happens inside the hall. Massive upgrade from the old
+	# 3-step platform that read as 'open temple porch'.
+	var dojo_script: GDScript = load("res://scripts/world/procedural_dojo.gd")
+	if dojo_script:
+		var dojo := Node3D.new()
+		dojo.name = "Dojo"
+		dojo.set_script(dojo_script)
+		# Custom dimensions for a roomy boss arena interior — 18m wide
+		# x 20m deep gives plenty of dodging room for Iron Charge.
+		dojo.set("dojo_size", Vector2(18.0, 20.0))
+		dojo.set("entrance_width", 5.0)
+		dojo.position = Vector3(0, 0, -size / 2 + 12)
+		add_child(dojo)
+	# Twin stone lanterns flanking the dojo entrance, on the ground in
+	# front of the steps.
+	_lantern(Vector3(-6, 0, -size / 2 + 22))
+	_lantern(Vector3(6, 0, -size / 2 + 22))
+	# Decorated columns just behind the dojo as exterior framing
+	_spawn("pillar_decorated.gltf.glb", Vector3(-9, 0, -size / 2 + 4))
+	_spawn("pillar_decorated.gltf.glb", Vector3(9, 0, -size / 2 + 4))
+	# A single grand procedural sakura behind the dojo as horizon anchor
+	_cherry_blossom(Vector3(0, 0, -size / 2 + 2), 0.0, 1.8)
+	# Two flanking medium sakuras for depth
+	_cherry_blossom(Vector3(-12, 0, -size / 2 + 4), 0.0, 1.4)
+	_cherry_blossom(Vector3(12, 0, -size / 2 + 4), 0.0, 1.4)
 	# Lore flavor: half-buried sword in the central path (oath-keeper)
 	_spawn("sword_shield_broken.gltf.glb", Vector3(0, 0, 8), 25.0)
 

@@ -63,6 +63,100 @@ const BRANCH_LABELS := {
 	&"paladin_lightbringer": ["Mercy", "Light", "Salt", "Devotion", "Compassion", "Wrath of Dawn", "Grace"],
 }
 
+# Branch tint colors per class. Applied to the node border as a base hue;
+# the state color (gold maxed / cream available / etc) layers on top via
+# saturation. Colors mirror the lore-element of each branch.
+const BRANCH_COLORS := {
+	&"berserker": [
+		Color(0.85, 0.30, 0.20),  # War — blood red
+		Color(0.65, 0.10, 0.15),  # Blood — arterial
+		Color(0.95, 0.45, 0.25),  # Fury — ember
+		Color(0.75, 0.20, 0.45),  # Berserk — magenta
+		Color(0.55, 0.45, 0.35),  # Sunder — bone
+		Color(0.55, 0.65, 0.55),  # Endurance — moss
+		Color(0.95, 0.70, 0.30),  # Roar — gold
+	],
+	&"assassin": [
+		Color(0.45, 0.40, 0.55),  # Shadow — dim violet
+		Color(0.45, 0.85, 0.40),  # Venom — green
+		Color(0.85, 0.30, 0.40),  # Crimson — red
+		Color(0.75, 0.75, 0.85),  # Dagger — silver
+		Color(0.55, 0.85, 0.95),  # Agility — sky
+		Color(0.95, 0.45, 0.20),  # Lethality — orange
+		Color(0.30, 0.30, 0.45),  # Espionage — navy
+	],
+	&"ronin": [
+		Color(0.35, 0.65, 1.00),  # Water — cobalt
+		Color(0.95, 0.45, 0.20),  # Flame — ember
+		Color(0.65, 0.55, 0.75),  # Mist — pale violet
+		Color(0.95, 0.95, 0.40),  # Thunder — yellow
+		Color(0.65, 0.55, 0.45),  # Stone — earth
+		Color(0.85, 0.95, 0.85),  # Wind — pale celadon
+		Color(1.00, 0.85, 0.30),  # Sun — gold
+	],
+	&"ranger": [
+		Color(0.85, 0.75, 0.45),  # Marksman — wheat
+		Color(0.65, 0.85, 0.45),  # Beast — leaf
+		Color(0.55, 0.45, 0.30),  # Traps — wood
+		Color(0.45, 0.65, 0.55),  # Survival — sage
+		Color(0.55, 0.55, 0.55),  # Tracking — slate
+		Color(0.30, 0.30, 0.30),  # Ambush — charcoal
+		Color(0.55, 0.85, 1.00),  # Storm — pale lightning
+	],
+	&"mage": [
+		Color(1.00, 0.45, 0.20),  # Fire
+		Color(0.65, 0.85, 1.00),  # Frost
+		Color(0.85, 0.85, 1.00),  # Lightning — pale electric
+		Color(0.55, 0.40, 0.95),  # Arcane — violet
+		Color(1.00, 0.85, 0.45),  # Holy — gold
+		Color(0.55, 0.20, 0.65),  # Shadow — purple
+		Color(0.30, 0.10, 0.40),  # Void — deep
+	],
+	&"chaos_druid": [
+		Color(0.55, 0.85, 0.45),  # Wild — green
+		Color(0.45, 0.65, 0.35),  # Grove — forest
+		Color(0.85, 0.45, 0.95),  # Chaos — violet-pink
+		Color(0.65, 0.55, 0.30),  # Thorn — brown
+		Color(0.85, 0.65, 0.30),  # Beast — fawn
+		Color(0.45, 0.85, 0.85),  # Elemental — teal
+		Color(0.45, 0.20, 0.55),  # Tiamat — wound-violet
+	],
+	&"demon": [
+		Color(0.55, 0.30, 0.65),  # Legion — necrotic violet
+		Color(0.85, 0.30, 0.30),  # Hunger — blood
+		Color(0.45, 0.20, 0.55),  # Damnation — purple
+		Color(0.20, 0.20, 0.30),  # Abyss — void
+		Color(0.30, 0.30, 0.55),  # Nightborn — midnight
+		Color(0.95, 0.45, 0.20),  # Infernal — fire
+		Color(0.85, 0.30, 0.20),  # Wrath — red
+	],
+	&"paladin_guardian": [
+		Color(0.95, 0.95, 0.85),  # Aegis — bone-white
+		Color(0.85, 0.30, 0.20),  # Wrath — crimson
+		Color(0.55, 0.85, 0.95),  # Ward — pale blue
+		Color(0.95, 0.85, 0.45),  # Vow — gold
+		Color(0.65, 0.65, 0.65),  # Tenacity — steel
+		Color(1.00, 0.85, 0.30),  # Vindication — sun-gold
+		Color(0.95, 0.95, 0.95),  # Banner — pure white
+	],
+	&"paladin_lightbringer": [
+		Color(0.85, 0.85, 0.85),  # Mercy — pale grey-white
+		Color(1.00, 0.95, 0.55),  # Light — pale gold
+		Color(0.85, 0.85, 0.65),  # Salt — sea-bone
+		Color(0.95, 0.65, 0.65),  # Devotion — dawn-pink
+		Color(0.95, 0.85, 0.55),  # Compassion — warm cream
+		Color(1.00, 0.55, 0.30),  # Wrath of Dawn — sunrise
+		Color(1.00, 0.95, 0.85),  # Grace — pale dawn
+	],
+}
+
+# Default branch colors when class_id isn't in the map (eg test characters).
+const DEFAULT_BRANCH_COLORS := [
+	Color(0.55, 0.55, 0.55),  # x7 neutral grey
+	Color(0.55, 0.55, 0.55), Color(0.55, 0.55, 0.55), Color(0.55, 0.55, 0.55),
+	Color(0.55, 0.55, 0.55), Color(0.55, 0.55, 0.55), Color(0.55, 0.55, 0.55),
+]
+
 func _ready() -> void:
 	visible = false
 	process_mode = Node.PROCESS_MODE_ALWAYS  # tick even while paused
@@ -182,13 +276,19 @@ func _build_header() -> void:
 func _build_branch_labels() -> void:
 	if not stats or not stats.class_def:
 		return
-	var labels: Array = BRANCH_LABELS.get(stats.class_def.class_id, [])
+	var class_id: StringName = stats.class_def.class_id
+	var labels: Array = BRANCH_LABELS.get(class_id, [])
+	var colors: Array = BRANCH_COLORS.get(class_id, DEFAULT_BRANCH_COLORS)
 	for i in range(7):
 		var label_text: String = labels[i] if i < labels.size() else "Branch %d" % (i + 1)
+		var branch_color: Color = colors[i] if i < colors.size() else BRANCH_LABEL_COLOR
+		# Lighten so dark colors (Void, Abyss, Espionage) stay readable on the
+		# dark panel background.
+		var label_color: Color = branch_color.lerp(Color.WHITE, 0.35)
 		var lab := Label.new()
 		lab.text = label_text
 		lab.add_theme_font_size_override("font_size", 13)
-		lab.add_theme_color_override("font_color", BRANCH_LABEL_COLOR)
+		lab.add_theme_color_override("font_color", label_color)
 		lab.position = Vector2(GRID_OFFSET.x + i * COLUMN_WIDTH + (NODE_SIZE.x * 0.5) - 50, GRID_OFFSET.y - 28)
 		lab.size = Vector2(100, 20)
 		lab.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -252,34 +352,56 @@ func _short_label(n: SkillNode) -> String:
 
 func _style_node_button(btn: Button, n: SkillNode) -> void:
 	var rank: int = stats.get_node_rank(n.id) if stats else 0
-	var color: Color
+	var state_color: Color
+	var alpha: float = 1.0
 	if rank >= n.max_ranks:
-		color = COLOR_MAXED
+		state_color = COLOR_MAXED
 	elif rank > 0:
-		color = COLOR_PARTIAL
+		state_color = COLOR_PARTIAL
 	elif tree.can_unlock(n.id, stats):
-		color = COLOR_AVAILABLE
+		state_color = COLOR_AVAILABLE
 	elif stats and stats.level < n.min_level:
-		color = COLOR_PREREQ_MISS
+		state_color = COLOR_PREREQ_MISS
+		alpha = 0.65  # dim level-locked
 	else:
-		color = COLOR_LOCKED
-	# Tier-7 capstones: ember-glow border to mark them as endgame
-	var border_color: Color = color
+		state_color = COLOR_LOCKED
+		alpha = 0.55  # dim prereq-locked
+	# Branch tint: each column takes a lore-color (Ronin Water = cobalt etc).
+	# Border lerps state_color with branch_color so the player reads BOTH
+	# "is this purchasable" AND "what branch is this in" at a glance.
+	var class_id: StringName = stats.class_def.class_id if stats and stats.class_def else &""
+	var branch_colors: Array = BRANCH_COLORS.get(class_id, DEFAULT_BRANCH_COLORS)
+	var col_index: int = clamp(int(n.grid_position.x), 0, 6)
+	var branch_color: Color = branch_colors[col_index] if col_index < branch_colors.size() else COLOR_LOCKED
+	# Maxed nodes lean into the branch color (the achievement); unlocked-but-
+	# unspent nodes lean into the state color (so they pop as actionable).
+	var border_color: Color
+	if rank >= n.max_ranks:
+		border_color = branch_color  # full branch color when maxed
+	elif rank > 0:
+		border_color = branch_color.lerp(state_color, 0.5)
+	else:
+		border_color = state_color.lerp(branch_color, 0.35)
+	border_color.a = alpha
+	# Tier-7 capstones: ember override regardless of state — these are LOUD.
 	if int(n.grid_position.y) >= 7:
-		border_color = COLOR_CAPSTONE
+		border_color = branch_color.lerp(COLOR_CAPSTONE, 0.45)
+		border_color.a = max(alpha, 0.85)
 
 	var style := StyleBoxFlat.new()
 	style.bg_color = Color(0.10, 0.08, 0.06, 0.95)
 	style.border_color = border_color
-	style.border_width_left = 2; style.border_width_right = 2
-	style.border_width_top = 2; style.border_width_bottom = 2
+	# Capstones get thicker borders so they read as endgame from a screen away.
+	var border_w: int = 3 if int(n.grid_position.y) >= 7 else 2
+	style.border_width_left = border_w; style.border_width_right = border_w
+	style.border_width_top = border_w; style.border_width_bottom = border_w
 	style.corner_radius_top_left = 6; style.corner_radius_top_right = 6
 	style.corner_radius_bottom_left = 6; style.corner_radius_bottom_right = 6
 	# Hover/pressed/disabled all share the base; override font color instead.
 	btn.add_theme_stylebox_override("normal", style)
 	btn.add_theme_stylebox_override("hover", style)
 	btn.add_theme_stylebox_override("pressed", style)
-	btn.add_theme_color_override("font_color", color)
+	btn.add_theme_color_override("font_color", state_color)
 	btn.add_theme_color_override("font_hover_color", Color.WHITE)
 	# Rank pips on multi-rank nodes — append "(r/max)"
 	if n.max_ranks > 1:
