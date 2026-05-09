@@ -110,6 +110,16 @@ func _ready() -> void:
 		pbb.set_script(pbb_script)
 		pbb.name = "PlayerBuffBar"
 		$Root.add_child(pbb)
+	# Compass strip (top center). N/E/S/W cardinals + warp portal +
+	# lodestone + quest-target markers slide along the strip as the
+	# player rotates. Skyrim/Fallout style heading reference so the
+	# player can navigate without opening the map.
+	var cb_script: GDScript = load("res://scripts/ui/hud_components/compass_bar.gd")
+	if cb_script:
+		var cb := Control.new()
+		cb.set_script(cb_script)
+		cb.name = "CompassBar"
+		$Root.add_child(cb)
 	# Player ability cast bar (bottom-center, above the WowAbilityBar)
 	var pcb_script: GDScript = load("res://scripts/ui/hud_components/player_cast_bar.gd")
 	if pcb_script:
