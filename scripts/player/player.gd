@@ -1596,27 +1596,29 @@ func _attach_katana_to_hand_bone() -> void:
 	var katana_mesh: Node3D = socket.get_node_or_null("KatanaMesh")
 	if katana_mesh:
 		katana_mesh.transform = Transform3D.IDENTITY
-	# Mixamo right-hand bone local frame (T-pose):
-	#   +Y = along finger length (out from wrist toward fingertips)
-	#   +X = thumb direction (out from palm side of hand)
-	#   +Z = top-of-hand (knuckles up when palm down)
+	# Mixamo right-hand bone local frame, EMPIRICALLY PROBED via
+	# get_bone_global_pose on the Ronin .glb in T-pose:
+	#   +X = world +Z direction = "forward" (perpendicular to forearm,
+	#        pointing where the character is facing)
+	#   +Y = world -X direction = along the arm toward fingertips
+	#   +Z = world -Y direction = downward through the palm
+	# (This differs from naive Mixamo-doc guesses — always probe
+	# before assuming a rig's local axes.)
+	#
 	# Procedural katana extends along its OWN local +Y (grip at origin,
-	# blade tip at far +Y). The previous version left the katana
-	# aligned with bone +Y, which made the blade extend out FROM THE
-	# FINGERTIPS like a wand — visually wrong AND it explained Bond's
-	# "doesn't stay in hand" (the blade was clipping through the palm
-	# during arm-swing animations because its grip was at fingertip
-	# height, not in the palm). Real sword grip:
-	#   blade perpendicular to the forearm, pointing OUT from the
-	#   palm in the +Z direction of the bone (which is roughly
-	#   forearm-forward when arm is at side).
-	# Rotate -90 around bone +X so katana +Y -> bone +Z. Then a small
-	# forward tilt (-12 around new +X) angles the blade slightly down
-	# from the wrist for the iaido resting stance.
+	# blade tip at far +Y). For a natural samurai grip the blade
+	# should point FORWARD relative to the body — that's bone +X.
+	# Rotate the socket -90 around its own +Z so the katana's +Y axis
+	# rotates to align with the local +X axis (= bone +X = forward).
+	# Then -10 around bone +Y angles the blade slightly forward-and-
+	# down for the iaido resting stance.
+	# Position offset (0, 0.04, 0) seats the grip ~4cm along bone +Y
+	# toward the fingers — between thumb and forefinger, where a
+	# real katana sits.
 	socket.transform = Transform3D(
-		Basis().rotated(Vector3.RIGHT, deg_to_rad(-90))
-		      .rotated(Vector3.RIGHT, deg_to_rad(-12)),
-		Vector3(0.0, 0.02, 0.06)
+		Basis().rotated(Vector3(0, 0, 1), deg_to_rad(-90))
+		      .rotated(Vector3(0, 1, 0), deg_to_rad(-10)),
+		Vector3(0.0, 0.04, 0.0)
 	)
 	# Defensive bone-tracking: BoneAttachment3D's bone_idx can become
 	# stale if the skeleton's bone count changes (e.g. some imports

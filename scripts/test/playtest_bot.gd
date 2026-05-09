@@ -153,6 +153,13 @@ func _scenario_idle_baseline() -> void:
 
 func _scenario_walk_forward() -> void:
 	var start_pos: Vector3 = _player.global_position
+	# Snapshot the sword's world position at rest, BEFORE walking.
+	# After the walk we expect the offset between sword and player
+	# to stay roughly constant (the sword tracks the hand which
+	# tracks the body). If root motion is leaking through, the
+	# sword's offset will drift +Z each frame and end up far from
+	# the player.
+	var sword_offset_before: Vector3 = _read_sword_offset_to_player()
 	_press_action("move_up")
 	# Sample anim mid-walk (after 1s movement is steady) BEFORE releasing
 	# the input. Otherwise the anim already snapped back to idle by the
@@ -160,6 +167,9 @@ func _scenario_walk_forward() -> void:
 	await _wait(1.0)
 	var ap: AnimationPlayer = _player.get("anim_player")
 	var mid_walk_anim: String = String(ap.current_animation) if ap else ""
+	# Sample sword offset MID-walk. If root motion leaked through, the
+	# offset will be wildly different from the start (sword detached).
+	var sword_offset_during: Vector3 = _read_sword_offset_to_player()
 	await _wait(1.0)
 	_release_action("move_up")
 	var end_pos: Vector3 = _player.global_position
@@ -175,6 +185,20 @@ func _scenario_walk_forward() -> void:
 		_pass("walk_anim", "playing '%s' mid-stride" % mid_walk_anim)
 	else:
 		_fail("walk_anim", "playing '%s' mid-stride (expected walk/run)" % mid_walk_anim)
+	# Sword-tracks-hand check: root motion bleed makes the sword's
+	# offset to the player drift > 1m over a 1s walk. After the strip
+	# fix the offset should stay within ~0.3m of its rest value (some
+	# variance from the natural arm-swing animation moving the wrist
+	# back and forth).
+	if sword_offset_before != Vector3.ZERO and sword_offset_during != Vector3.ZERO:
+		var drift: float = sword_offset_before.distance_to(sword_offset_during)
+		if drift < 0.6:
+			_pass("sword_tracks_hand", "sword offset drift mid-walk = %.2fm (in-hand)" % drift)
+		else:
+			_fail("sword_tracks_hand", "sword drifted %.2fm during walk — root motion leaking" % drift)
+			# Diagnostic: dump the walk-anim position track so we see
+			# whether the strip actually persisted into the library.
+			_dump_walk_anim_position_track()
 
 func _scenario_lock_on() -> void:
 	# Find the closest enemy; if nothing within 30m, skip lock test.
@@ -481,6 +505,59 @@ func _scenario_mesh_integrity() -> void:
 # ---------------------------------------------------------------------
 # Input simulation helpers (uses Input.action_press / action_release)
 # ---------------------------------------------------------------------
+
+# Resolve the sword's global position relative to the player. Used by
+# the walk scenario to detect root-motion bleed (sword sliding off the
+# body during a walk loop). Returns Vector3.ZERO if anything in the
+# resolution chain is missing — caller treats ZERO as 'skip the check'.
+func _read_sword_offset_to_player() -> Vector3:
+	if not is_instance_valid(_player):
+		return Vector3.ZERO
+	var mesh: Node3D = _player.get("mesh")
+	if mesh == null:
+		return Vector3.ZERO
+	# Find the BoneAttachment3D under any Skeleton3D in the mesh tree
+	var attach: BoneAttachment3D = null
+	for n in mesh.find_children("*", "BoneAttachment3D", true, false):
+		attach = n
+		break
+	if attach == null:
+		return Vector3.ZERO
+	# Measure sword position IN MESH-LOCAL SPACE. The mesh rotates
+	# during walk (atan2 lerp toward input direction); a world-space
+	# offset would change just because the body turned, even when
+	# the sword is correctly attached. Mesh-local stays constant if
+	# the sword tracks the hand properly. Drift > 0.6m here means
+	# real detachment / root motion bleed inside the skeleton.
+	return mesh.to_local(attach.global_position)
+
+# One-shot diagnostic: dump the walk anim's Hips position track so we
+# know whether the strip actually persisted into the bound library.
+# Called at the end of _scenario_walk_forward.
+func _dump_walk_anim_position_track() -> void:
+	var ap: AnimationPlayer = _player.get("anim_player")
+	if ap == null:
+		return
+	var name_to_dump: String = "marduk/walk"
+	if not ap.has_animation(name_to_dump):
+		# Try walk_back, run as fallbacks
+		for n in ["marduk/run", "marduk/walk_back", "marduk/katana_walk"]:
+			if ap.has_animation(n):
+				name_to_dump = n
+				break
+	if not ap.has_animation(name_to_dump):
+		return
+	var anim: Animation = ap.get_animation(name_to_dump)
+	for t in range(anim.get_track_count()):
+		if anim.track_get_type(t) != Animation.TYPE_POSITION_3D:
+			continue
+		var p = anim.track_get_path(t)
+		var nk = anim.track_get_key_count(t)
+		if nk < 2:
+			continue
+		var v0 = anim.track_get_key_value(t, 0)
+		var vn = anim.track_get_key_value(t, nk - 1)
+		print("[PlaytestBot][diag] %s pos track #%d path=%s start=%s end=%s" % [name_to_dump, t, str(p), str(v0), str(vn)])
 
 func _press_action(name: String) -> void:
 	if not InputMap.has_action(name):

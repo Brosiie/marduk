@@ -295,18 +295,77 @@ func _load_animation_from_fbx(path: String) -> Animation:
 			break
 		if anim != null:
 			break
-	inst.queue_free()
-	# Force loop_mode = LINEAR on movement/idle animations only. Mixamo
-	# .glb files often import with loop_mode = NONE; when the character
-	# walks the clip ticks once and freezes on the final frame which
-	# reads as a T-pose. But forcing LOOP on death/hit/attack/dodge/cast
-	# clips makes them repeat infinitely until manually stopped — the
-	# dead mob keeps standing up, the attack swing fires again on its
-	# own, etc. So we whitelist the looping slots by path-substring.
+	# Configure loop mode + strip root motion BEFORE freeing the
+	# .glb instance. Resources extracted from a queued-free scene
+	# can have edits silently dropped if the parent ResourceLoader
+	# tracks them as imported assets. Mutating in-place while the
+	# AnimationLibrary still holds a live reference inside the .glb
+	# tree is the safest order.
 	if anim != null:
 		if _should_loop(path):
 			anim.loop_mode = Animation.LOOP_LINEAR
 		else:
 			anim.loop_mode = Animation.LOOP_NONE
+		# CRITICAL: strip root motion from movement anims. Mixamo
+		# walk/run/strafe .glbs ship with a position track on
+		# mixamorig_Hips translating the bone ~1.75m +Z over the
+		# loop. The CharacterBody3D ALREADY moves via velocity, so
+		# the anim's root motion compounds — the entire skeleton
+		# slides forward each cycle and snaps back at the loop
+		# boundary. Visually: the sword (BoneAttachment3D pinned to
+		# the right-hand bone INSIDE that drifting skeleton) detaches
+		# from the body and flies off mid-stride. THE bug Bond
+		# reported as "walking anim glitches the sword out, doesn't
+		# stay in hand". Strip every Hips position track — applied
+		# universally because even attack/death anims with a small
+		# residual position track would still poke the skeleton.
+		_strip_root_motion_position(anim, path)
+	inst.queue_free()
 	_ANIM_CACHE[path] = anim
 	return anim
+
+# Find any TYPE_POSITION_3D track that targets the Hips/RootNode bone
+# and convert all keyframes to a constant rest position so the
+# skeleton stays in-place. Leaves rotation tracks alone — those drive
+# the actual visual walk cycle. Cheap: only walks track headers and
+# rewrites keyframes in place rather than rebuilding the Animation.
+func _strip_root_motion_position(anim: Animation, src_path: String = "") -> void:
+	if anim == null:
+		return
+	var stripped_count: int = 0
+	for t in range(anim.get_track_count()):
+		if anim.track_get_type(t) != Animation.TYPE_POSITION_3D:
+			continue
+		var path_str: String = String(anim.track_get_path(t))
+		# Match Mixamo's mixamorig_Hips. Also match plain RootNode
+		# (some pipelines put root motion there). Anything else is
+		# a legitimate per-bone position track (e.g. punch animations
+		# may translate the wrist) and we leave it alone.
+		var is_root_motion: bool = (
+			path_str.find("mixamorig_Hips") >= 0
+			or path_str.find("RootNode") >= 0
+		)
+		if not is_root_motion:
+			continue
+		# Use the FIRST keyframe's position as the rest pose so the
+		# Hips don't snap to (0,0,0) — that would put the character's
+		# pelvis at the floor mid-loop. Mixamo Hips rest is typically
+		# y ≈ 1.0 (pelvis height) with x/z near 0.
+		var n_keys: int = anim.track_get_key_count(t)
+		if n_keys == 0:
+			continue
+		var rest_pos: Vector3 = anim.track_get_key_value(t, 0)
+		# Strip the moving axis ONLY (X and Z = horizontal drift).
+		# Leave Y so foot-plant bobbing still lifts the pelvis.
+		rest_pos.x = anim.track_get_key_value(t, 0).x
+		rest_pos.z = anim.track_get_key_value(t, 0).z
+		for k in range(n_keys):
+			var v: Vector3 = anim.track_get_key_value(t, k)
+			# Pin X/Z to the first-keyframe value (no drift), keep Y
+			# so foot-plant bob is preserved.
+			v.x = rest_pos.x
+			v.z = rest_pos.z
+			anim.track_set_key_value(t, k, v)
+		stripped_count += 1
+	if stripped_count > 0 and src_path != "":
+		print("[AnimLoader] stripped %d root-motion track(s) from %s" % [stripped_count, src_path.get_file()])
