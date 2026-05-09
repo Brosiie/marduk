@@ -120,6 +120,16 @@ func _ready() -> void:
 		taw.set_script(taw_script)
 		taw.name = "TiamatAwarenessWidget"
 		$Root.add_child(taw)
+	# Wound creep widget (top right, below the Tiamat widget). Hidden
+	# at CONTAINED; reveals at SEEPING and tracks the corruption's
+	# spread. Distinct green palette so the player can tell the two
+	# cosmic threats apart at a glance.
+	var wcw_script: GDScript = load("res://scripts/ui/hud_components/wound_creep_widget.gd")
+	if wcw_script:
+		var wcw := Control.new()
+		wcw.set_script(wcw_script)
+		wcw.name = "WoundCreepWidget"
+		$Root.add_child(wcw)
 	# Compass strip (top center). N/E/S/W cardinals + warp portal +
 	# lodestone + quest-target markers slide along the strip as the
 	# player rotates. Skyrim/Fallout style heading reference so the

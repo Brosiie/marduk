@@ -403,7 +403,35 @@ func _pick_next_weather() -> int:
 	_apply_time_bias(weights, _time_of_day())
 	_apply_zone_bias(weights)
 	_apply_tiamat_bias(weights)
+	_apply_wound_bias(weights)
 	return _weighted_pick(weights)
+
+# Wound creep bias: when the player is in or adjacent to the Verdant
+# Wound zone and creep is at SEEPING+ tier, the weather skews toward
+# mist (the corruption manifests as a green haze that thickens with
+# spread). Applied AFTER zone bias so we layer on top of the zone's
+# baseline +1.6x mist multiplier in verdant_wound. Only the Wound zone
+# (and its near neighbors) feels the bias, not the whole world.
+func _apply_wound_bias(weights: Dictionary) -> void:
+	var wr: Node = get_node_or_null("/root/WoundRegistry")
+	if wr == null or not wr.has_method("get_creep"):
+		return
+	var creep: int = int(wr.get_creep())
+	if creep < 20:  # below SEEPING the bias is silent
+		return
+	var zone: StringName = _detect_zone()
+	# Only the Wound zone and its direct neighbors carry the haze.
+	# Other regions stay clean unless creep reaches CONSUMING (90+).
+	var is_wound_adjacent: bool = zone == &"verdant_wound" or zone == &"sundered_coast" or zone == &"shrieking_highlands"
+	if not is_wound_adjacent and creep < 90:
+		return
+	# Scale: at creep 20 (SEEPING), mist x1.5. At 70 (UNCONTAINED), mist x3.
+	# At 100 (CONSUMING), mist x4 + storms damped (the air is too thick).
+	var t: float = clamp(float(creep) / 100.0, 0.0, 1.0)
+	weights[Weather.MIST] = float(weights.get(Weather.MIST, 0.0)) * (1.0 + t * 3.0)
+	if creep >= 90:
+		weights[Weather.STORM] = float(weights.get(Weather.STORM, 0.0)) * 0.5
+		weights[Weather.CLEAR] = float(weights.get(Weather.CLEAR, 0.0)) * 0.4
 
 # Tiamat awareness bias: as her dream stirs, the world's weather skews
 # toward storms and mist. Read at pick-time so a tier transition mid-

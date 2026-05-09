@@ -69,6 +69,7 @@ AuctionHouse="*res://scripts/economy/auction_house.gd"
 ShopkeeperRegistry="*res://scripts/economy/shopkeeper_registry.gd"
 FactionRegistry="*res://scripts/factions/faction_registry.gd"
 TiamatRegistry="*res://scripts/world/tiamat_registry.gd"
+WoundRegistry="*res://scripts/world/wound_registry.gd"
 ClassRegistry="*res://scripts/classes/class_registry.gd"
 PlaytestBot="*res://scripts/test/playtest_bot.gd"
 

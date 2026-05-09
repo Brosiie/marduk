@@ -132,6 +132,7 @@ func _run() -> void:
 	await _scenario_tiamat_awareness_tiers()
 	await _scenario_npc_contextual_greeting()
 	await _scenario_tiamat_vision_overlay()
+	await _scenario_wound_creep_tiers()
 
 	_finish()
 
@@ -1308,6 +1309,64 @@ func _scenario_tiamat_vision_overlay() -> void:
 		if is_instance_valid(overlay):
 			overlay.queue_free()
 		_fail("tiamat_vision_overlay", "has_children=%s freed=%s" % [has_children, freed])
+
+# 17. Wound creep tiers: walk every breakpoint and verify tier_for
+# returns the right tier, plus that tier_changed fires the expected
+# up-transitions. Mirrors the Tiamat tier scenario pattern. Also
+# verifies Druid quest reduces creep, Inquisition raises it.
+func _scenario_wound_creep_tiers() -> void:
+	var wr: Node = get_node_or_null("/root/WoundRegistry")
+	if wr == null:
+		_findings.append("(skip wound_creep_tiers: WoundRegistry missing)")
+		return
+	wr.set_creep(0)
+	var transitions: Array[String] = []
+	var listener := func(new_tier: String, _old_tier: String, _new_value: int):
+		transitions.append(new_tier)
+	wr.tier_changed.connect(listener)
+	# Boundary checks
+	var checks := [
+		{"value": 0,   "expected": "CONTAINED"},
+		{"value": 19,  "expected": "CONTAINED"},
+		{"value": 20,  "expected": "SEEPING"},
+		{"value": 44,  "expected": "SEEPING"},
+		{"value": 45,  "expected": "BLEEDING"},
+		{"value": 69,  "expected": "BLEEDING"},
+		{"value": 70,  "expected": "UNCONTAINED"},
+		{"value": 89,  "expected": "UNCONTAINED"},
+		{"value": 90,  "expected": "CONSUMING"},
+		{"value": 200, "expected": "CONSUMING"},
+	]
+	var failures: Array[String] = []
+	for c in checks:
+		wr.set_creep(int(c["value"]))
+		var actual: String = wr.current_tier()
+		if actual != String(c["expected"]):
+			failures.append("at %d expected %s got %s" % [c["value"], c["expected"], actual])
+	# Druid path: -5 from current
+	wr.set_creep(50)
+	wr.on_druid_quest_completed()
+	var after_druid: int = int(wr.get_creep())
+	# Inquisition path: +4 from current
+	wr.set_creep(50)
+	wr.on_inquisition_quest_completed()
+	var after_inq: int = int(wr.get_creep())
+	# Cleanup
+	wr.tier_changed.disconnect(listener)
+	wr.set_creep(0)
+	# Verify
+	var saw_up: int = 0
+	for t in transitions:
+		if t in ["SEEPING", "BLEEDING", "UNCONTAINED", "CONSUMING"]:
+			saw_up += 1
+	var druid_correct: bool = after_druid == 45
+	var inq_correct: bool = after_inq == 54
+	if failures.is_empty() and saw_up >= 4 and druid_correct and inq_correct:
+		_pass("wound_creep_tiers", "10 boundary checks ok, %d up-transitions, druid 50->%d, inq 50->%d" %
+			[saw_up, after_druid, after_inq])
+	else:
+		_fail("wound_creep_tiers", "failures=%s up=%d druid=%d inq=%d" %
+			[", ".join(failures), saw_up, after_druid, after_inq])
 
 func _scenario_hud_presence() -> void:
 	var huds := get_tree().get_nodes_in_group("hud")
