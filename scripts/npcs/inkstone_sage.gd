@@ -28,6 +28,17 @@ const CLASS_OPENINGS := {
 # already sacrificed the Demon. Only one line, they earned it.
 const WALKED_BACK_OPENING := "I knew you when you had a different name. You took it back. Most don't. Sit. Let me see what's left of you."
 
+# Tiamat-aware openings. The Sage is a glyph-master and has spent his
+# whole life reading marks; he reads HER stirring before any other NPC
+# in the game. Dread tier overrides the class line because what he
+# sees in the stone matters more than what he sees on the player at
+# this moment.
+const DREAD_OPENINGS := {
+	"WAKING":   "The ink in the slate is restless tonight. I keep losing my place. Sit down quickly. Tell me what you've been doing.",
+	"WAKING_2": "I've been chronicling for sixty years. The stone has not behaved this way before. The marks are RESHAPING themselves while I'm not looking. Tell me. Quickly.",
+	"AWAKE":    "I cannot finish your chronicle. The ink keeps writing her name over yours. I am sorry. Sit anyway. While there is still a stone to write on.",
+}
+
 const RACE_FLAVOR := {
 	&"anunnaki":         "Babilim's bones in your face, you carry them well.",
 	&"ash_born":         "The steppes shaped you. The wind there shapes everyone.",
@@ -112,6 +123,14 @@ func _resolve_class_id(stats_obj) -> StringName:
 func _opening_line(class_id: StringName, walked_back: bool) -> String:
 	if walked_back:
 		return WALKED_BACK_OPENING
+	# Tiamat-aware override: at WAKING dread or higher, the Sage's
+	# chronicle opens with what he sees in the stone, not on the
+	# player. The class line gets demoted to a later beat.
+	var tr: Node = get_node_or_null("/root/TiamatRegistry")
+	if tr and tr.has_method("current_tier"):
+		var tier: String = String(tr.current_tier())
+		if DREAD_OPENINGS.has(tier):
+			return String(DREAD_OPENINGS[tier])
 	return CLASS_OPENINGS.get(class_id, "I see you. That's enough for now.")
 
 func _race_line(ca) -> String:

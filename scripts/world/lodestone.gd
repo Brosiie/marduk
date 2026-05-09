@@ -153,12 +153,45 @@ func _process(delta: float) -> void:
 	if _crystal_mesh:
 		_crystal_mesh.rotation.y += delta * 0.6
 
+var _vision_played_this_visit: bool = false
+
 func _on_body_entered(body: Node3D) -> void:
 	if not body.is_in_group("player"):
 		return
 	_player_inside = true
 	if _label3d:
 		_label3d.visible = true
+	# Tiamat vision: at WAKING_2 awareness or higher, the act of
+	# resting at a discovered lodestone briefly opens the player to her
+	# dream. Fires once per zone-entry; leaving and re-entering the
+	# trigger plays a fresh vision (the deep is patient but it doesn't
+	# repeat itself in the same visit). Undiscovered lodestones don't
+	# fire because attunement is the bigger moment first time through.
+	if not _vision_played_this_visit:
+		_try_play_tiamat_vision()
+		_vision_played_this_visit = true
+
+func _try_play_tiamat_vision() -> void:
+	var registry := get_node_or_null("/root/LodestoneRegistry")
+	if registry == null or not registry.is_discovered(lodestone_id):
+		return
+	var tr: Node = get_node_or_null("/root/TiamatRegistry")
+	if tr == null or not tr.has_method("current_tier"):
+		return
+	var tier: String = String(tr.current_tier())
+	# Only WAKING_2 + AWAKE trigger visions. STIRRING / WAKING are too
+	# subtle for a direct vision; the HUD widget + sky tint carry those
+	# tiers' weight already.
+	if tier != "WAKING_2" and tier != "AWAKE":
+		return
+	var overlay_script: GDScript = load("res://scripts/world/tiamat_vision_overlay.gd")
+	if overlay_script == null:
+		return
+	var overlay: CanvasLayer = CanvasLayer.new()
+	overlay.set_script(overlay_script)
+	overlay.name = "TiamatVisionOverlay"
+	get_tree().current_scene.add_child(overlay)
+	overlay.play(tier)
 
 func _on_body_exited(body: Node3D) -> void:
 	if not body.is_in_group("player"):
@@ -166,6 +199,11 @@ func _on_body_exited(body: Node3D) -> void:
 	_player_inside = false
 	if _label3d:
 		_label3d.visible = false
+	# Reset vision lockout when the player leaves the trigger so the
+	# next entry can play another vision if awareness is still high.
+	# Without this, the player would have to reload the scene to get a
+	# second vision at the same lodestone.
+	_vision_played_this_visit = false
 
 func _unhandled_input(event: InputEvent) -> void:
 	if not _player_inside:

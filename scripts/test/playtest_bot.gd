@@ -131,6 +131,7 @@ func _run() -> void:
 	await _scenario_save_version_migration()
 	await _scenario_tiamat_awareness_tiers()
 	await _scenario_npc_contextual_greeting()
+	await _scenario_tiamat_vision_overlay()
 
 	_finish()
 
@@ -1277,6 +1278,36 @@ var character_appearance = null
 		_pass("npc_contextual_greeting", "DORMANT->class, WAKING->dread, AWAKE->dread (highest wins)")
 	else:
 		_fail("npc_contextual_greeting", "got dormant=%s waking=%s awake=%s" % [got_dormant, got_waking, got_awake])
+
+# 16. Tiamat vision overlay: spawn the overlay directly with each tier
+# and verify it (a) builds children, (b) free-self after the animation
+# completes. Proves the overlay's lifecycle so a real lodestone trigger
+# downstream behaves predictably.
+func _scenario_tiamat_vision_overlay() -> void:
+	var overlay_script: GDScript = load("res://scripts/world/tiamat_vision_overlay.gd")
+	if overlay_script == null:
+		_findings.append("(skip tiamat_vision_overlay: script missing)")
+		return
+	# Build with a deterministic pool so the test isn't randomized.
+	var overlay: CanvasLayer = CanvasLayer.new()
+	overlay.set_script(overlay_script)
+	add_child(overlay)
+	overlay.play("WAKING_2", ["test vision line"])
+	# Frame 1: verify the overlay built children (tint + label)
+	await get_tree().process_frame
+	var has_children: bool = overlay.get_child_count() >= 2  # ColorRect + Label
+	# The overlay self-frees on tween_callback after fade-out.
+	# Total animation: FADE_IN (0.6) + HOLD (3.0) + FADE_OUT (0.8) = 4.4s.
+	# Wait 4.6s with a tiny margin and verify it's gone.
+	await get_tree().create_timer(4.6).timeout
+	var freed: bool = not is_instance_valid(overlay)
+	if has_children and freed:
+		_pass("tiamat_vision_overlay", "built tint+label, self-freed after animation")
+	else:
+		# If the overlay didn't free, clean up so we don't leak
+		if is_instance_valid(overlay):
+			overlay.queue_free()
+		_fail("tiamat_vision_overlay", "has_children=%s freed=%s" % [has_children, freed])
 
 func _scenario_hud_presence() -> void:
 	var huds := get_tree().get_nodes_in_group("hud")
