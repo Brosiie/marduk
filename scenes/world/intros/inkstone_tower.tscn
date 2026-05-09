@@ -1,0 +1,177 @@
+[gd_scene load_steps=10 format=3]
+
+[ext_resource type="Script" path="res://scripts/player/player.gd" id="1_player"]
+[ext_resource type="Script" path="res://scripts/player/camera_rig.gd" id="2_cam"]
+[ext_resource type="PackedScene" path="res://scenes/ui/hud.tscn" id="3_hud"]
+[ext_resource type="Shader" path="res://shaders/toon.gdshader" id="4_toon"]
+[ext_resource type="Script" path="res://scripts/enemies/tower_warden.gd" id="5_warden"]
+
+; Inkstone Tower — Mage intro arena.
+; Top floor of the Inkstone Sanctum. A circular library room with bookshelves
+; lining the walls and a central glyph-floor where the Tower Warden is bound.
+; Candles float at chest height, slow-orbiting. Violet sigil-light pulses up
+; through the floor cracks. The room feels HUNG with magic.
+
+[sub_resource type="PlaneMesh" id="floor_mesh"]
+size = Vector2(60, 60)
+
+[sub_resource type="ShaderMaterial" id="floor_mat"]
+shader = ExtResource("4_toon")
+shader_parameter/albedo = Color(0.16, 0.13, 0.20, 1)
+shader_parameter/bands = 3.0
+shader_parameter/ambient = 0.35
+shader_parameter/rim_strength = 0.30
+shader_parameter/rim_power = 4.5
+shader_parameter/rim_color = Color(0.65, 0.50, 0.95, 1)
+shader_parameter/shadow_tint = Color(0.08, 0.06, 0.12, 1)
+
+[sub_resource type="BoxShape3D" id="floor_shape"]
+size = Vector3(60, 0.4, 60)
+
+[sub_resource type="StandardMaterial3D" id="shelf_mat"]
+albedo_color = Color(0.30, 0.22, 0.18, 1)
+roughness = 0.92
+
+[sub_resource type="BoxShape3D" id="shelf_shape"]
+size = Vector3(2.4, 4.5, 0.6)
+
+[sub_resource type="BoxMesh" id="shelf_mesh"]
+size = Vector3(2.4, 4.5, 0.6)
+
+[sub_resource type="ProceduralSkyMaterial" id="sky_mat"]
+sky_top_color = Color(0.06, 0.04, 0.10, 1)
+sky_horizon_color = Color(0.20, 0.10, 0.30, 1)
+ground_horizon_color = Color(0.10, 0.06, 0.15, 1)
+ground_bottom_color = Color(0.04, 0.03, 0.06, 1)
+
+[sub_resource type="Sky" id="sky"]
+sky_material = SubResource("sky_mat")
+
+[sub_resource type="Environment" id="env"]
+background_mode = 2
+sky = SubResource("sky")
+ambient_light_source = 2
+ambient_light_color = Color(0.65, 0.55, 0.95, 1)
+ambient_light_energy = 0.55
+fog_enabled = true
+fog_density = 0.022
+fog_light_color = Color(0.55, 0.40, 0.95, 1)
+
+[node name="InkstoneTower" type="Node3D"]
+
+; ── Floor ────────────────────────────────────────────────────────
+[node name="Floor" type="StaticBody3D" parent="."]
+[node name="FloorMesh" type="MeshInstance3D" parent="Floor"]
+mesh = SubResource("floor_mesh")
+material_override = SubResource("floor_mat")
+[node name="FloorCol" type="CollisionShape3D" parent="Floor"]
+shape = SubResource("floor_shape")
+position = Vector3(0, -0.2, 0)
+
+; ── Bookshelves ringing the central platform ────────────────────
+[node name="ShelfN" type="StaticBody3D" parent="."]
+position = Vector3(0, 2.5, -16)
+[node name="ShelfMesh" type="MeshInstance3D" parent="ShelfN"]
+mesh = SubResource("shelf_mesh")
+material_override = SubResource("shelf_mat")
+[node name="ShelfCol" type="CollisionShape3D" parent="ShelfN"]
+shape = SubResource("shelf_shape")
+
+[node name="ShelfNE" type="StaticBody3D" parent="."]
+position = Vector3(11, 2.5, -11)
+rotation = Vector3(0, -0.78, 0)
+[node name="ShelfMesh" type="MeshInstance3D" parent="ShelfNE"]
+mesh = SubResource("shelf_mesh")
+material_override = SubResource("shelf_mat")
+[node name="ShelfCol" type="CollisionShape3D" parent="ShelfNE"]
+shape = SubResource("shelf_shape")
+
+[node name="ShelfE" type="StaticBody3D" parent="."]
+position = Vector3(16, 2.5, 0)
+rotation = Vector3(0, -1.57, 0)
+[node name="ShelfMesh" type="MeshInstance3D" parent="ShelfE"]
+mesh = SubResource("shelf_mesh")
+material_override = SubResource("shelf_mat")
+[node name="ShelfCol" type="CollisionShape3D" parent="ShelfE"]
+shape = SubResource("shelf_shape")
+
+[node name="ShelfW" type="StaticBody3D" parent="."]
+position = Vector3(-16, 2.5, 0)
+rotation = Vector3(0, 1.57, 0)
+[node name="ShelfMesh" type="MeshInstance3D" parent="ShelfW"]
+mesh = SubResource("shelf_mesh")
+material_override = SubResource("shelf_mat")
+[node name="ShelfCol" type="CollisionShape3D" parent="ShelfW"]
+shape = SubResource("shelf_shape")
+
+[node name="ShelfNW" type="StaticBody3D" parent="."]
+position = Vector3(-11, 2.5, -11)
+rotation = Vector3(0, 0.78, 0)
+[node name="ShelfMesh" type="MeshInstance3D" parent="ShelfNW"]
+mesh = SubResource("shelf_mesh")
+material_override = SubResource("shelf_mat")
+[node name="ShelfCol" type="CollisionShape3D" parent="ShelfNW"]
+shape = SubResource("shelf_shape")
+
+; ── Floating candle lights ──────────────────────────────────────
+[node name="CandleA" type="OmniLight3D" parent="."]
+position = Vector3(4, 1.5, -4)
+light_color = Color(1.0, 0.85, 0.55)
+light_energy = 1.2
+omni_range = 5.0
+
+[node name="CandleB" type="OmniLight3D" parent="."]
+position = Vector3(-4, 1.5, -4)
+light_color = Color(1.0, 0.85, 0.55)
+light_energy = 1.2
+omni_range = 5.0
+
+[node name="CandleC" type="OmniLight3D" parent="."]
+position = Vector3(0, 1.5, 4)
+light_color = Color(1.0, 0.85, 0.55)
+light_energy = 1.2
+omni_range = 5.0
+
+; ── Central sigil light (under the Warden) ──────────────────────
+[node name="SigilLight" type="OmniLight3D" parent="."]
+position = Vector3(0, 0.4, -6)
+light_color = Color(0.65, 0.40, 0.95)
+light_energy = 2.6
+omni_range = 8.0
+
+; ── Cool overhead arcane key ────────────────────────────────────
+[node name="ArcaneKey" type="DirectionalLight3D" parent="."]
+transform = Transform3D(0.85, 0.0, -0.52, 0.20, 0.92, 0.32, 0.48, -0.39, 0.78, 0, 18, 0)
+light_color = Color(0.65, 0.55, 0.95)
+light_energy = 0.55
+
+; ── Player ──────────────────────────────────────────────────────
+[node name="Player" type="CharacterBody3D" parent="."]
+script = ExtResource("1_player")
+position = Vector3(0, 0.1, 12)
+
+[node name="PlayerShape" type="CollisionShape3D" parent="Player"]
+shape = SubResource("floor_shape")
+
+[node name="MeshRoot" type="Node3D" parent="Player"]
+
+; ── Camera ──────────────────────────────────────────────────────
+[node name="CameraRig" type="Node3D" parent="Player"]
+script = ExtResource("2_cam")
+
+[node name="Camera3D" type="Camera3D" parent="Player/CameraRig"]
+position = Vector3(0, 13, 13)
+rotation = Vector3(-0.66, 0, 0)
+fov = 55.0
+
+; ── Tower Warden ────────────────────────────────────────────────
+[node name="TowerWarden" type="CharacterBody3D" parent="."]
+script = ExtResource("5_warden")
+position = Vector3(0, 0.1, -6)
+
+; ── HUD ─────────────────────────────────────────────────────────
+[node name="HUD" parent="." instance=ExtResource("3_hud")]
+
+; ── World Environment ───────────────────────────────────────────
+[node name="WorldEnv" type="WorldEnvironment" parent="."]
+environment = SubResource("env")

@@ -2795,6 +2795,11 @@ func take_damage(amount: float, source: Node = null) -> void:
 	var scar_mgr: Node = get_node_or_null("ScarManager")
 	if scar_mgr and scar_mgr.has_method("record_hit_taken"):
 		scar_mgr.record_hit_taken(amount, stats.max_hp, source, 0)
+	# Achievement tracker: marks any active boss-fight as "took damage" so
+	# no-hit achievements (the_untouched, the_unmarked) fail gracefully.
+	var ach_tracker: Node = get_node_or_null("AchievementTracker")
+	if ach_tracker and ach_tracker.has_method("on_damage_taken"):
+		ach_tracker.on_damage_taken(amount)
 	# Combo broken: any time the player takes a non-i-frame, non-guard-
 	# absorbed hit the combo resets. Encourages aggressive but safe play.
 	if _combo_count > 0:

@@ -1,0 +1,173 @@
+[gd_scene load_steps=10 format=3]
+
+[ext_resource type="Script" path="res://scripts/player/player.gd" id="1_player"]
+[ext_resource type="Script" path="res://scripts/player/camera_rig.gd" id="2_cam"]
+[ext_resource type="PackedScene" path="res://scenes/ui/hud.tscn" id="3_hud"]
+[ext_resource type="Shader" path="res://shaders/toon.gdshader" id="4_toon"]
+[ext_resource type="Script" path="res://scripts/enemies/sahirum_witch_burner.gd" id="5_sahirum"]
+
+; Coven Glen — Chaos Druid intro arena.
+; Wound-corrupted clearing in the Verdant Wound. Bog-soft floor with
+; sickly-violet vine patches. Broken stone-circle remnants from the old
+; Druid coven (the Inquisition burned through here a generation ago).
+; Sahirum the Witch-Burner waits at the largest broken stone, torch lit.
+; The Wound has not forgotten.
+
+[sub_resource type="PlaneMesh" id="floor_mesh"]
+size = Vector2(100, 100)
+
+[sub_resource type="ShaderMaterial" id="floor_mat"]
+shader = ExtResource("4_toon")
+shader_parameter/albedo = Color(0.18, 0.22, 0.16, 1)
+shader_parameter/bands = 3.0
+shader_parameter/ambient = 0.30
+shader_parameter/rim_strength = 0.25
+shader_parameter/rim_power = 4.5
+shader_parameter/rim_color = Color(0.55, 0.30, 0.85, 1)
+shader_parameter/shadow_tint = Color(0.10, 0.12, 0.08, 1)
+
+[sub_resource type="BoxShape3D" id="floor_shape"]
+size = Vector3(100, 0.4, 100)
+
+[sub_resource type="StandardMaterial3D" id="stone_mat"]
+albedo_color = Color(0.32, 0.30, 0.28, 1)
+roughness = 0.95
+
+[sub_resource type="BoxShape3D" id="stone_shape"]
+size = Vector3(1.6, 4.5, 0.8)
+
+[sub_resource type="BoxMesh" id="stone_mesh"]
+size = Vector3(1.6, 4.5, 0.8)
+
+[sub_resource type="ProceduralSkyMaterial" id="sky_mat"]
+sky_top_color = Color(0.10, 0.06, 0.16, 1)
+sky_horizon_color = Color(0.40, 0.30, 0.45, 1)
+ground_horizon_color = Color(0.20, 0.18, 0.16, 1)
+ground_bottom_color = Color(0.08, 0.06, 0.04, 1)
+
+[sub_resource type="Sky" id="sky"]
+sky_material = SubResource("sky_mat")
+
+[sub_resource type="Environment" id="env"]
+background_mode = 2
+sky = SubResource("sky")
+ambient_light_source = 2
+ambient_light_color = Color(0.55, 0.45, 0.65, 1)
+ambient_light_energy = 0.50
+fog_enabled = true
+fog_density = 0.020
+fog_light_color = Color(0.55, 0.30, 0.65, 1)
+
+[node name="CovenGlen" type="Node3D"]
+
+; ── Floor ────────────────────────────────────────────────────────
+[node name="Floor" type="StaticBody3D" parent="."]
+[node name="FloorMesh" type="MeshInstance3D" parent="Floor"]
+mesh = SubResource("floor_mesh")
+material_override = SubResource("floor_mat")
+[node name="FloorCol" type="CollisionShape3D" parent="Floor"]
+shape = SubResource("floor_shape")
+position = Vector3(0, -0.2, 0)
+
+; ── Broken stone-circle remnants ────────────────────────────────
+[node name="StoneN" type="StaticBody3D" parent="."]
+position = Vector3(0, 2.2, -10)
+rotation = Vector3(0.10, 0, 0.18)
+[node name="StoneMesh" type="MeshInstance3D" parent="StoneN"]
+mesh = SubResource("stone_mesh")
+material_override = SubResource("stone_mat")
+[node name="StoneCol" type="CollisionShape3D" parent="StoneN"]
+shape = SubResource("stone_shape")
+
+[node name="StoneNE" type="StaticBody3D" parent="."]
+position = Vector3(8, 2.2, -5)
+rotation = Vector3(-0.15, -0.78, 0.10)
+[node name="StoneMesh" type="MeshInstance3D" parent="StoneNE"]
+mesh = SubResource("stone_mesh")
+material_override = SubResource("stone_mat")
+[node name="StoneCol" type="CollisionShape3D" parent="StoneNE"]
+shape = SubResource("stone_shape")
+
+[node name="StoneE" type="StaticBody3D" parent="."]
+position = Vector3(10, 2.2, 4)
+rotation = Vector3(0, -1.57, 0.22)
+[node name="StoneMesh" type="MeshInstance3D" parent="StoneE"]
+mesh = SubResource("stone_mesh")
+material_override = SubResource("stone_mat")
+[node name="StoneCol" type="CollisionShape3D" parent="StoneE"]
+shape = SubResource("stone_shape")
+
+[node name="StoneW" type="StaticBody3D" parent="."]
+position = Vector3(-10, 2.2, 4)
+rotation = Vector3(0, 1.57, -0.22)
+[node name="StoneMesh" type="MeshInstance3D" parent="StoneW"]
+mesh = SubResource("stone_mesh")
+material_override = SubResource("stone_mat")
+[node name="StoneCol" type="CollisionShape3D" parent="StoneW"]
+shape = SubResource("stone_shape")
+
+[node name="StoneNW" type="StaticBody3D" parent="."]
+position = Vector3(-8, 2.2, -5)
+rotation = Vector3(0.15, 0.78, -0.10)
+[node name="StoneMesh" type="MeshInstance3D" parent="StoneNW"]
+mesh = SubResource("stone_mesh")
+material_override = SubResource("stone_mat")
+[node name="StoneCol" type="CollisionShape3D" parent="StoneNW"]
+shape = SubResource("stone_shape")
+
+; ── Sahirum's torch (light from the boss area) ──────────────────
+[node name="TorchLight" type="OmniLight3D" parent="."]
+position = Vector3(0, 1.6, -5)
+light_color = Color(1.0, 0.55, 0.20)
+light_energy = 2.4
+omni_range = 10.0
+
+; ── Wound-violet sigil-light along the floor ────────────────────
+[node name="WoundLightA" type="OmniLight3D" parent="."]
+position = Vector3(6, 0.5, 0)
+light_color = Color(0.55, 0.30, 0.85)
+light_energy = 1.4
+omni_range = 7.0
+
+[node name="WoundLightB" type="OmniLight3D" parent="."]
+position = Vector3(-6, 0.5, 0)
+light_color = Color(0.55, 0.30, 0.85)
+light_energy = 1.4
+omni_range = 7.0
+
+; ── Cool moon directional ───────────────────────────────────────
+[node name="MoonLight" type="DirectionalLight3D" parent="."]
+transform = Transform3D(0.85, 0.0, -0.52, 0.20, 0.92, 0.32, 0.48, -0.39, 0.78, 0, 18, 0)
+light_color = Color(0.65, 0.55, 0.75)
+light_energy = 0.45
+
+; ── Player ──────────────────────────────────────────────────────
+[node name="Player" type="CharacterBody3D" parent="."]
+script = ExtResource("1_player")
+position = Vector3(0, 0.1, 14)
+
+[node name="PlayerShape" type="CollisionShape3D" parent="Player"]
+shape = SubResource("floor_shape")
+
+[node name="MeshRoot" type="Node3D" parent="Player"]
+
+; ── Camera ──────────────────────────────────────────────────────
+[node name="CameraRig" type="Node3D" parent="Player"]
+script = ExtResource("2_cam")
+
+[node name="Camera3D" type="Camera3D" parent="Player/CameraRig"]
+position = Vector3(0, 13, 13)
+rotation = Vector3(-0.66, 0, 0)
+fov = 55.0
+
+; ── Sahirum the Witch-Burner ────────────────────────────────────
+[node name="SahirumWitchBurner" type="CharacterBody3D" parent="."]
+script = ExtResource("5_sahirum")
+position = Vector3(0, 0.1, -5)
+
+; ── HUD ─────────────────────────────────────────────────────────
+[node name="HUD" parent="." instance=ExtResource("3_hud")]
+
+; ── World Environment ───────────────────────────────────────────
+[node name="WorldEnv" type="WorldEnvironment" parent="."]
+environment = SubResource("env")
