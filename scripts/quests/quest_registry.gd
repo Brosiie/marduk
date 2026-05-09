@@ -365,6 +365,10 @@ func accept_quest(id: StringName) -> bool:
 	for _i in range(q.objectives_data.size()):
 		counters.append(0)
 	_progress[id] = counters
+	# Mirror to the player's QuestLog so the J-panel UI sees this quest.
+	# QuestLog is a passive UI cache; QuestRegistry remains the canonical
+	# store. Rewards are granted exclusively in complete_quest below.
+	_mirror_to_quest_log_start(q)
 	quest_accepted.emit(q)
 	_save_to_save_flags()
 	# Event-driven autosave so a freshly-accepted quest survives an
@@ -389,17 +393,21 @@ func complete_quest(id: StringName) -> bool:
 		player.stats.gain_xp(int(q.xp_reward))
 	if player and "stats" in player and player.stats and "gold" in player.stats:
 		player.stats.gold += int(q.gold_reward)
-	# Apply faction rep changes from the quest. Must mirror QuestLog.turn_in
-	# so kill-objective auto-completes (which never go through turn_in)
-	# still grant the diplomatic stakes the quest declared. Without this
-	# block, the 5 starter faction quests (Crown Loyalty / Black Sail /
-	# Druid Friend / etc) silently skip their rep deltas when completed
-	# via kill credit instead of NPC turn-in.
+	# Apply faction rep changes from the quest. Kill-objective auto-
+	# completes never go through QuestLog.turn_in, so they previously
+	# silently skipped the rep deltas. The 5 starter faction quests
+	# (Crown Loyalty / Black Sail / Druid Friend / etc) ship 250 to
+	# 1000 rep deltas that need to fire on auto-complete.
 	if q.faction_rep_changes.size() > 0:
 		var fr: Node = get_node_or_null("/root/FactionRegistry")
 		if fr and fr.has_method("add_rep"):
 			for fid in q.faction_rep_changes.keys():
 				fr.add_rep(fid, int(q.faction_rep_changes[fid]))
+	# Mirror state to the player's QuestLog so the J-panel reflects the
+	# completion. We move the entry from QuestLog.active to its
+	# completed_ids list and emit quest_turned_in directly rather than
+	# calling QuestLog.turn_in (which would double-grant rewards).
+	_mirror_to_quest_log_complete(q)
 	# Achievement: first quest completion
 	var ar = get_node_or_null("/root/AchievementRegistry")
 	if ar and ar.has_method("unlock"):
@@ -462,6 +470,10 @@ func progress(kind: StringName, target_id: StringName, delta: int = 1) -> void:
 				quest_progress.emit(q, i, counters[i])
 		if changed and _all_objectives_done(q, counters):
 			to_complete.append(quest_id)
+	# Mirror to the player's QuestLog so the J-panel reflects the new
+	# counts. QuestLog.report_event matches the same (kind, target_id,
+	# delta) signature so this is a one-line forward.
+	_mirror_to_quest_log_progress(kind, target_id, delta)
 	for quest_id in to_complete:
 		complete_quest(quest_id)
 	# Persist the new progress numbers. Skipped completion path
@@ -478,6 +490,49 @@ func _all_objectives_done(q: Quest, counters: Array) -> bool:
 		if i >= counters.size() or counters[i] < required:
 			return false
 	return true
+
+# ─────── QuestLog UI mirror ───────
+# Player has a QuestLog child node that the J-panel UI reads from. We
+# keep it in lockstep with QuestRegistry's canonical state so the UI
+# shows live data. QuestLog used to be its own quest engine but is now
+# a passive cache; rewards live exclusively in QuestRegistry.
+
+func _player_quest_log() -> Node:
+	var p: Node = get_tree().get_first_node_in_group("player") if get_tree() else null
+	if p == null:
+		return null
+	return p.get_node_or_null("QuestLog")
+
+func _mirror_to_quest_log_start(q: Quest) -> void:
+	var qlog: Node = _player_quest_log()
+	if qlog == null or not qlog.has_method("start"):
+		return
+	# QuestLog.start runs its own min_level + prereq + run_flag gates.
+	# Those already passed up at the QuestRegistry level (we got here),
+	# so a false return here is OK and we just don't mirror. Common cause
+	# of false return: the quest is already in qlog.completed_ids from
+	# a prior session (rare but harmless to silently skip).
+	qlog.start(q)
+
+func _mirror_to_quest_log_progress(kind: StringName, target_id: StringName, delta: int) -> void:
+	var qlog: Node = _player_quest_log()
+	if qlog == null or not qlog.has_method("report_event"):
+		return
+	qlog.report_event(kind, target_id, delta)
+
+func _mirror_to_quest_log_complete(q: Quest) -> void:
+	# Move the entry from QuestLog.active to its completed_ids array
+	# and emit quest_turned_in. We bypass QuestLog.turn_in to avoid
+	# double-granting rewards (already granted in complete_quest above).
+	var qlog: Node = _player_quest_log()
+	if qlog == null:
+		return
+	if "active" in qlog and qlog.active.has(q.id):
+		qlog.active.erase(q.id)
+	if "completed_ids" in qlog and not (q.id in qlog.completed_ids):
+		qlog.completed_ids.append(q.id)
+	if qlog.has_signal("quest_turned_in"):
+		qlog.quest_turned_in.emit(q)
 
 # Public: counter array for an active quest. Returns [] if not active.
 # Used by QuestTrackerHUD and InventoryPanel quests panel to render

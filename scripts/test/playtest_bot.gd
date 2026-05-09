@@ -126,6 +126,8 @@ func _run() -> void:
 	await _scenario_faction_kill_rep()
 	await _scenario_vendor_tier_pricing()
 	await _scenario_quest_faction_gate()
+	await _scenario_quest_log_ui_mirror()
+	await _scenario_complete_quest_faction_rep_apply()
 
 	_finish()
 
@@ -1010,6 +1012,117 @@ func _scenario_quest_faction_gate() -> void:
 		_pass("quest_faction_gate", "below threshold blocked, at threshold accepted")
 	else:
 		_fail("quest_faction_gate", "blocked=%s accepted=%s (expected true,true)" % [blocked, accepted])
+
+# 11. QuestLog UI mirror: accept a synthetic quest via QuestRegistry,
+# verify the player's QuestLog child node sees it appear in `active`.
+# Then progress + complete it, verify the QuestLog state transitions
+# match (active -> completed_ids). Proves the J-panel UI gets live
+# data even though all quest writes go through QuestRegistry.
+func _scenario_quest_log_ui_mirror() -> void:
+	var qr: Node = get_node_or_null("/root/QuestRegistry")
+	if qr == null:
+		_findings.append("(skip quest_log_ui_mirror: QuestRegistry missing)")
+		return
+	var qlog: Node = _player.get_node_or_null("QuestLog") if _player else null
+	if qlog == null:
+		_findings.append("(skip quest_log_ui_mirror: player has no QuestLog child)")
+		return
+	# Build a synthetic quest with one kill objective targeting a
+	# unique mob_id so this test doesn't collide with live quests.
+	var QuestRes = preload("res://scripts/quests/quest.gd")
+	var q = QuestRes.new()
+	q.id = &"_harness_log_mirror_quest"
+	q.display_name = "Harness Log Mirror"
+	q.min_level = 1
+	# required_count=2 so we can sample mid-progress without the
+	# auto-complete moving the entry out of qlog.active mid-read.
+	q.objectives_data = [{"description":"slay","kind":"kill","target_id":"_harness_target","required_count":2}]
+	if "quests" in qr:
+		qr.quests[q.id] = q
+	# 1. Accept and verify mirror appears in QuestLog.active
+	var ok_accept: bool = bool(qr.accept_quest(q.id))
+	var saw_active: bool = qlog.active.has(q.id) if "active" in qlog else false
+	# 2. Progress 1/2 and verify QuestLog objective counter advances
+	qr.progress(&"kill", &"_harness_target", 1)
+	var qlog_count: int = -1
+	if saw_active and qlog.active.has(q.id):
+		var aq = qlog.active[q.id]
+		if aq and "objectives" in aq and aq.objectives.size() > 0:
+			qlog_count = int(aq.objectives[0].current_count)
+	# 3. Progress 2/2 to auto-complete; should move to completed_ids
+	qr.progress(&"kill", &"_harness_target", 1)
+	var moved_to_completed: bool = ("completed_ids" in qlog) and (q.id in qlog.completed_ids)
+	var no_longer_active: bool = not (qlog.active.has(q.id) if "active" in qlog else true)
+	# Cleanup
+	if "_active" in qr and qr._active.has(q.id):
+		qr._active.erase(q.id)
+	if "_completed" in qr and qr._completed.has(q.id):
+		qr._completed.erase(q.id)
+	if "_progress" in qr and qr._progress.has(q.id):
+		qr._progress.erase(q.id)
+	if "quests" in qr and qr.quests.has(q.id):
+		qr.quests.erase(q.id)
+	if "active" in qlog and qlog.active.has(q.id):
+		qlog.active.erase(q.id)
+	if "completed_ids" in qlog and q.id in qlog.completed_ids:
+		qlog.completed_ids.erase(q.id)
+	if ok_accept and saw_active and qlog_count == 1 and moved_to_completed and no_longer_active:
+		_pass("quest_log_ui_mirror", "accept->mirror, progress->count=1, complete->moved")
+	else:
+		_fail("quest_log_ui_mirror", "accept=%s saw_active=%s count=%d moved=%s no_longer_active=%s" %
+			[ok_accept, saw_active, qlog_count, moved_to_completed, no_longer_active])
+
+# 12. complete_quest applies faction_rep_changes on auto-complete.
+# Builds a quest with declared faction_rep_changes, accepts it via
+# QuestRegistry, fires kill credit to auto-complete, verifies the
+# rep deltas landed in FactionRegistry. Proves the auto-complete
+# path applies stakes (the bug fixed in c7cf870 silently dropped
+# them on kill-credit auto-completes).
+func _scenario_complete_quest_faction_rep_apply() -> void:
+	var qr: Node = get_node_or_null("/root/QuestRegistry")
+	var fr: Node = get_node_or_null("/root/FactionRegistry")
+	if qr == null or fr == null:
+		_findings.append("(skip complete_quest_faction_rep: registries missing)")
+		return
+	# Baseline rep so deltas are unambiguous
+	fr.set_rep(&"crown", 5000)
+	fr.set_rep(&"black_sail", 5000)
+	# Synthetic quest with known rep deltas
+	var QuestRes = preload("res://scripts/quests/quest.gd")
+	var q = QuestRes.new()
+	q.id = &"_harness_complete_rep_quest"
+	q.display_name = "Harness Complete Rep"
+	q.min_level = 1
+	q.objectives_data = [{"description":"slay","kind":"kill","target_id":"_harness_complete_rep","required_count":1}]
+	q.faction_rep_changes = {&"crown": 200, &"black_sail": -150}
+	if "quests" in qr:
+		qr.quests[q.id] = q
+	qr.accept_quest(q.id)
+	# Auto-complete via kill credit
+	qr.progress(&"kill", &"_harness_complete_rep", 1)
+	var crown_after: int = int(fr.get_rep(&"crown"))
+	var bs_after: int = int(fr.get_rep(&"black_sail"))
+	# Cleanup
+	if "_active" in qr and qr._active.has(q.id):
+		qr._active.erase(q.id)
+	if "_completed" in qr and qr._completed.has(q.id):
+		qr._completed.erase(q.id)
+	if "_progress" in qr and qr._progress.has(q.id):
+		qr._progress.erase(q.id)
+	if "quests" in qr and qr.quests.has(q.id):
+		qr.quests.erase(q.id)
+	var qlog: Node = _player.get_node_or_null("QuestLog") if _player else null
+	if qlog:
+		if "active" in qlog and qlog.active.has(q.id):
+			qlog.active.erase(q.id)
+		if "completed_ids" in qlog and q.id in qlog.completed_ids:
+			qlog.completed_ids.erase(q.id)
+	if crown_after == 5200 and bs_after == 4850:
+		_pass("complete_quest_faction_rep", "Crown 5000->%d, BlackSail 5000->%d on auto-complete" %
+			[crown_after, bs_after])
+	else:
+		_fail("complete_quest_faction_rep", "expected Crown 5200 / BS 4850, got Crown %d / BS %d" %
+			[crown_after, bs_after])
 
 func _scenario_hud_presence() -> void:
 	var huds := get_tree().get_nodes_in_group("hud")
