@@ -45,6 +45,21 @@ func _seed_glyphs() -> void:
 		"They say Kazat broke his own nose every dawn so he'd remember pain. The mark you carry is the line that finally broke his."
 	)
 
+	_add_glyph(&"glyph_sapum_five_mouthed",
+		"Five-Mouth Sigil",
+		"A spiral with five points, each a mouth. The mark of those who put down Master Sapum at the Whisper Shrine.",
+		&"master_sapum",
+		"Master Sapum, Five-Mouthed",
+		5,  # spiral
+		Color(0.45, 0.85, 0.45),
+		&"whisper_initiates",  # +0.5% damage vs Whisper Shrine cult members
+		0.005,
+		180,
+		&"sapum_whisper_dagger",
+		1,
+		"Sapum taught by trying to kill his initiates. The five mouths he carried in his fan-belt were one each. The sigil you bear is the mouth that bit you back."
+	)
+
 	_add_glyph(&"glyph_hassu_hooked",
 		"Hooked Brand",
 		"A jagged hook-curve crossed by a chain link. Hassu's mark; carried by those who put down the Hooked One in the Ash-Step Camp.",

@@ -46,6 +46,12 @@ class_name CharacterAppearance
 # Implementation gated until Bond approves the Demon spec checklist.
 @export var demon_overlay: Resource = null  # DemonOverlay when implemented
 
+# === Soul Bindings (Tier 2 living-character mechanic) ===
+# A SoulBinding sub-resource holds the bound weapon + bound armor + sacrifice
+# ledger. Null until the player visits the altar at Ashurim and binds an item.
+# See CHARACTER_DESIGN.md § 8.5.4.
+@export var soul_binding: Resource = null  # SoulBinding when the binding ritual has been performed
+
 # === Pre-Lucifer soul snapshot (set when Demon class is unlocked from a prior character) ===
 # Used by the Sacrifice Ritual (DEMON_VISUAL_TRANSFORMATION.md § 18) to walk back
 # the Demon transformation and restore the original mortal class.

@@ -1,4 +1,4 @@
-[gd_scene load_steps=10 format=3]
+[gd_scene load_steps=11 format=3]
 
 [ext_resource type="Script" path="res://scripts/player/player.gd" id="1_player"]
 [ext_resource type="Script" path="res://scripts/player/camera_rig.gd" id="2_cam"]
@@ -6,6 +6,7 @@
 [ext_resource type="Shader" path="res://shaders/toon.gdshader" id="4_toon"]
 [ext_resource type="Script" path="res://scripts/npcs/storyteller_npc.gd" id="5_storyteller"]
 [ext_resource type="Script" path="res://scripts/world/warp_portal.gd" id="6_warp"]
+[ext_resource type="Script" path="res://scripts/npcs/binding_altar.gd" id="7_altar"]
 
 ; Ashurim — Convergence City. Phase 1 placeholder.
 ; Sandstone vaults. Warm candlelight. The Storyteller waits at the dais.
@@ -146,6 +147,12 @@ script = ExtResource("2_cam")
 position = Vector3(0, 12, 12)
 rotation = Vector3(-0.64, 0, 0)
 fov = 55.0
+
+; ── Binding Altar (Tier 2 living-character soul-binding) ──────────────
+; Stone slab off to the side of the dais. Walk up + V to interact.
+[node name="BindingAltar" type="CharacterBody3D" parent="."]
+script = ExtResource("7_altar")
+position = Vector3(8, 0.6, -10)
 
 ; ── HUD ────────────────────────────────────────────────────────────────
 [node name="HUD" parent="." instance=ExtResource("3_hud")]

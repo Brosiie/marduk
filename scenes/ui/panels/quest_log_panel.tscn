@@ -1,0 +1,23 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/ui/panels/quest_log_panel.gd" id="1_ctrl"]
+
+[node name="QuestLogPanel" type="CanvasLayer"]
+script = ExtResource("1_ctrl")
+layer = 55
+
+[node name="Dim" type="ColorRect" parent="."]
+anchor_right = 1.0
+anchor_bottom = 1.0
+color = Color(0.02, 0.015, 0.025, 0.78)
+mouse_filter = 0
+
+[node name="Panel" type="PanelContainer" parent="."]
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -400.0
+offset_top = -310.0
+offset_right = 400.0
+offset_bottom = 310.0

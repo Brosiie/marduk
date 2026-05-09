@@ -4,6 +4,7 @@
 [ext_resource type="Script" path="res://scripts/ui/hud_components/ability_slot_bar.gd" id="2"]
 [ext_resource type="PackedScene" path="res://scenes/ui/panels/skill_tree_panel.tscn" id="3_skill_tree"]
 [ext_resource type="PackedScene" path="res://scenes/menus/pause_menu.tscn" id="4_pause"]
+[ext_resource type="PackedScene" path="res://scenes/ui/panels/quest_log_panel.tscn" id="5_quest_log"]
 
 [node name="HUD" type="CanvasLayer"]
 script = ExtResource("1")
@@ -57,3 +58,5 @@ mouse_filter = 2
 [node name="SkillTreePanel" parent="." instance=ExtResource("3_skill_tree")]
 
 [node name="PauseMenu" parent="." instance=ExtResource("4_pause")]
+
+[node name="QuestLogPanel" parent="." instance=ExtResource("5_quest_log")]

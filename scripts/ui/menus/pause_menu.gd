@@ -146,11 +146,21 @@ func _on_picker_closed() -> void:
 	if not visible:
 		visible = true
 
+const SETTINGS_MENU_SCENE := "res://scenes/menus/settings_menu.tscn"
+
 func _open_settings() -> void:
-	# Phase 2: real settings menu. For now: toast explaining where it'll be.
-	var juice: Node = get_node_or_null("/root/Juice")
-	if juice and juice.has_method("toast"):
-		juice.toast("Settings coming in Phase 2.", Color(0.85, 0.78, 0.55), 2.0)
+	var packed: PackedScene = load(SETTINGS_MENU_SCENE)
+	if not packed:
+		var juice: Node = get_node_or_null("/root/Juice")
+		if juice and juice.has_method("toast"):
+			juice.toast("Settings menu scene not found.", Color(0.85, 0.30, 0.20), 2.0)
+		return
+	var menu = packed.instantiate()
+	get_tree().current_scene.add_child(menu)
+	menu.open()
+	visible = false
+	if menu.has_signal("closed"):
+		menu.closed.connect(_on_picker_closed)
 
 func _quit_to_title() -> void:
 	get_tree().paused = false
