@@ -618,10 +618,14 @@ func _die(killer: Node) -> void:
 			ar.unlock(&"a_first_boss")
 	# Quest progress: count this kill against any active quest with a
 	# matching kill objective (e.g. "Slay 6 Tashmu's Footmen" tracks
-	# every usurper_footman death).
+	# every usurper_footman death). After progress fires, spawn a
+	# QuestProgressFloater above the corpse for any objective whose
+	# counter actually advanced, so the player sees the kill MATTERED
+	# beyond loot + XP.
 	var qr = get_node_or_null("/root/QuestRegistry")
 	if qr and qr.has_method("progress") and mob_id != &"":
 		qr.progress(&"kill", mob_id, 1)
+		_spawn_quest_progress_floaters(qr)
 	# Codex bestiary unlock: first time the player kills a mob type, flip
 	# its bestiary entry from locked to readable.
 	var cdx = get_node_or_null("/root/CodexRegistry")
@@ -687,3 +691,47 @@ func _spawn_pickups(items: Array[Item]) -> void:
 
 func get_attr(_a: StringName) -> float:
 	return 0.0
+
+# Walks every active quest right after a kill and spawns a
+# QuestProgressFloater for each objective that incremented. Reads live
+# counters from QuestRegistry._progress so we know the exact (count /
+# required) numbers to display.
+#
+# Why we re-scan instead of using the quest_progress signal:
+#   - We need the killed mob's POSITION to anchor the floater. The
+#     signal carries (quest, objective_index, count) but no source.
+#   - We need the OBJECTIVE DESCRIPTION (e.g. "Eliminate Tashmu's
+#     Footmen") which is static metadata on the quest. Walking the
+#     quest list here gives us both the count AND the description in
+#     one pass without storing a sidetable mapping mob_id -> objectives.
+#
+# Skipped if QuestProgressFloater isn't loadable so older builds that
+# don't have the floater script don't crash on kill.
+func _spawn_quest_progress_floaters(qr: Node) -> void:
+	var floater_script: GDScript = load("res://scripts/quests/quest_progress_floater.gd")
+	if floater_script == null:
+		return
+	var active = qr.get("_active") if "_active" in qr else null
+	var progress = qr.get("_progress") if "_progress" in qr else null
+	if not (active is Dictionary) or not (progress is Dictionary):
+		return
+	for quest_id in (active as Dictionary).keys():
+		var q = (active as Dictionary)[quest_id]
+		if q == null:
+			continue
+		var objs: Array = q.get("objectives_data") if "objectives_data" in q else []
+		var counters: Array = (progress as Dictionary).get(quest_id, [])
+		for i in range(objs.size()):
+			var obj: Dictionary = objs[i]
+			if String(obj.get("kind", "")) != "kill":
+				continue
+			if String(obj.get("target_id", "")) != String(mob_id):
+				continue
+			var current: int = int(counters[i]) if i < counters.size() else 0
+			var required: int = int(obj.get("required_count", 1))
+			# Only show if this kill actually advanced the counter.
+			# Past-required kills (player kept farming) don't re-fire.
+			if current == 0 or current > required:
+				continue
+			var desc: String = String(obj.get("description", ""))
+			floater_script.spawn(self, desc, current, required)
