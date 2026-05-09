@@ -1,6 +1,8 @@
 extends CanvasLayer
 class_name SettingsMenu
 
+const T := preload("res://scripts/ui/ui_theme.gd")
+
 # Sectioned settings panel. Reads/writes GameSettings autoload.
 # Tabs: Display / Audio / Controls / Gameplay / Accessibility / Privacy.
 # Each field is declared in FIELDS as (key, label, type, options) and the
@@ -131,30 +133,17 @@ func _build() -> void:
 		c.queue_free()
 
 	var margin := MarginContainer.new()
-	margin.add_theme_constant_override("margin_left", 28)
-	margin.add_theme_constant_override("margin_right", 28)
-	margin.add_theme_constant_override("margin_top", 24)
-	margin.add_theme_constant_override("margin_bottom", 24)
+	margin.add_theme_constant_override("margin_left", T.PANEL_MARGIN_X_LG)
+	margin.add_theme_constant_override("margin_right", T.PANEL_MARGIN_X_LG)
+	margin.add_theme_constant_override("margin_top", T.PANEL_MARGIN_Y_LG)
+	margin.add_theme_constant_override("margin_bottom", T.PANEL_MARGIN_Y_LG)
 	panel.add_child(margin)
 
 	var vbox := VBoxContainer.new()
-	vbox.add_theme_constant_override("separation", 14)
+	vbox.add_theme_constant_override("separation", T.HBOX_SEPARATION)
 	margin.add_child(vbox)
 
-	# Header
-	var header := HBoxContainer.new()
-	vbox.add_child(header)
-	var title := Label.new()
-	title.text = "Settings"
-	title.add_theme_font_size_override("font_size", 22)
-	title.add_theme_color_override("font_color", Color(0.95, 0.85, 0.45))
-	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	header.add_child(title)
-	var close_btn := Button.new()
-	close_btn.text = "Close [Esc]"
-	close_btn.custom_minimum_size = Vector2(120, 32)
-	close_btn.pressed.connect(close)
-	header.add_child(close_btn)
+	vbox.add_child(T.make_header_row("Settings", close))
 
 	# Tab row
 	var tabs := HBoxContainer.new()
@@ -165,7 +154,7 @@ func _build() -> void:
 
 	# Content
 	var scroll := ScrollContainer.new()
-	scroll.custom_minimum_size = Vector2(720, 440)
+	scroll.custom_minimum_size = Vector2(T.CONTENT_WIDTH, 440)
 	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	vbox.add_child(scroll)
@@ -233,7 +222,7 @@ func _make_quality_preset_row() -> Control:
 
 	var lab := Label.new()
 	lab.text = "Quality Preset"
-	lab.add_theme_font_size_override("font_size", 13)
+	lab.add_theme_font_size_override("font_size", T.FONT_ITEM_NAME)
 	lab.add_theme_color_override("font_color", Color(0.85, 0.80, 0.65))
 	lab.custom_minimum_size = Vector2(280, 32)
 	row.add_child(lab)
@@ -265,7 +254,7 @@ func _apply_quality_preset(preset_name: String) -> void:
 func _render_keybinds(content: VBoxContainer) -> void:
 	var hint := Label.new()
 	hint.text = "Click a key to rebind. Press Esc during capture to cancel."
-	hint.add_theme_font_size_override("font_size", 12)
+	hint.add_theme_font_size_override("font_size", T.FONT_HINT)
 	hint.add_theme_color_override("font_color", Color(0.65, 0.60, 0.50))
 	content.add_child(hint)
 
@@ -288,7 +277,7 @@ func _make_keybind_row(entry: Dictionary) -> Control:
 
 	var label := Label.new()
 	label.text = String(entry["label"])
-	label.add_theme_font_size_override("font_size", 13)
+	label.add_theme_font_size_override("font_size", T.FONT_ITEM_NAME)
 	label.add_theme_color_override("font_color", Color(0.85, 0.80, 0.65))
 	label.custom_minimum_size = Vector2(280, 32)
 	row.add_child(label)
@@ -427,7 +416,7 @@ func _make_field_row(field_def: Array) -> Control:
 	row.add_theme_constant_override("separation", 16)
 	var lab := Label.new()
 	lab.text = label
-	lab.add_theme_font_size_override("font_size", 13)
+	lab.add_theme_font_size_override("font_size", T.FONT_ITEM_NAME)
 	lab.add_theme_color_override("font_color", Color(0.85, 0.80, 0.65))
 	lab.custom_minimum_size = Vector2(280, 32)
 	row.add_child(lab)

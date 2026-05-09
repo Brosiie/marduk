@@ -6,6 +6,7 @@ class_name SkillTreePanel
 # 'SkillTreeLines' fails to resolve and this whole panel goes offline
 # silently. Preload is order-independent and outlives editor refreshes.
 const SkillTreeLines := preload("res://scripts/ui/panels/skill_tree_lines.gd")
+const T := preload("res://scripts/ui/ui_theme.gd")
 
 # Procedural skill-tree UI. Reads the active player's class skill tree
 # (49 nodes laid out 7 branches x 7 tiers via grid_position) and renders:
@@ -376,8 +377,8 @@ func _build_header() -> void:
 	var class_label := Label.new()
 	var name_text: String = stats.class_def.display_name if stats and stats.class_def else "Unknown"
 	class_label.text = name_text + String(theme.get("title_suffix", ""))
-	class_label.add_theme_font_size_override("font_size", 26)
-	class_label.add_theme_color_override("font_color", theme.get("accent_color", Color(0.95, 0.85, 0.45)))
+	class_label.add_theme_font_size_override("font_size", 26)  # bigger than UITheme heading: this is the showcase title
+	class_label.add_theme_color_override("font_color", theme.get("accent_color", T.HEADING_GOLD))
 	hbox.add_child(class_label)
 	_header_label = class_label
 
@@ -387,8 +388,8 @@ func _build_header() -> void:
 
 	var pts_label := Label.new()
 	pts_label.text = "%d unspent" % stats.unspent_skill_points
-	pts_label.add_theme_font_size_override("font_size", 22)
-	pts_label.add_theme_color_override("font_color", Color(1.00, 0.95, 0.65))
+	pts_label.add_theme_font_size_override("font_size", T.FONT_HEADING)
+	pts_label.add_theme_color_override("font_color", Color(1.00, 0.95, 0.65))  # softer cream-gold than HEADING_GOLD
 	hbox.add_child(pts_label)
 	_points_label = pts_label
 
@@ -412,7 +413,7 @@ func _build_branch_labels() -> void:
 		var label_color: Color = branch_color.lerp(Color.WHITE, 0.35)
 		var lab := Label.new()
 		lab.text = label_text
-		lab.add_theme_font_size_override("font_size", 13)
+		lab.add_theme_font_size_override("font_size", T.FONT_ITEM_NAME)
 		lab.add_theme_color_override("font_color", label_color)
 		lab.position = Vector2(GRID_OFFSET.x + i * COLUMN_WIDTH + (NODE_SIZE.x * 0.5) - 50, GRID_OFFSET.y - 28)
 		lab.size = Vector2(100, 20)
@@ -423,7 +424,7 @@ func _build_tier_labels() -> void:
 	for tier in range(1, 8):
 		var lab := Label.new()
 		lab.text = "T%d" % tier
-		lab.add_theme_font_size_override("font_size", 12)
+		lab.add_theme_font_size_override("font_size", T.FONT_HINT)
 		lab.add_theme_color_override("font_color", TIER_LABEL_COLOR)
 		lab.position = Vector2(GRID_OFFSET.x - TIER_LABEL_WIDTH, GRID_OFFSET.y + (tier - 1) * ROW_HEIGHT + (NODE_SIZE.y * 0.5) - 8)
 		lab.size = Vector2(TIER_LABEL_WIDTH - 8, 16)
@@ -540,16 +541,12 @@ func _build_tooltip() -> void:
 	_tooltip_panel = PanelContainer.new()
 	_tooltip_panel.position = Vector2(960, 110)
 	_tooltip_panel.custom_minimum_size = Vector2(280, 480)
-	var bg := StyleBoxFlat.new()
-	bg.bg_color = Color(0.08, 0.06, 0.05, 0.95)
-	bg.border_color = theme.get("border_color", Color(0.55, 0.40, 0.20, 0.90))
-	bg.border_width_left = 1; bg.border_width_right = 1
-	bg.border_width_top = 1; bg.border_width_bottom = 1
-	bg.corner_radius_top_left = 6; bg.corner_radius_top_right = 6
-	bg.corner_radius_bottom_left = 6; bg.corner_radius_bottom_right = 6
-	bg.content_margin_left = 14; bg.content_margin_right = 14
-	bg.content_margin_top = 14; bg.content_margin_bottom = 14
-	_tooltip_panel.add_theme_stylebox_override("panel", bg)
+	# Use shared panel_box (same border + radius + padding as other cards)
+	# but bump bg opacity from 0.92 to 0.95 since this floats over the world.
+	_tooltip_panel.add_theme_stylebox_override("panel", T.panel_box(
+		theme.get("border_color", Color(0.55, 0.40, 0.20, 0.90)),
+		Color(0.08, 0.06, 0.05, 0.95)
+	))
 	panel_root.add_child(_tooltip_panel)
 
 	var vbox := VBoxContainer.new()

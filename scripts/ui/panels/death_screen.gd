@@ -1,6 +1,8 @@
 extends CanvasLayer
 class_name DeathScreen
 
+const T := preload("res://scripts/ui/ui_theme.gd")
+
 # YOU DIED screen. Replaces the old auto-respawn-after-2.5s + camera-replay
 # flow with an explicit player choice. Three actions:
 #   - Respawn at Lodestone, warps to the most recently attuned lodestone
@@ -84,7 +86,7 @@ func _build() -> void:
 	# Sub-line, context. The bug-report-style "what killed you."
 	var subtitle := Label.new()
 	subtitle.text = _killer_subtitle()
-	subtitle.add_theme_font_size_override("font_size", 16)
+	subtitle.add_theme_font_size_override("font_size", T.FONT_BUTTON)
 	subtitle.add_theme_color_override("font_color", Color(0.65, 0.20, 0.20, 0.85))
 	subtitle.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	subtitle.anchor_left = 0.0; subtitle.anchor_right = 1.0
@@ -116,7 +118,7 @@ func _make_button(text: String, on_press: Callable) -> Button:
 	var b := Button.new()
 	b.text = text
 	b.custom_minimum_size = Vector2(360, 48)
-	b.add_theme_font_size_override("font_size", 16)
+	b.add_theme_font_size_override("font_size", T.FONT_BUTTON)
 	b.add_theme_color_override("font_color", Color(0.85, 0.78, 0.55))
 	b.add_theme_color_override("font_hover_color", Color(1.0, 0.92, 0.65))
 	# Subtle red border that intensifies on hover
@@ -298,7 +300,7 @@ func _render_wait_state() -> void:
 
 	# Countdown label updates each frame from _process
 	_revive_timer_label = Label.new()
-	_revive_timer_label.add_theme_font_size_override("font_size", 22)
+	_revive_timer_label.add_theme_font_size_override("font_size", T.FONT_HEADING)
 	_revive_timer_label.add_theme_color_override("font_color", Color(0.85, 0.40, 0.40, 0.85))
 	_revive_timer_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_revive_timer_label.anchor_left = 0.0; _revive_timer_label.anchor_right = 1.0
@@ -309,7 +311,7 @@ func _render_wait_state() -> void:
 	# Hint, clarifies the multiplayer-vs-single-player behavior
 	var hint := Label.new()
 	hint.text = "A party member with a revive ability can bring you back. With no allies near, you will respawn at the last lodestone when the timer expires."
-	hint.add_theme_font_size_override("font_size", 13)
+	hint.add_theme_font_size_override("font_size", T.FONT_ITEM_NAME)
 	hint.add_theme_color_override("font_color", Color(0.65, 0.45, 0.45, 0.85))
 	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -439,7 +441,7 @@ func _on_open_lodestone_picker() -> void:
 func _lodestone_picker_show_empty(msg: String) -> void:
 	var note := Label.new()
 	note.text = msg
-	note.add_theme_font_size_override("font_size", 18)
+	note.add_theme_font_size_override("font_size", T.FONT_SUBHEAD)
 	note.add_theme_color_override("font_color", Color(0.85, 0.45, 0.45))
 	note.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -463,7 +465,7 @@ func _lodestone_picker_show_empty(msg: String) -> void:
 func _make_lodestone_button(id: StringName, display_name: String, kind: String) -> Button:
 	var b := Button.new()
 	b.custom_minimum_size = Vector2(500, 44)
-	b.add_theme_font_size_override("font_size", 16)
+	b.add_theme_font_size_override("font_size", T.FONT_BUTTON)
 	b.add_theme_color_override("font_color", Color(0.95, 0.85, 0.55))
 	b.add_theme_color_override("font_hover_color", Color(1.0, 0.95, 0.65))
 	# Tag-prefix: bracketed kind in muted gold so the row reads

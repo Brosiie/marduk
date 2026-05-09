@@ -1,6 +1,8 @@
 extends CanvasLayer
 class_name SaveSlotPicker
 
+const T := preload("res://scripts/ui/ui_theme.gd")
+
 # Save / load slot picker. Two modes:
 #   - LOAD: opened from start menu Continue or pause menu Load. Picking a
 #           non-empty slot calls SaveSystem.load_slot(slot, player) and
@@ -59,30 +61,21 @@ func _build() -> void:
 		c.queue_free()
 
 	var margin := MarginContainer.new()
-	margin.add_theme_constant_override("margin_left", 28)
-	margin.add_theme_constant_override("margin_right", 28)
-	margin.add_theme_constant_override("margin_top", 24)
-	margin.add_theme_constant_override("margin_bottom", 24)
+	margin.add_theme_constant_override("margin_left", T.PANEL_MARGIN_X_LG)
+	margin.add_theme_constant_override("margin_right", T.PANEL_MARGIN_X_LG)
+	margin.add_theme_constant_override("margin_top", T.PANEL_MARGIN_Y_LG)
+	margin.add_theme_constant_override("margin_bottom", T.PANEL_MARGIN_Y_LG)
 	panel.add_child(margin)
 
 	var vbox := VBoxContainer.new()
-	vbox.add_theme_constant_override("separation", 16)
+	vbox.add_theme_constant_override("separation", T.FONT_BUTTON)  # 16
 	margin.add_child(vbox)
 
-	# Header
-	var header := HBoxContainer.new()
-	vbox.add_child(header)
-	var title := Label.new()
-	title.text = "Choose Slot to %s" % ("Load" if mode == Mode.LOAD else "Save")
-	title.add_theme_font_size_override("font_size", 22)
-	title.add_theme_color_override("font_color", Color(0.95, 0.85, 0.45))
-	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	header.add_child(title)
-	var cancel_btn := Button.new()
-	cancel_btn.text = "Cancel [Esc]"
-	cancel_btn.custom_minimum_size = Vector2(120, 32)
-	cancel_btn.pressed.connect(_close.bind(true))
-	header.add_child(cancel_btn)
+	vbox.add_child(T.make_header_row(
+		"Choose Slot to %s" % ("Load" if mode == Mode.LOAD else "Save"),
+		_close.bind(true),
+		"Cancel [Esc]"
+	))
 
 	# Slot list
 	var slots: Array = SaveSystem.list_slots() if SaveSystem else []
@@ -94,19 +87,9 @@ func _make_slot_row(slot_dict: Dictionary) -> Control:
 	var is_empty: bool = bool(slot_dict.get("empty", true))
 
 	var card := PanelContainer.new()
-	var bg := StyleBoxFlat.new()
-	bg.bg_color = Color(0.08, 0.06, 0.05, 0.85)
-	if is_empty:
-		bg.border_color = Color(0.30, 0.25, 0.20, 0.65)
-	else:
-		bg.border_color = Color(0.55, 0.45, 0.25, 0.85)
-	bg.border_width_left = 1; bg.border_width_right = 1
-	bg.border_width_top = 1; bg.border_width_bottom = 1
-	bg.corner_radius_top_left = 4; bg.corner_radius_top_right = 4
-	bg.corner_radius_bottom_left = 4; bg.corner_radius_bottom_right = 4
-	bg.content_margin_left = 14; bg.content_margin_right = 14
-	bg.content_margin_top = 12; bg.content_margin_bottom = 12
-	card.add_theme_stylebox_override("panel", bg)
+	# Empty slots get a dim border, occupied ones get the warm-gold accent.
+	var border: Color = Color(0.30, 0.25, 0.20, 0.65) if is_empty else Color(0.55, 0.45, 0.25, 0.85)
+	card.add_theme_stylebox_override("panel", T.panel_box(border, Color(0.08, 0.06, 0.05, 0.85)))
 
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 16)
@@ -120,7 +103,7 @@ func _make_slot_row(slot_dict: Dictionary) -> Control:
 	row.add_child(left)
 	var slot_label := Label.new()
 	slot_label.text = "Slot %d" % (slot + 1)
-	slot_label.add_theme_font_size_override("font_size", 16)
+	slot_label.add_theme_font_size_override("font_size", T.FONT_BUTTON)
 	slot_label.add_theme_color_override("font_color", Color(0.85, 0.78, 0.55))
 	left.add_child(slot_label)
 	if not is_empty and SaveSystem and SaveSystem.has_method("load_thumbnail"):
@@ -141,13 +124,13 @@ func _make_slot_row(slot_dict: Dictionary) -> Control:
 
 	if is_empty:
 		var empty_label := Label.new()
-		empty_label.text = ", Empty ,"
+		empty_label.text = "(Empty)"
 		empty_label.add_theme_color_override("font_color", Color(0.55, 0.50, 0.40))
 		info.add_child(empty_label)
 	else:
 		var name_label := Label.new()
 		name_label.text = "%s, level %d" % [slot_dict.get("character_name", ""), slot_dict.get("level", 1)]
-		name_label.add_theme_font_size_override("font_size", 16)
+		name_label.add_theme_font_size_override("font_size", T.FONT_BUTTON)
 		name_label.add_theme_color_override("font_color", Color(0.95, 0.92, 0.80))
 		info.add_child(name_label)
 
@@ -161,13 +144,13 @@ func _make_slot_row(slot_dict: Dictionary) -> Control:
 			"  ·  " + zone.capitalize() if zone != "" else "",
 			prestige_text,
 		]
-		sub_label.add_theme_font_size_override("font_size", 12)
+		sub_label.add_theme_font_size_override("font_size", T.FONT_HINT)
 		sub_label.add_theme_color_override("font_color", Color(0.65, 0.60, 0.50))
 		info.add_child(sub_label)
 
 		var saved_label := Label.new()
-		saved_label.text = "Last saved: %s" % slot_dict.get("saved_at", ",")
-		saved_label.add_theme_font_size_override("font_size", 11)
+		saved_label.text = "Last saved: %s" % slot_dict.get("saved_at", "-")
+		saved_label.add_theme_font_size_override("font_size", T.FONT_TINY)
 		saved_label.add_theme_color_override("font_color", Color(0.55, 0.50, 0.40))
 		info.add_child(saved_label)
 
