@@ -23,7 +23,8 @@ const CLASS_GREETINGS := {
 const DEFAULT_GREETING := "Excuse me — I sell fish, and I have a question. My brother. Have you seen him?"
 
 const BELITU_QUEST_LADDER := [
-	&"q_belitu_brother",  # Search The Cradle for the missing boy
+	&"q_belitu_brother",       # lvl 1 — find her missing brother
+	&"q_belitu_druid_friend",  # lvl 3 — slay Inquisition Burners, +Druids / -Inquisition
 ]
 
 func _ready() -> void:

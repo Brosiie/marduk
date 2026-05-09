@@ -23,7 +23,9 @@ const CLASS_GREETINGS := {
 const DEFAULT_GREETING := "Quartermaster's hut. State your business. I have ledgers."
 
 const IDDINU_QUEST_LADDER := [
-	&"q_iddinu_supplies",  # 6 Tashmu's Footmen in Sword-Vow Ruins
+	&"q_iddinu_supplies",          # lvl 1 — kill 6 Tashmu's Footmen, +Crown
+	&"q_iddinu_crown_loyalty",     # lvl 3 — Caravan Toll, big +Crown
+	&"q_iddinu_blacksail_sidegig", # lvl 4 — side-gig, +BlackSail / -Crown
 ]
 
 func _ready() -> void:

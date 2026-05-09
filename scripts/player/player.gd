@@ -2854,6 +2854,7 @@ func _physics_process(delta: float) -> void:
 		_apply_horizontal(delta)
 	_apply_vertical(delta)
 	move_and_slide()
+	_tick_music_combat_decay(delta)
 	# Step-up safety: after slide, if we're stuck against a low wall and
 	# moving into it, snap onto the surface above so steps + lantern bases
 	# + tier transitions don't block us. Cap at STEP_UP_HEIGHT to avoid
@@ -3786,11 +3787,48 @@ func get_rage_buffs() -> Dictionary:
 
 # Called by combat hooks when this player deals or takes damage. Builds rage and refreshes
 # the combat-grace timer so rage doesn't decay between blows.
+# Pulses every ~0.5s to drop MusicDirector intensity to 0 when combat
+# has been quiet for >5s. Combat START is handled by on_combat_event;
+# this function handles combat END decay.
+var _music_decay_accum: float = 0.0
+var _music_active_intensity: bool = false
+const _MUSIC_COMBAT_QUIET_THRESHOLD := 5.0
+const _MUSIC_DECAY_TICK := 0.5
+
+func _tick_music_combat_decay(delta: float) -> void:
+	_music_decay_accum += delta
+	if _music_decay_accum < _MUSIC_DECAY_TICK:
+		return
+	_music_decay_accum = 0.0
+	var now: float = Time.get_ticks_msec() / 1000.0
+	# Out of combat for the threshold? clear to 0 once. Don't spam set_combat_intensity(0)
+	# every tick — we only want the call when state actually changes.
+	if now - _last_combat_time > _MUSIC_COMBAT_QUIET_THRESHOLD:
+		if _music_active_intensity:
+			var md: Node = get_node_or_null("/root/MusicDirector")
+			if md and md.has_method("set_combat_intensity"):
+				md.set_combat_intensity(0.0)
+			_music_active_intensity = false
+	else:
+		_music_active_intensity = true
+
 func on_combat_event(rage_gain: float = 4.0) -> void:
 	_last_combat_time = Time.get_ticks_msec() / 1000.0
 	if stats and stats.class_def and stats.class_def.resource_mechanic == &"rage":
 		resource_value = min(stats.class_def.resource_max, resource_value + rage_gain)
 		resource_changed.emit(resource_value, stats.class_def.resource_max, &"rage")
+	# Push the music director's combat intensity. Higher intensity when a
+	# boss is up. The director decays naturally toward 0 in _process; we
+	# just spike it on each hit so combat sustains the higher track.
+	var md: Node = get_node_or_null("/root/MusicDirector")
+	if md and md.has_method("set_combat_intensity"):
+		# Find the hottest active boss to scale intensity. Boss = 0.9, mob = 0.55.
+		var intensity: float = 0.55
+		for b in get_tree().get_nodes_in_group("boss"):
+			if is_instance_valid(b) and b.get("hp") and float(b.hp) > 0.0:
+				intensity = 0.90
+				break
+		md.set_combat_intensity(intensity)
 
 # === Stealth (Assassin) ===
 func is_stealthed() -> bool:

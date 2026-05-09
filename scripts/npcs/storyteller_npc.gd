@@ -47,10 +47,12 @@ func _ready() -> void:
 # the only one wired is to_babilim, gated on player level + not-already-
 # accepted/completed. Easy to extend.
 const STORYTELLER_QUEST_LADDER := [
-	&"q_storyteller_intro",  # level 1 — discover 3 lodestones (the opening verse)
-	&"to_babilim",           # level 5 — main-story bridge from Ashurim out
-	&"to_tiamat",            # level 30 (post-prologue + Black Citadel access)
-	&"the_fire_stair",       # level 50+ (post-Tiamat secret unlock)
+	&"q_storyteller_intro",              # lvl 1 — discover 3 lodestones
+	&"q_storyteller_six_breaths",        # lvl 4 — release bound spirits, +SixBreaths
+	&"q_storyteller_inquisition_choice", # lvl 4 — hunt Tiamat-spawn, +Inquisition / -Druids
+	&"to_babilim",                       # lvl 5 — main-story bridge
+	&"to_tiamat",                        # lvl 30 — Black Citadel access
+	&"the_fire_stair",                   # lvl 50+ — Lucifer secret
 ]
 
 func _refresh_quest_offer() -> void:

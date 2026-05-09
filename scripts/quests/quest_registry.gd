@@ -347,6 +347,15 @@ func accept_quest(id: StringName) -> bool:
 		return false
 	if _active.has(id) or _completed.has(id):
 		return false
+	# Faction prereq gate. If the player doesn't meet min_faction_rep
+	# thresholds, the quest cannot be accepted yet. Toast tells the
+	# player why so it doesn't feel like a silent failure.
+	if q.has_method("meets_faction_requirements") and not q.meets_faction_requirements():
+		var juice = get_node_or_null("/root/Juice")
+		var reason: String = q.unmet_faction_summary() if q.has_method("unmet_faction_summary") else "higher reputation"
+		if juice and juice.has_method("toast"):
+			juice.toast("Locked: need %s" % reason, Color(0.85, 0.55, 0.30), 3.0)
+		return false
 	_active[id] = q
 	# Initialize progress counters at zero for each objective.
 	var counters: Array[int] = []
@@ -495,6 +504,63 @@ func _register_starter_quests_v2() -> void:
 		&"belitu", 1,
 		[{"description": "Search The Cradle for the missing boy", "kind": "examine", "target_id": "cradle_brother_marker", "required_count": 1}],
 		500, 60)
+	_register_faction_starter_quests()
+
+# Five faction-rep starter quests authored on top of the existing trio.
+# Each sets faction_rep_changes so completion shifts diplomatic standing.
+# Authored to rough-balance: each faction has at least one quest that
+# lifts it AND one that hurts it, so player choice carries weight.
+func _register_faction_starter_quests() -> void:
+	# Iddinu existing supplies quest gets retroactive Crown rep so the
+	# starter loop already engages the faction system.
+	if quests.has(&"q_iddinu_supplies"):
+		quests[&"q_iddinu_supplies"].faction_rep_changes = {&"crown": 250, &"black_sail": -75}
+
+	# IDDINU — Crown loyalty harder line. Big +Crown, moderate -BlackSail.
+	var crown_q := _make(&"q_iddinu_crown_loyalty", "Caravan Toll",
+		"Iddinu's caravan was hit on the Reed Road. He wants the bandits dealt with — properly, by the Crown's measure of properly. Eight Ash-Step raiders, ten if you're feeling thorough.",
+		&"iddinu", 3,
+		[{"description": "Slay 8 Ash-Step Raiders", "kind": "kill", "target_id": "raider_grunt", "required_count": 8}],
+		600, 150)
+	crown_q.faction_rep_changes = {&"crown": 500, &"black_sail": -200}
+
+	# IDDINU — Black Sail side-gig. Quartermaster's running cargo on the
+	# side; pirates pay too. +BlackSail, -Crown — forces a real choice.
+	var bs_q := _make(&"q_iddinu_blacksail_sidegig", "Side Goods (No Questions)",
+		"Iddinu pulls you aside. The Crown audit's on him next week. He's got crates that need to vanish before the auditor arrives. The Black Sail will pay if they make it to the Bay. The Crown will not be pleased if you do this.",
+		&"iddinu", 4,
+		[{"description": "Move 5 crates (kill 5 Tashmu's Footmen guarding the road)", "kind": "kill", "target_id": "usurper_footman", "required_count": 5}],
+		700, 250)
+	bs_q.faction_rep_changes = {&"black_sail": 400, &"crown": -300}
+
+	# BELITU — Druid sympathy. Belitu has cousins in the Wound; she sends
+	# the player to slow the Inquisition down. +Druids, -Inquisition.
+	var druid_q := _make(&"q_belitu_druid_friend", "Cousin Across the Wound",
+		"Belitu's cousin is in the Verdant Wound. She heard the Inquisition is coming through. She doesn't want her cousin to be there when they arrive. Slow the Inquisitors down. She'll pay what she has.",
+		&"belitu", 3,
+		[{"description": "Slay 5 Inquisition Burners", "kind": "kill", "target_id": "witch_burner", "required_count": 5}],
+		550, 120)
+	druid_q.faction_rep_changes = {&"druids": 400, &"inquisition": -300}
+
+	# STORYTELLER — Six Breaths quest. Bound spirits left over from the
+	# old binding-mage tradition. Releasing them is the temple's mercy.
+	var sb_q := _make(&"q_storyteller_six_breaths", "The Bound Things Sleep Badly",
+		"The Storyteller has been asked, quietly, to find someone willing to release the bound things in the Inkstone Tower's lower archives. The temple cannot order it. The temple does not forget those who try.",
+		&"storyteller", 4,
+		[{"description": "Release 6 Lesser Binding-Constructs", "kind": "kill", "target_id": "binding_construct", "required_count": 6}],
+		600, 100)
+	sb_q.faction_rep_changes = {&"six_breaths": 400}
+
+	# STORYTELLER — Inquisition zealotry quest. The Storyteller doesn't
+	# love the Inquisition either, but the Wound is the Wound; she'll
+	# accept its containment as harm-reduction. Burns the player toward
+	# the Inquisition.
+	var inq_q := _make(&"q_storyteller_inquisition_choice", "What the Wound Eats",
+		"The Storyteller will not pretend she likes them. But she will accept a Tiamat-spawn dead is better than a Tiamat-spawn breeding. Hunt six Tiamat-touched wolves. The Inquisition will hear of it.",
+		&"storyteller", 4,
+		[{"description": "Slay 6 Tiamat-Touched Wolves", "kind": "kill", "target_id": "corrupted_wolf", "required_count": 6}],
+		600, 130)
+	inq_q.faction_rep_changes = {&"inquisition": 350, &"druids": -150}
 
 func _register_starter_quests() -> void:
 	_register_starter_quests_v2()

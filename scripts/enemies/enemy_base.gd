@@ -44,6 +44,7 @@ signal died
 
 func _ready() -> void:
 	add_to_group("enemy")
+	_apply_faction_groups()
 	_apply_prestige_scaling()
 	_attach_nameplate()
 	# Crimson rim-light pass on enemy meshes: separates them from the
@@ -57,6 +58,37 @@ func _ready() -> void:
 	if fixer_script and fixer_script.has_method("fix"):
 		fixer_script.fix(self)
 	_load_marduk_animation_library()
+
+# Tags this enemy with its faction group(s) on spawn so the player's
+# CombatBus.kill_registered bridge can apply rep deltas via the
+# _MOB_GROUP_TO_FACTION_REP table. Map is by mob_id substring — keeps
+# the table concise and avoids requiring every Mob registration to
+# explicitly carry a faction string.
+const _MOB_FACTION_GROUPS := {
+	"usurper":      ["crown_loyal"],     # Tashmu's forces serve the false Crown
+	"raider":       ["black_sail"],      # Ash-step bandits sell to pirates
+	"shrine_":      ["inquisition"],     # Whisper Shrine became Inquisition-aligned
+	"witch_burner": ["inquisition"],
+	"blood_hunter": ["inquisition"],
+	"binding_construct": ["six_breaths"], # bound spirits the temple wants released
+	"animated_book":     ["six_breaths"],
+	"corrupted_wolf":    ["tiamat_spawn"],
+	"forest_blight":     ["tiamat_spawn"],
+	"reed_creeper":      ["tiamat_spawn"],
+	"salt_demon":        ["tiamat_spawn"],
+	"minor_demon":       ["tiamat_spawn"],
+	"escaped_temple_slave": ["druids"],   # outcast labor; Druids shelter them
+}
+
+func _apply_faction_groups() -> void:
+	if mob_id == &"":
+		return
+	var id_str: String = String(mob_id)
+	for prefix in _MOB_FACTION_GROUPS.keys():
+		if id_str.find(prefix) >= 0:
+			for grp in _MOB_FACTION_GROUPS[prefix]:
+				add_to_group(grp)
+			return  # first-match wins so a mob isn't double-counted
 
 # Merges the slot animations declared in AnimationRegistry for this mob_id
 # into the spawned mesh's AnimationPlayer. Silent no-op if anim files
