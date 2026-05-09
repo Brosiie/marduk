@@ -28,7 +28,8 @@ func _ready() -> void:
 	print("[GlyphRegistry] seeded %d glyphs" % glyphs.size())
 
 func _seed_glyphs() -> void:
-	# Phase 1 demo glyph: Kazat. More will land per-boss as the bestiary grows.
+	# One glyph per class-intro mini-boss. The bestiary grows from here as
+	# each Phase 2/3 boss adds its own mark.
 	_add_glyph(&"glyph_kazat_iron",
 		"Iron-Faced Mark",
 		"The geometric brand of Enforcer Kazat — three iron lines crossed with a single horizontal stroke. Earned by the first to put him down.",
@@ -42,6 +43,21 @@ func _seed_glyphs() -> void:
 		&"katana_kazat_iron",  # the bronze katana drops as the inscribe token
 		1,
 		"They say Kazat broke his own nose every dawn so he'd remember pain. The mark you carry is the line that finally broke his."
+	)
+
+	_add_glyph(&"glyph_hassu_hooked",
+		"Hooked Brand",
+		"A jagged hook-curve crossed by a chain link. Hassu's mark; carried by those who put down the Hooked One in the Ash-Step Camp.",
+		&"hassu_hooked",
+		"Hassu the Hooked",
+		8,  # horn — closest shape to a hook curve in the placeholder set
+		Color(0.95, 0.45, 0.20),
+		&"steppe_clans",  # +0.5% damage vs steppe-clan mobs
+		0.005,
+		180,
+		&"hassu_steppe_skull_axe",
+		1,
+		"Hassu wore his hook through three winters and never washed the chain. They said he'd kill anyone who tried. The chain came clean when you took it off him."
 	)
 
 func _add_glyph(id: StringName, name: String, desc: String, boss_id: StringName,

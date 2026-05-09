@@ -1,0 +1,132 @@
+[gd_scene load_steps=12 format=3]
+
+[ext_resource type="Script" path="res://scripts/player/player.gd" id="1_player"]
+[ext_resource type="Script" path="res://scripts/player/camera_rig.gd" id="2_cam"]
+[ext_resource type="PackedScene" path="res://scenes/ui/hud.tscn" id="3_hud"]
+[ext_resource type="Shader" path="res://shaders/toon.gdshader" id="4_toon"]
+[ext_resource type="Script" path="res://scripts/enemies/hassu_the_hooked.gd" id="5_hassu"]
+
+; Ash-Step Camp — Berserker intro arena.
+; Volcanic ash plain east of the Bone Mountains. Broken pillar to one side
+; (Hassu uses it for his Pillar-Vault). Raid-camp ash-pit nearby. Sky reads
+; pre-dawn red. Hassu the Hooked waits in the center.
+;
+; Phase-2 polish later: mob waves of steppe-clansmen between player and Hassu;
+; ash-particle ambient; broken-pillar physics for impact-burst on Pillar-Vault.
+
+[sub_resource type="PlaneMesh" id="floor_mesh"]
+size = Vector2(120, 120)
+
+[sub_resource type="ShaderMaterial" id="floor_mat"]
+shader = ExtResource("4_toon")
+shader_parameter/albedo = Color(0.22, 0.18, 0.16, 1)
+shader_parameter/bands = 3.0
+shader_parameter/ambient = 0.28
+shader_parameter/rim_strength = 0.25
+shader_parameter/rim_power = 4.5
+shader_parameter/rim_color = Color(0.95, 0.45, 0.20, 1)
+shader_parameter/shadow_tint = Color(0.10, 0.07, 0.05, 1)
+
+[sub_resource type="BoxShape3D" id="floor_shape"]
+size = Vector3(120, 0.4, 120)
+
+[sub_resource type="StandardMaterial3D" id="pillar_mat"]
+albedo_color = Color(0.40, 0.32, 0.28, 1)
+roughness = 0.90
+
+[sub_resource type="CylinderShape3D" id="pillar_shape"]
+radius = 1.0
+height = 6.0
+
+[sub_resource type="CylinderMesh" id="pillar_mesh"]
+top_radius = 0.85
+bottom_radius = 1.10
+height = 6.0
+
+[sub_resource type="ProceduralSkyMaterial" id="sky_mat"]
+sky_top_color = Color(0.20, 0.10, 0.18, 1)
+sky_horizon_color = Color(0.95, 0.35, 0.18, 1)
+ground_horizon_color = Color(0.40, 0.20, 0.12, 1)
+ground_bottom_color = Color(0.10, 0.06, 0.04, 1)
+
+[sub_resource type="Sky" id="sky"]
+sky_material = SubResource("sky_mat")
+
+[sub_resource type="Environment" id="env"]
+background_mode = 2
+sky = SubResource("sky")
+ambient_light_source = 2
+ambient_light_color = Color(0.95, 0.65, 0.45, 1)
+ambient_light_energy = 0.85
+fog_enabled = true
+fog_density = 0.012
+fog_light_color = Color(0.95, 0.45, 0.20, 1)
+
+[node name="AshStepCamp" type="Node3D"]
+
+; ── Floor ────────────────────────────────────────────────────────
+[node name="Floor" type="StaticBody3D" parent="."]
+[node name="FloorMesh" type="MeshInstance3D" parent="Floor"]
+mesh = SubResource("floor_mesh")
+material_override = SubResource("floor_mat")
+[node name="FloorCol" type="CollisionShape3D" parent="Floor"]
+shape = SubResource("floor_shape")
+position = Vector3(0, -0.2, 0)
+
+; ── Broken pillar (Hassu's leap reference) ──────────────────────
+[node name="BrokenPillar" type="StaticBody3D" parent="."]
+position = Vector3(-12, 3, 0)
+rotation = Vector3(0, 0, 0.18)
+
+[node name="PillarMesh" type="MeshInstance3D" parent="BrokenPillar"]
+mesh = SubResource("pillar_mesh")
+material_override = SubResource("pillar_mat")
+
+[node name="PillarCol" type="CollisionShape3D" parent="BrokenPillar"]
+shape = SubResource("pillar_shape")
+
+; ── Ember firepit at the camp center ─────────────────────────────
+[node name="FirePit" type="OmniLight3D" parent="."]
+position = Vector3(8, 1.2, -8)
+light_color = Color(1.0, 0.55, 0.20)
+light_energy = 2.4
+omni_range = 14.0
+shadow_enabled = true
+
+; ── Warm fill light (the red dawn) ───────────────────────────────
+[node name="DawnLight" type="DirectionalLight3D" parent="."]
+transform = Transform3D(0.85, 0.0, -0.52, 0.30, 0.85, 0.45, 0.42, -0.50, 0.75, 0, 18, 0)
+light_color = Color(1.0, 0.65, 0.45)
+light_energy = 0.9
+
+; ── Player ───────────────────────────────────────────────────────
+[node name="Player" type="CharacterBody3D" parent="."]
+script = ExtResource("1_player")
+position = Vector3(0, 0.1, 14)
+add_to_group = "player"
+
+[node name="PlayerShape" type="CollisionShape3D" parent="Player"]
+shape = SubResource("floor_shape")
+
+[node name="MeshRoot" type="Node3D" parent="Player"]
+
+; ── Camera ───────────────────────────────────────────────────────
+[node name="CameraRig" type="Node3D" parent="Player"]
+script = ExtResource("2_cam")
+
+[node name="Camera3D" type="Camera3D" parent="Player/CameraRig"]
+position = Vector3(0, 13, 13)
+rotation = Vector3(-0.66, 0, 0)
+fov = 55.0
+
+; ── Hassu the Hooked (mini-boss) ─────────────────────────────────
+[node name="HassuTheHooked" type="CharacterBody3D" parent="."]
+script = ExtResource("5_hassu")
+position = Vector3(0, 0.1, -6)
+
+; ── HUD ──────────────────────────────────────────────────────────
+[node name="HUD" parent="." instance=ExtResource("3_hud")]
+
+; ── World Environment ────────────────────────────────────────────
+[node name="WorldEnv" type="WorldEnvironment" parent="."]
+environment = SubResource("env")

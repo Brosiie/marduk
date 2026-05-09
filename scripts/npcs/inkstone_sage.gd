@@ -43,19 +43,28 @@ func _ready() -> void:
 	greeting = "Sit. Let me look at you."
 	super._ready()
 
-# Override the base NPC dialogue. Generate prose from current player state.
+# Override the base NPC dialogue. Spawn the InkstoneSagePanel which gives
+# the player three branches (Speak / Inscribe / Purify) and uses
+# _generate_chronicle for the Speak branch. Falls back to the base NPC
+# greeting flow if the panel scene can't be loaded.
+const SAGE_PANEL_SCENE := "res://scenes/ui/panels/inkstone_sage_panel.tscn"
+
 func _open_dialogue() -> void:
 	var player: Node = _find_player()
 	if not player:
 		super._open_dialogue()
 		return
-	var prose: String = _generate_chronicle(player)
-	# Temporarily swap greeting to the generated chronicle so the base
-	# dialogue panel renders our text. Restore after the panel closes.
-	var prior_greeting: String = greeting
-	greeting = prose
-	super._open_dialogue()
-	greeting = prior_greeting
+	var packed: PackedScene = load(SAGE_PANEL_SCENE)
+	if not packed:
+		# Fallback: simple greeting flow with the chronicle as the line.
+		var prior_greeting: String = greeting
+		greeting = _generate_chronicle(player)
+		super._open_dialogue()
+		greeting = prior_greeting
+		return
+	var panel = packed.instantiate()
+	get_tree().current_scene.add_child(panel)
+	panel.open(self, player)
 
 func _find_player() -> Node:
 	for p in get_tree().get_nodes_in_group("player"):

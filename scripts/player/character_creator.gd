@@ -234,6 +234,7 @@ const INTRO_ZONES := {
 	&"ronin":                "res://scenes/world/intros/sword_vow_ruins.tscn",
 	&"paladin_guardian":     "res://scenes/world/intros/sunsworn_chapel.tscn",
 	&"paladin_lightbringer": "res://scenes/world/intros/sunsworn_chapel.tscn",
+	&"berserker":            "res://scenes/world/intros/ash_step_camp.tscn",
 }
 
 const FALLBACK_INTRO := "res://scenes/world/intros/sword_vow_ruins.tscn"
