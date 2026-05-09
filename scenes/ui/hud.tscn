@@ -7,6 +7,7 @@
 [ext_resource type="PackedScene" path="res://scenes/ui/panels/quest_log_panel.tscn" id="5_quest_log"]
 [ext_resource type="PackedScene" path="res://scenes/ui/panels/achievement_codex_panel.tscn" id="6_codex"]
 [ext_resource type="PackedScene" path="res://scenes/ui/panels/local_map_panel.tscn" id="7_local_map"]
+[ext_resource type="PackedScene" path="res://scenes/ui/panels/faction_rep_panel.tscn" id="8_factions"]
 
 [node name="HUD" type="CanvasLayer"]
 script = ExtResource("1")
@@ -66,3 +67,5 @@ mouse_filter = 2
 [node name="AchievementCodexPanel" parent="." instance=ExtResource("6_codex")]
 
 [node name="LocalMapPanel" parent="." instance=ExtResource("7_local_map")]
+
+[node name="FactionRepPanel" parent="." instance=ExtResource("8_factions")]
