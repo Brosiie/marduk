@@ -35,7 +35,53 @@ func _on_body_entered(body: Node3D) -> void:
 		return
 	if not body.is_in_group("player"):
 		return
+	# Boss-defeated gate: if SaveFlags say we already killed this
+	# boss, don't re-trigger the fight. Killing the boss + saving +
+	# reloading should leave the arena clear, not respawn the boss.
+	# The flag is set by BossBase._die via SaveFlags.mark_boss_defeated
+	# so the contract is symmetric.
+	if _is_boss_already_defeated():
+		_skip_arena_for_defeated_boss()
+		return
 	_engage(body)
+
+func _is_boss_already_defeated() -> bool:
+	# Resolve which boss this arena would spawn so we can check the
+	# flag for it.
+	var boss_id_check: StringName = &""
+	if boss_path != NodePath():
+		var b: Node = get_node_or_null(boss_path)
+		if b and "boss_id" in b:
+			boss_id_check = StringName(b.get("boss_id"))
+	if boss_id_check == &"":
+		# Fall back to any boss in the scene that knows its id
+		for n in get_tree().get_nodes_in_group("boss"):
+			if "boss_id" in n:
+				boss_id_check = StringName(n.get("boss_id"))
+				break
+	if boss_id_check == &"":
+		return false
+	var sf: Node = get_node_or_null("/root/SaveFlags")
+	if sf == null:
+		return false
+	# Canonical API — flag key is "<boss_id>_defeated" via set_run
+	# (per SaveFlags.mark_boss_defeated). Run flags persist across
+	# save/load within a single prestige cycle, which is exactly the
+	# scope we want: kill once, stays dead until next prestige.
+	if sf.has_method("is_boss_defeated_this_cycle"):
+		return bool(sf.is_boss_defeated_this_cycle(boss_id_check))
+	if sf.has_method("has_run"):
+		return bool(sf.has_run(StringName("%s_defeated" % boss_id_check)))
+	return false
+
+func _skip_arena_for_defeated_boss() -> void:
+	# Mark engaged so the trigger doesn't re-evaluate, but DON'T
+	# build gates / auto-lock / play the cinematic. Despawn any
+	# pre-instanced boss in the scene.
+	_engaged = true
+	for n in get_tree().get_nodes_in_group("boss"):
+		if is_instance_valid(n):
+			n.queue_free()
 
 func _engage(player_node: Node) -> void:
 	_engaged = true

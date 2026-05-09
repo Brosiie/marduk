@@ -11,6 +11,78 @@ func _ready() -> void:
 	_register_faction_quests()
 	_register_side_quests()
 	_register_starter_quests()
+	# Restore persisted active+completed+progress from SaveFlags AFTER
+	# the quest dictionary is built. Without this, every relaunch
+	# resets the player's quest log to empty even if they had an
+	# active quest mid-objective. Auto-accepted prologues will
+	# re-fire on top of restored state — that's fine because
+	# accept_quest no-ops if the quest is already active or completed.
+	call_deferred("_load_from_save_flags")
+
+# --- Persistence (via SaveFlags autoload) ---
+const _SAVEFLAG_ACTIVE: StringName = &"quests_active"
+const _SAVEFLAG_COMPLETED: StringName = &"quests_completed"
+const _SAVEFLAG_PROGRESS: StringName = &"quests_progress"
+
+func _save_to_save_flags() -> void:
+	var sf: Node = get_node_or_null("/root/SaveFlags")
+	if sf == null or not sf.has_method("set_run"):
+		return
+	# Active quests: list of ids only — re-resolved from `quests` dict
+	# at load time so we don't snapshot the (potentially huge) Quest
+	# resource into the save file.
+	var active_ids: Array = []
+	for id in _active.keys():
+		active_ids.append(String(id))
+	sf.set_run(_SAVEFLAG_ACTIVE, active_ids)
+	# Completed quests: same pattern — ids only.
+	var completed_ids: Array = []
+	for id in _completed.keys():
+		completed_ids.append(String(id))
+	sf.set_run(_SAVEFLAG_COMPLETED, completed_ids)
+	# Progress: dict of quest_id -> Array[int]. Save the full payload
+	# as keys-as-strings (StringNames don't ConfigFile-serialize).
+	var progress_payload: Dictionary = {}
+	for id in _progress.keys():
+		progress_payload[String(id)] = _progress[id]
+	sf.set_run(_SAVEFLAG_PROGRESS, progress_payload)
+
+func _load_from_save_flags() -> void:
+	var sf: Node = get_node_or_null("/root/SaveFlags")
+	if sf == null or not sf.has_method("get_run"):
+		return
+	var active_ids: Array = sf.get_run(_SAVEFLAG_ACTIVE)
+	if active_ids == null:
+		return  # nothing to restore — fresh save
+	var completed_ids: Array = sf.get_run(_SAVEFLAG_COMPLETED)
+	var progress_payload: Dictionary = sf.get_run(_SAVEFLAG_PROGRESS)
+	if completed_ids == null:
+		completed_ids = []
+	if progress_payload == null:
+		progress_payload = {}
+	# Rehydrate active quests
+	for id_str in active_ids:
+		var qid: StringName = StringName(String(id_str))
+		var q: Quest = quests.get(qid)
+		if q == null:
+			continue
+		_active[qid] = q
+		# Restore progress counters
+		var counters: Array[int] = []
+		var saved_counters: Variant = progress_payload.get(String(qid))
+		if saved_counters is Array:
+			for c in saved_counters:
+				counters.append(int(c))
+		# Pad with zeros if the quest grew objectives since save
+		while counters.size() < q.objectives_data.size():
+			counters.append(0)
+		_progress[qid] = counters
+	# Rehydrate completed quests
+	for id_str in completed_ids:
+		var cid: StringName = StringName(String(id_str))
+		var q2: Quest = quests.get(cid)
+		if q2:
+			_completed[cid] = q2
 
 func get_quest(id: StringName) -> Quest:
 	return quests.get(id)
@@ -282,6 +354,10 @@ func accept_quest(id: StringName) -> bool:
 		counters.append(0)
 	_progress[id] = counters
 	quest_accepted.emit(q)
+	_save_to_save_flags()
+	# Event-driven autosave so a freshly-accepted quest survives an
+	# alt-F4 / crash / power loss between the 60s autosave timer.
+	_request_autosave()
 	# Toast banner so accepting a quest feels like a moment
 	var juice = get_node_or_null("/root/Juice")
 	if juice:
@@ -306,12 +382,29 @@ func complete_quest(id: StringName) -> bool:
 	if ar and ar.has_method("unlock"):
 		ar.unlock(&"a_first_quest")
 	quest_completed.emit(q)
+	_save_to_save_flags()
+	# Event-driven autosave so completion progress isn't lost on
+	# crash. Quest completions are MAJOR moments — the player is
+	# expecting their reward to be permanent.
+	_request_autosave()
 	# Toast for completion + brief slowmo to mark the moment
 	var juice = get_node_or_null("/root/Juice")
 	if juice:
 		juice.toast("✓  Quest Complete: %s" % q.display_name, Color(0.45, 0.95, 0.55), 3.5)
 		juice.flash(Color(0.45, 0.95, 0.55), 0.20, 0.4)
 	return true
+
+# Fire-and-forget autosave to slot 0 (the autosave slot). Skips
+# silently if SaveSystem or Player isn't available — not every
+# context (e.g. main menu) has a player to snapshot.
+func _request_autosave() -> void:
+	var ss: Node = get_node_or_null("/root/SaveSystem")
+	if ss == null or not ss.has_method("save_slot"):
+		return
+	var p: Node = get_tree().get_first_node_in_group("player") if get_tree() else null
+	if p == null:
+		return
+	ss.save_slot(0, p)
 
 # Public: bump progress on every active quest whose objectives match
 # (kind, target_id). When all objectives of a quest reach their
@@ -348,6 +441,12 @@ func progress(kind: StringName, target_id: StringName, delta: int = 1) -> void:
 			to_complete.append(quest_id)
 	for quest_id in to_complete:
 		complete_quest(quest_id)
+	# Persist the new progress numbers. Skipped completion path
+	# already saves via complete_quest, but partial advancements
+	# need their own persistence so progress survives a crash mid-
+	# objective.
+	if to_complete.is_empty():
+		_save_to_save_flags()
 
 func _all_objectives_done(q: Quest, counters: Array) -> bool:
 	for i in range(q.objectives_data.size()):

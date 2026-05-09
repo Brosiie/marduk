@@ -121,6 +121,8 @@ func _run() -> void:
 	await _scenario_save_load_round_trip()
 	await _scenario_lodestone_attune_persist()
 	await _scenario_inventory_save_load()
+	await _scenario_quest_persist_across_reload()
+	await _scenario_boss_defeated_blocks_arena()
 
 	_finish()
 
@@ -682,6 +684,106 @@ func _scenario_inventory_save_load() -> void:
 	inv.bag.clear()
 	if ss.has_method("delete_slot"):
 		ss.delete_slot(99)
+
+# 6. Quest persistence: progress an active quest, force-save then
+# force-clear-and-reload SaveFlags, verify the active quest + its
+# progress counter are still intact. Without this, every relaunch
+# drops the player's quest state.
+func _scenario_quest_persist_across_reload() -> void:
+	var qr: Node = get_node_or_null("/root/QuestRegistry")
+	var sf: Node = get_node_or_null("/root/SaveFlags")
+	if qr == null or sf == null:
+		_findings.append("(skip quest_persist: registry or saveflags missing)")
+		return
+	if not qr.has_method("get_active_quests"):
+		_findings.append("(skip quest_persist: API missing)")
+		return
+	var active: Array = qr.get_active_quests()
+	if active.is_empty():
+		_findings.append("(skip quest_persist: no active quests)")
+		return
+	var q = active[0]
+	var qid: StringName = q.id if "id" in q else &""
+	# Snapshot pre-state
+	var counts_before: Array = qr.get_progress(qid) if qr.has_method("get_progress") else []
+	# Persist + force a registry-side reload that simulates a
+	# game restart (clear in-memory _active dict, load from flags).
+	if qr.has_method("_save_to_save_flags"):
+		qr._save_to_save_flags()
+	# Drop in-memory state
+	if "_active" in qr:
+		qr._active.clear()
+	if "_progress" in qr:
+		qr._progress.clear()
+	# Reload
+	if qr.has_method("_load_from_save_flags"):
+		qr._load_from_save_flags()
+	# Verify
+	var active_after: Array = qr.get_active_quests()
+	var still_active: bool = false
+	for q2 in active_after:
+		if "id" in q2 and q2.id == qid:
+			still_active = true
+			break
+	if still_active:
+		var counts_after: Array = qr.get_progress(qid) if qr.has_method("get_progress") else []
+		var match_progress: bool = (counts_before.size() == counts_after.size())
+		if match_progress:
+			for i in range(counts_before.size()):
+				if int(counts_before[i]) != int(counts_after[i]):
+					match_progress = false
+					break
+		if match_progress:
+			_pass("quest_persist", "%s active+progress survived save/load round-trip" % qid)
+		else:
+			_fail("quest_persist", "%s reloaded but progress diverged: %s -> %s" % [qid, counts_before, counts_after])
+	else:
+		_fail("quest_persist", "%s LOST after save/load round-trip" % qid)
+
+# 7. Boss-defeated: mark the boss as defeated via SaveFlags, walk
+# the player into the arena trigger, verify the engagement is
+# SKIPPED. Proves the cycle-defeat persistence gates re-engagement
+# correctly.
+func _scenario_boss_defeated_blocks_arena() -> void:
+	var sf: Node = get_node_or_null("/root/SaveFlags")
+	if sf == null:
+		_findings.append("(skip boss_defeated_gate: SaveFlags missing)")
+		return
+	# Find a boss arena and its boss_id
+	var arenas := get_tree().get_nodes_in_group("boss_arena")
+	if arenas.is_empty():
+		_findings.append("(skip boss_defeated_gate: no boss_arena in scene)")
+		return
+	var arena = arenas[0]
+	# Resolve boss_id
+	var arena_boss_id: StringName = &""
+	if "boss_path" in arena and arena.boss_path != NodePath():
+		var boss_node: Node = arena.get_node_or_null(arena.boss_path)
+		if boss_node and "boss_id" in boss_node:
+			arena_boss_id = StringName(boss_node.get("boss_id"))
+	if arena_boss_id == &"":
+		# Fall back: any boss in the scene
+		for n in get_tree().get_nodes_in_group("boss"):
+			if "boss_id" in n:
+				arena_boss_id = StringName(n.get("boss_id"))
+				break
+	if arena_boss_id == &"":
+		_findings.append("(skip boss_defeated_gate: arena has no resolvable boss_id)")
+		return
+	# Mark defeated
+	if sf.has_method("mark_boss_defeated"):
+		sf.mark_boss_defeated(arena_boss_id)
+	else:
+		_findings.append("(skip boss_defeated_gate: mark_boss_defeated missing)")
+		return
+	# Now query the arena's gate logic
+	var skipped: bool = false
+	if arena.has_method("_is_boss_already_defeated"):
+		skipped = arena._is_boss_already_defeated()
+	if skipped:
+		_pass("boss_defeated_gate", "arena recognizes %s as already defeated" % arena_boss_id)
+	else:
+		_fail("boss_defeated_gate", "arena DOES NOT skip engagement for already-defeated %s — would re-trigger fight on reload" % arena_boss_id)
 
 func _scenario_hud_presence() -> void:
 	var huds := get_tree().get_nodes_in_group("hud")

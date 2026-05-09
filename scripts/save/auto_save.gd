@@ -14,6 +14,55 @@ const AUTO_SAVE_INTERVAL: float = 60.0  # seconds
 
 var _enabled: bool = true
 var _ticks_since_save: float = 0.0
+# Track whether we've already wired event-driven autosave hooks
+# so we don't double-subscribe on scene reload.
+var _event_hooks_wired: bool = false
+
+func _ready() -> void:
+	# Hook event-driven save triggers in addition to the 60s timer.
+	# Major state changes (level-up, lodestone discover, boss defeat)
+	# should crystallize IMMEDIATELY so a crash 5s after a milestone
+	# doesn't lose it. The 60s timer remains as a safety net for
+	# everything in between.
+	call_deferred("_wire_event_hooks")
+
+func _wire_event_hooks() -> void:
+	if _event_hooks_wired:
+		return
+	_event_hooks_wired = true
+	# Lodestone discovery
+	var lr: Node = get_node_or_null("/root/LodestoneRegistry")
+	if lr and lr.has_signal("discovered"):
+		var cb := Callable(self, "_on_milestone_event")
+		if not lr.discovered.is_connected(cb):
+			lr.discovered.connect(cb)
+	# Quest accept + complete already trigger save_to_save_flags +
+	# _request_autosave inside QuestRegistry. Listening here would
+	# double-save; skip.
+	# Player level-up — defer until player exists (player isn't in
+	# the tree at autoload-_ready time)
+	_attach_player_signals()
+
+func _attach_player_signals() -> void:
+	var p: Node = get_tree().get_first_node_in_group("player") if get_tree() else null
+	if p == null:
+		# Retry on next frame until player spawns
+		get_tree().create_timer(0.5).timeout.connect(_attach_player_signals)
+		return
+	if p.get("stats") and p.stats.has_signal("leveled_up"):
+		var cb := Callable(self, "_on_milestone_event_int")
+		if not p.stats.leveled_up.is_connected(cb):
+			p.stats.leveled_up.connect(cb)
+
+func _on_milestone_event(_a = null, _b = null) -> void:
+	# Generic catch-all for signals with 0-2 args. Saving immediately
+	# on these moments lets the player recover their progress even if
+	# they alt-F4 right after the achievement.
+	_attempt_save()
+
+func _on_milestone_event_int(_n: int) -> void:
+	# Variant for signals that pass an int (level number).
+	_attempt_save()
 
 func _process(delta: float) -> void:
 	if not _enabled:
