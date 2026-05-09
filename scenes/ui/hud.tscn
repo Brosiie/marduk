@@ -5,6 +5,7 @@
 [ext_resource type="PackedScene" path="res://scenes/ui/panels/skill_tree_panel.tscn" id="3_skill_tree"]
 [ext_resource type="PackedScene" path="res://scenes/menus/pause_menu.tscn" id="4_pause"]
 [ext_resource type="PackedScene" path="res://scenes/ui/panels/quest_log_panel.tscn" id="5_quest_log"]
+[ext_resource type="PackedScene" path="res://scenes/ui/panels/achievement_codex_panel.tscn" id="6_codex"]
 
 [node name="HUD" type="CanvasLayer"]
 script = ExtResource("1")
@@ -60,3 +61,5 @@ mouse_filter = 2
 [node name="PauseMenu" parent="." instance=ExtResource("4_pause")]
 
 [node name="QuestLogPanel" parent="." instance=ExtResource("5_quest_log")]
+
+[node name="AchievementCodexPanel" parent="." instance=ExtResource("6_codex")]
