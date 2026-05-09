@@ -3654,6 +3654,13 @@ func _on_combatbus_kill(target: Node, _killer: Node) -> void:
 	# directly. Mobs without explicit deltas use a small generic table by
 	# affiliation group (crown/inquisition/druids/black_sail).
 	_apply_kill_rep(target)
+	# Tiamat awareness: every tiamat_spawn kill ticks a single point.
+	# Mobs of her own brood feed the dream. Boss-tier kills go through
+	# BossBase._die directly so we skip them here to avoid double-count.
+	if target.is_in_group("tiamat_spawn") and not target.is_in_group("boss"):
+		var tr: Node = get_node_or_null("/root/TiamatRegistry")
+		if tr and tr.has_method("on_tiamat_spawn_killed"):
+			tr.on_tiamat_spawn_killed()
 
 const _MOB_GROUP_TO_FACTION_REP := {
 	"crown_loyal":   {"crown": 5, "druids": -3},

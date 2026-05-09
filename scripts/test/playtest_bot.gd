@@ -128,6 +128,8 @@ func _run() -> void:
 	await _scenario_quest_faction_gate()
 	await _scenario_quest_log_ui_mirror()
 	await _scenario_complete_quest_faction_rep_apply()
+	await _scenario_save_version_migration()
+	await _scenario_tiamat_awareness_tiers()
 
 	_finish()
 
@@ -1123,6 +1125,88 @@ func _scenario_complete_quest_faction_rep_apply() -> void:
 	else:
 		_fail("complete_quest_faction_rep", "expected Crown 5200 / BS 4850, got Crown %d / BS %d" %
 			[crown_after, bs_after])
+
+# 13. Save version migration: write a synthetic v0 (unversioned legacy)
+# ConfigFile, run it through SaveSystem._migrate_payload, verify the
+# version stamp lands at CURRENT_SAVE_VERSION. Proves the framework
+# walks the chain rather than hard-failing on legacy saves.
+func _scenario_save_version_migration() -> void:
+	var ss: Node = get_node_or_null("/root/SaveSystem")
+	if ss == null or not ss.has_method("_migrate_payload"):
+		_findings.append("(skip save_version_migration: SaveSystem missing or migrate_payload not exposed)")
+		return
+	# Build a v0 payload (no save_version key). Migration should bump
+	# it to CURRENT_SAVE_VERSION without crashing.
+	var cfg := ConfigFile.new()
+	cfg.set_value("meta", "character_name", "TestRonin")
+	cfg.set_value("meta", "class_id", "ronin")
+	cfg.set_value("stats", "level", 7)
+	cfg.set_value("stats", "xp", 5000)
+	# No save_version key, this simulates pre-versioning saves.
+	var pre_version: Variant = cfg.get_value("meta", "save_version", -1)
+	ss._migrate_payload(cfg)
+	var post_version: int = int(cfg.get_value("meta", "save_version", -1))
+	var expected: int = int(ss.CURRENT_SAVE_VERSION) if "CURRENT_SAVE_VERSION" in ss else 1
+	# Original payload should still be intact, migrations don't touch
+	# unrelated keys.
+	var name_intact: bool = String(cfg.get_value("meta", "character_name", "")) == "TestRonin"
+	var level_intact: bool = int(cfg.get_value("stats", "level", 0)) == 7
+	if pre_version == -1 and post_version == expected and name_intact and level_intact:
+		_pass("save_version_migration", "v0 payload migrated to v%d, original keys intact" % expected)
+	else:
+		_fail("save_version_migration", "pre=%s post=%d expected=%d name_intact=%s level_intact=%s" %
+			[str(pre_version), post_version, expected, name_intact, level_intact])
+
+# 14. Tiamat awareness tiers: walk the counter through every tier
+# breakpoint and verify the tier_for resolution + tier_changed signal
+# fires at the right thresholds. Proves the tier table is correct and
+# the registry is reachable.
+func _scenario_tiamat_awareness_tiers() -> void:
+	var tr: Node = get_node_or_null("/root/TiamatRegistry")
+	if tr == null:
+		_findings.append("(skip tiamat_awareness_tiers: TiamatRegistry missing)")
+		return
+	# Reset to 0
+	tr.set_awareness(0)
+	# Watch tier_changed signal so we can count transitions
+	var transitions: Array[String] = []
+	var listener := func(new_tier: String, _old_tier: String, _new_value: int):
+		transitions.append(new_tier)
+	tr.tier_changed.connect(listener)
+	# Set values at each tier boundary and verify resolution
+	var checks := [
+		{"value": 0,   "expected": "DORMANT"},
+		{"value": 24,  "expected": "DORMANT"},
+		{"value": 25,  "expected": "STIRRING"},
+		{"value": 49,  "expected": "STIRRING"},
+		{"value": 50,  "expected": "WAKING"},
+		{"value": 74,  "expected": "WAKING"},
+		{"value": 75,  "expected": "WAKING_2"},
+		{"value": 99,  "expected": "WAKING_2"},
+		{"value": 100, "expected": "AWAKE"},
+		{"value": 250, "expected": "AWAKE"},
+	]
+	var failures: Array[String] = []
+	for c in checks:
+		tr.set_awareness(int(c["value"]))
+		var actual: String = tr.current_tier()
+		if actual != String(c["expected"]):
+			failures.append("at %d expected %s got %s" % [c["value"], c["expected"], actual])
+	# Cleanup
+	tr.tier_changed.disconnect(listener)
+	tr.set_awareness(0)
+	# Should have seen transitions: DORMANT->STIRRING, ->WAKING, ->WAKING_2, ->AWAKE
+	# Then on the way back to 0: AWAKE->DORMANT (one final transition)
+	# Exact count varies due to set_awareness implementation; we just
+	# verify at least the four expected up-transitions fired.
+	var saw_up_transitions: int = 0
+	for t in transitions:
+		if t in ["STIRRING", "WAKING", "WAKING_2", "AWAKE"]:
+			saw_up_transitions += 1
+	if failures.is_empty() and saw_up_transitions >= 4:
+		_pass("tiamat_awareness_tiers", "10 boundary checks ok, %d up-transitions fired" % saw_up_transitions)
+	else:
+		_fail("tiamat_awareness_tiers", "failures=%s up_transitions=%d" % [", ".join(failures), saw_up_transitions])
 
 func _scenario_hud_presence() -> void:
 	var huds := get_tree().get_nodes_in_group("hud")

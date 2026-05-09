@@ -11,6 +11,18 @@ const SAVE_DIR := "user://saves"
 const SLOT_FILE_FMT := "user://saves/slot_%d.cfg"
 const MAX_SLOTS := 6
 
+# Save format version. Bumped on schema changes. Loader checks the
+# saved version against this and runs _migrate_payload through every
+# step to catch up. Saves with no version key are treated as version 0
+# (the unversioned legacy format that shipped before this constant
+# existed).
+#
+# Migration pattern: each version bump adds a single function
+# `_migrate_v<N>(cfg)` that mutates cfg from version N-1 to version N.
+# Loader walks them in order. Migrations are pure: they read+write the
+# ConfigFile and never touch the live player.
+const CURRENT_SAVE_VERSION: int = 1
+
 signal save_completed(slot: int)
 signal load_completed(slot: int)
 signal slot_deleted(slot: int)
@@ -58,6 +70,8 @@ func save_slot(slot: int, player) -> bool:
 	cfg.set_value("meta", "class_id", String(player.stats.class_def.class_id) if player.stats.class_def else "")
 	cfg.set_value("meta", "saved_at_iso", Time.get_datetime_string_from_system(true, true))
 	cfg.set_value("meta", "prestige_at_save", get_node_or_null("/root/Prestige").current_prestige_level() if get_node_or_null("/root/Prestige") else 0)
+	# Stamp the schema version so loaders can migrate old payloads.
+	cfg.set_value("meta", "save_version", CURRENT_SAVE_VERSION)
 	# Stats
 	cfg.set_value("stats", "level", player.stats.level)
 	cfg.set_value("stats", "xp", player.stats.xp)
@@ -130,6 +144,9 @@ func load_slot(slot: int, player) -> bool:
 	var cfg := ConfigFile.new()
 	if cfg.load(slot_path(slot)) != OK:
 		return false
+	# Migrate forward through every version step until cfg matches the
+	# current schema. Saves without a version key are treated as v0.
+	_migrate_payload(cfg)
 	# Class first (to set class_def before stats compute)
 	var class_id := StringName(cfg.get_value("meta", "class_id", ""))
 	if class_id != &"":
@@ -229,3 +246,34 @@ func _equipped_to_ids(inv: Inventory) -> Array:
 	for slot in inv.equipped.keys():
 		out.append({"slot": slot, "id": String(inv.equipped[slot].item.id)})
 	return out
+
+# ─────── Migration framework ───────
+#
+# How to add a new migration:
+#   1. Bump CURRENT_SAVE_VERSION at the top of this file.
+#   2. Add a `_migrate_v<N>(cfg)` function below that mutates cfg from
+#      version N-1 to version N. Pure transforms only, no live state.
+#   3. Add a line `if from_v < N: _migrate_v<N>(cfg); from_v = N` in
+#      _migrate_payload. Order matters: walk forward step by step.
+#
+# Why every step instead of jump-to-current: keeps each migration tiny
+# and reviewable, and a save that's two versions behind goes through
+# both intermediate steps, which exercises the chain in CI.
+
+func _migrate_payload(cfg: ConfigFile) -> void:
+	# 0 = the unversioned legacy format that shipped before this
+	# constant existed. Any save without a save_version key is v0.
+	var from_v: int = int(cfg.get_value("meta", "save_version", 0))
+	if from_v >= CURRENT_SAVE_VERSION:
+		return  # no migration needed
+	if from_v < 1:
+		_migrate_v1(cfg); from_v = 1
+	# Stamp the new version so re-saves don't re-migrate.
+	cfg.set_value("meta", "save_version", CURRENT_SAVE_VERSION)
+
+func _migrate_v1(cfg: ConfigFile) -> void:
+	# v0 -> v1: add the version stamp itself. No payload changes; this
+	# is the baseline migration that every legacy save passes through
+	# on first load after the framework lands. Subsequent migrations
+	# (when added) handle real schema changes.
+	pass

@@ -1049,6 +1049,19 @@ func _die(killer: Node) -> void:
 	# Set save flags for major bosses (mini-bosses have their own quest flags via QuestLog)
 	if is_main_boss or is_final_boss or is_secret_boss:
 		SaveFlags.mark_boss_defeated(boss_id)
+	# Tiamat awareness tick. Prologue mini-bosses pay full price (every
+	# class prologue feeds her dream); main / final / secret bosses pay
+	# the slightly smaller main-boss tariff because they're rarer events
+	# already gated by progression. Mob-tier kills feed via the Player
+	# kill bridge instead.
+	var tr: Node = get_node_or_null("/root/TiamatRegistry")
+	if tr:
+		if is_main_boss or is_final_boss or is_secret_boss:
+			if tr.has_method("on_main_boss_killed"):
+				tr.on_main_boss_killed(boss_id)
+		else:
+			if tr.has_method("on_prologue_boss_killed"):
+				tr.on_prologue_boss_killed(boss_id)
 	# CINEMATIC DEATH SEQUENCE, earned-victory feedback. Spawned in
 	# current_scene so it survives the boss queue_free below. Slowmo,
 	# screen flash, golden particle burst, vertical god-ray pillar,

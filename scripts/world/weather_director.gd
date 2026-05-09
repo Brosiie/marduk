@@ -402,7 +402,29 @@ func _pick_next_weather() -> int:
 	var weights: Dictionary = _markov_row_for(current).duplicate()
 	_apply_time_bias(weights, _time_of_day())
 	_apply_zone_bias(weights)
+	_apply_tiamat_bias(weights)
 	return _weighted_pick(weights)
+
+# Tiamat awareness bias: as her dream stirs, the world's weather skews
+# toward storms and mist. Read at pick-time so a tier transition mid-
+# session affects the very next state change without needing a reload.
+# Applied AFTER zone bias so zones with storm = 0 (Sunsworn Chapel,
+# Sword-Vow Ruins, Cradle) stay protected, awareness can't override
+# the holy zones' divine clarity.
+func _apply_tiamat_bias(weights: Dictionary) -> void:
+	var tr: Node = get_node_or_null("/root/TiamatRegistry")
+	if tr == null or not tr.has_method("get_awareness"):
+		return
+	var awareness: int = int(tr.get_awareness())
+	if awareness <= 0:
+		return
+	# Linear scale: at awareness 25 (STIRRING), storms +50%, mist +20%,
+	# clear -20%. At 50 (WAKING), storms +100%, mist +40%, clear -40%.
+	# At 100 (AWAKE), storms +200%, mist +80%, clear -80%.
+	var t: float = float(awareness) / 50.0
+	weights[Weather.STORM] = float(weights.get(Weather.STORM, 0.0)) * (1.0 + t * 1.0)
+	weights[Weather.MIST]  = float(weights.get(Weather.MIST,  0.0)) * (1.0 + t * 0.4)
+	weights[Weather.CLEAR] = float(weights.get(Weather.CLEAR, 0.0)) * max(0.0, 1.0 - t * 0.4)
 
 # Per-zone weather palette: each region has its own climate. Black
 # Citadel is permanently cursed (storms common, never sunny). Sunsworn
