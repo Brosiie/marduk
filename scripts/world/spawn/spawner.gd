@@ -61,23 +61,24 @@ func _spawn_one() -> void:
 	inst.mob_id = mob_id
 	# Role-specific behavior swap: replace the script before _ready
 	# runs so the right AI tree boots from frame 0.
-	#   ARCHER (1) -> kite + arrow projectile
-	#   CASTER (2) -> mid-range channel + AOE-ground orb
-	#   RUSHER (4) -> aggressive close + fast melee, low HP (script-based)
-	#   TANK   (5) -> slow + tanky + big telegraphed swings
+	# Enum values are sourced from Mob.Role (see scripts/mobs/mob.gd).
+	# Reading via Mob.Role.* keeps these in sync if the enum is
+	# reordered — raw integer literals were a maintenance trap.
 	match int(mob.role):
-		1:  # ARCHER
+		Mob.Role.ARCHER:
 			var s: GDScript = load("res://scripts/enemies/archer_mob.gd")
 			if s: inst.set_script(s)
-		2:  # CASTER
+		Mob.Role.CASTER:
 			var s2: GDScript = load("res://scripts/enemies/caster_mob.gd")
 			if s2: inst.set_script(s2)
-		4:  # RUSHER — script-based now (was inline tweaks). The script
-			# dials in glass-cannon stats and a brighter rim color so
-			# the player can VISUALLY tell rushers from grunts.
+		Mob.Role.RUSHER:
+			# Glass cannon — fast move speed, low HP, low windup.
+			# Script swaps in dedicated stats + orange rim color so
+			# the player can read the threat type at a glance.
 			var s3: GDScript = load("res://scripts/enemies/rusher_mob.gd")
 			if s3: inst.set_script(s3)
-		5:  # TANK
+		Mob.Role.TANK:
+			# Slow, high-HP, big-swing punisher. Purple rim tier.
 			var s4: GDScript = load("res://scripts/enemies/tank_mob.gd")
 			if s4: inst.set_script(s4)
 	# Mesh swap re-enabled now that .glb conversion landed (commit 3005718).

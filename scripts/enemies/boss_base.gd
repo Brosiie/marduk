@@ -550,6 +550,80 @@ func _play_phase_transition_cinematic(idx: int, p: Phase) -> void:
 	var md: Node = get_node_or_null("/root/MusicDirector")
 	if md and md.has_method("set_combat_intensity"):
 		md.set_combat_intensity(1.0 + 0.15 * float(idx))
+	# VISUAL PHASE TRANSITION on the boss mesh itself. Players need
+	# to read 'this boss is in phase 2 now' from the silhouette, not
+	# just from the floating phase label. Three layers compound:
+	# 1. Rim color shifts to the phase color so the silhouette glows
+	#    differently ('amber armor' -> 'crimson armor' -> 'void armor')
+	# 2. Rim strength bumps each phase (more aggressive backlight)
+	# 3. Spawn a one-shot aura burst at the boss's feet — visible
+	#    transformation moment
+	rim_color = color
+	rim_strength = min(2.0, rim_strength + 0.25)
+	# Re-cache the rim material so existing meshes pick up the new
+	# parameters. Walk the cache and patch the entries that match
+	# this boss's shader path.
+	var shader: Shader = load("res://shaders/rim_pass.gdshader")
+	if shader:
+		# Re-apply rim recursively — rebuilds the cache key under the
+		# new color/strength so this boss's meshes update next frame.
+		_apply_rim_recurse(self, shader)
+	# Aura burst at boss feet (50 particles, 0.8s lifetime, color-tinted)
+	_spawn_phase_burst(color)
+	# Boss scale bump on phase 2+ for visible 'powering up' read.
+	# Mesh starts at 1.4 base scale (set in boss_base.tscn). Each
+	# phase adds 0.06 — phase 1 = 1.46, phase 2 = 1.52. Capped so
+	# silhouette doesn't blow out the arena.
+	if idx >= 1:
+		var bm: Node3D = get_node_or_null("BossMesh")
+		if bm:
+			var target_scale: float = 1.4 + min(idx, 3) * 0.06
+			var tw := create_tween()
+			tw.tween_property(bm, "scale", Vector3.ONE * target_scale, 0.6).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+
+# One-shot ground burst when the boss enters a new phase. Visible
+# 'transformation' read separate from the slowmo flash.
+func _spawn_phase_burst(color: Color) -> void:
+	var burst := GPUParticles3D.new()
+	burst.name = "PhaseBurst"
+	burst.amount = 80
+	burst.lifetime = 1.2
+	burst.one_shot = true
+	burst.explosiveness = 0.95
+	burst.visibility_aabb = AABB(Vector3(-6, -1, -6), Vector3(12, 5, 12))
+	var pm := ParticleProcessMaterial.new()
+	pm.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_RING
+	pm.emission_ring_axis = Vector3(0, 1, 0)
+	pm.emission_ring_radius = 0.3
+	pm.emission_ring_inner_radius = 0.1
+	pm.emission_ring_height = 0.05
+	pm.direction = Vector3(0, 0.6, 0)
+	pm.spread = 35.0
+	pm.initial_velocity_min = 4.0
+	pm.initial_velocity_max = 7.0
+	pm.gravity = Vector3(0, -1.5, 0)
+	pm.tangential_accel_min = 1.5
+	pm.tangential_accel_max = 3.0
+	pm.scale_min = 0.18
+	pm.scale_max = 0.36
+	pm.color = color
+	burst.process_material = pm
+	var quad := QuadMesh.new()
+	quad.size = Vector2(0.20, 0.20)
+	var smat := StandardMaterial3D.new()
+	smat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	smat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	smat.albedo_color = color
+	smat.emission_enabled = true
+	smat.emission = color
+	smat.emission_energy_multiplier = 2.5
+	smat.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
+	quad.material = smat
+	burst.draw_pass_1 = quad
+	get_tree().current_scene.add_child(burst)
+	burst.global_position = global_position + Vector3(0, 0.1, 0)
+	get_tree().create_timer(2.0).timeout.connect(func():
+		if is_instance_valid(burst): burst.queue_free())
 
 func _die(killer: Node) -> void:
 	state = State.DEAD

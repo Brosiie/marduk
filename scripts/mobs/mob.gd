@@ -5,7 +5,7 @@ class_name Mob
 # and applies these stats. ~60 of these spread across zones, each carrying
 # enough lore that a player who reads ALL the codex entries learns the world.
 
-enum Role { GRUNT, ARCHER, CASTER, ELITE, RUSHER, SUPPORT, SUMMONER, SCOUT }
+enum Role { GRUNT, ARCHER, CASTER, ELITE, RUSHER, SUPPORT, SUMMONER, SCOUT, TANK }
 enum Tag { HUMAN, DEMON, UNDEAD, BEAST, SPAWN, CONSTRUCT, SPIRIT, INSECT }
 
 @export var id: StringName = &""

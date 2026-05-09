@@ -711,25 +711,68 @@ func _build_ash_step_camp() -> void:
 # WHISPER SHRINE — underground corridor, columns, dim
 # ----------------------------------------------------------------
 func _build_whisper_shrine() -> void:
+	# Assassin intro — underground shrine corridor descending into a
+	# circular ritual chamber. Bond's "feel like a journey" pattern
+	# applied: long approach corridor, dimming torches, then the
+	# chamber opens up at the boss anchor.
 	var tile_size := 4.0
+	# Long corridor floor — narrower than the courtyard zones, 7
+	# tiles wide. Mossy stone tiles alternate for the woven-stone read.
 	for x in range(-3, 4):
 		for z in range(-int(size / tile_size), int(size / tile_size) + 1):
 			_spawn("floor_dirt_small_A.gltf.glb" if (x + z) % 2 == 0 else "floor_dirt_small_B.gltf.glb",
 				Vector3(x * tile_size, 0, z * tile_size))
 
-	# Walls forming a long corridor
+	# Walls forming a long corridor — both sides
 	for z in range(-int(size / 2), int(size / 2), 4):
 		_spawn("wall_arched.gltf.glb", Vector3(-12, 0, z), 0.0)
 		_spawn("wall_arched.gltf.glb", Vector3(12, 0, z), 180.0)
 
-	# Columns down the middle
-	for z_step in range(-int(size / 2) + 4, int(size / 2), 8):
-		_spawn("pillar.gltf.glb", Vector3(0, 0, z_step))
+	# Columns down the middle — every 6m (was 8m, denser for shrine
+	# claustrophobia)
+	for z_step in range(-int(size / 2) + 4, int(size / 2), 6):
+		_spawn("pillar_decorated.gltf.glb", Vector3(0, 0, z_step))
 
-	# Torches dim
-	for z_step in range(-int(size / 2) + 4, int(size / 2), 12):
+	# Torches every 8m, sparse + low so the corridor reads as DIM
+	for z_step in range(-int(size / 2) + 6, int(size / 2), 8):
 		_torch(Vector3(-10, 0, z_step), true)
 		_torch(Vector3(10, 0, z_step), true)
+
+	# Ritual chamber at the north end — circular dais of stone tiles
+	# at the boss anchor. 6m radius platform with a central ritual
+	# circle marker.
+	var dais_z: float = -size / 2 + 6
+	for r in range(0, 4):
+		var ring_radius: float = float(r) * 1.5 + 0.5
+		var ring_count: int = 6 + r * 2
+		for i in range(ring_count):
+			var ang: float = float(i) * TAU / float(ring_count)
+			var dx: float = cos(ang) * ring_radius
+			var dz: float = sin(ang) * ring_radius
+			_spawn("floor_dirt_small_A.gltf.glb", Vector3(dx, 0.05, dais_z + dz))
+	# Central altar — pillar in the middle
+	_spawn("pillar.gltf.glb", Vector3(0, 0, dais_z))
+	# Four ritual torches at the chamber's compass points (purple-ish
+	# tinted via _tint_tree if torch supports it; otherwise just
+	# default warm orange — the dimness already reads as 'shrine')
+	for ang_deg in [0, 90, 180, 270]:
+		var rang: float = deg_to_rad(float(ang_deg))
+		_torch(Vector3(cos(rang) * 5.0, 0, dais_z + sin(rang) * 5.0), true)
+	# Scatter ritual candles + bones across the corridor for ambient
+	# storytelling
+	for _i in range(20):
+		var sx: float = randf_range(-9.0, 9.0)
+		var sz: float = randf_range(-size / 2 + 8, size / 2 - 8)
+		var pick: float = randf()
+		if pick < 0.4:
+			_nat(["plant_bushDetailed.glb", "plant_bushLarge.glb"].pick_random(), Vector3(sx, 0, sz), randf() * 360.0, randf_range(0.6, 1.0))
+		elif pick < 0.75:
+			_nat(["cliff_blockHalf_stone.glb"].pick_random(), Vector3(sx, 0, sz), randf() * 360.0, randf_range(0.5, 0.9))
+	# Worldlife: pale violet motes hanging at the dais (sacred-corruption read)
+	var wl: Node = get_node_or_null("/root/WorldLife")
+	if wl:
+		if wl.has_method("spawn_intro_motes"):
+			wl.spawn_intro_motes(self, Vector3(0, 1.5, dais_z), 4.0, Color(0.65, 0.30, 0.85, 1.0))
 
 # ----------------------------------------------------------------
 # GREENHEART GLADE — Ranger intro forest clearing, dense canopy
@@ -849,6 +892,29 @@ func _build_coven_glen() -> void:
 		var ox: float = randf_range(-size / 2, size / 2)
 		var oz: float = randf_range(-size / 2, size / 2)
 		_nat("plant_bush.glb", Vector3(ox, 0, oz), randf() * 360.0, randf_range(0.8, 1.2))
+	# Detail trees scattered, witch-corrupted purple-green tint
+	for _i in range(14):
+		var tx: float = randf_range(-size / 2 + 4, size / 2 - 4)
+		var tz: float = randf_range(-size / 2 + 4, size / 2 - 4)
+		var dst: float = sqrt(tx * tx + tz * tz)
+		if dst < 11.0 or dst > size / 2 - 2:
+			continue  # avoid the standing-stone circle and perimeter
+		var tree_inst := _nat(["tree_detailed_dark.glb", "tree_detailed_fall.glb"].pick_random(), Vector3(tx, 0, tz), randf() * 360.0, randf_range(2.0, 3.0))
+		if tree_inst:
+			_tint_tree(tree_inst, Color(0.45, 0.55, 0.45, 1.0))
+	# Hanging witch-bones decorations
+	for _i in range(5):
+		var bx: float = randf_range(-size / 2 + 5, size / 2 - 5)
+		var bz: float = randf_range(-size / 2 + 5, size / 2 - 5)
+		if abs(bx) < 6 and abs(bz) < 6:
+			continue
+		_spawn("sword_shield_broken.gltf.glb", Vector3(bx, 0, bz), randf() * 360.0)
+	# Worldlife: violet-green motes + ambient bird flock
+	var wl: Node = get_node_or_null("/root/WorldLife")
+	if wl:
+		if wl.has_method("spawn_intro_motes"):
+			wl.spawn_intro_motes(self, Vector3(0, 2.0, 0), 6.0, Color(0.65, 0.85, 0.45, 1.0))
+		wl.spawn_bird_flock(self, 4, Vector3(0, 14, 0), size * 0.5)
 
 # ----------------------------------------------------------------
 # SUNSWORN CHAPEL — interior chapel courtyard

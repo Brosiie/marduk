@@ -45,6 +45,21 @@ func _seed_glyphs() -> void:
 		"They say Kazat broke his own nose every dawn so he'd remember pain. The mark you carry is the line that finally broke his."
 	)
 
+	_add_glyph(&"glyph_glade_terror",
+		"Antler Brand",
+		"A four-pointed antler over a single eye. The mark of those who put down the Tiamat-spawn that came through the Greenheart Glade.",
+		&"glade_terror",
+		"The Glade Terror",
+		8,  # horn — antler-curve
+		Color(0.65, 0.85, 0.45),
+		&"tiamat_spawn",  # +0.5% damage vs Tiamat-spawn enemies
+		0.005,
+		180,
+		&"terror_glade_widow_bow",
+		1,
+		"It came through a thin spot in the world. The Glade was its first kill on this side. You were its last."
+	)
+
 	_add_glyph(&"glyph_sapum_five_mouthed",
 		"Five-Mouth Sigil",
 		"A spiral with five points, each a mouth. The mark of those who put down Master Sapum at the Whisper Shrine.",

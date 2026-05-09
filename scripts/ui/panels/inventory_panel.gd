@@ -18,15 +18,48 @@ func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_PASS
 	_player = get_tree().get_first_node_in_group("player")
 
+	# Polished frame matching the rest of the HUD — gold filigree
+	# border + drop shadow + dark slate bg. Was a bare VBoxContainer
+	# floating over the menu background.
+	var bg := PanelContainer.new()
+	bg.anchor_right = 1.0
+	bg.anchor_bottom = 1.0
+	var bg_sb := StyleBoxFlat.new()
+	bg_sb.bg_color = Color(0.05, 0.04, 0.06, 0.95)
+	bg_sb.border_color = Color(0.78, 0.62, 0.28, 0.95)
+	bg_sb.set_border_width_all(2)
+	bg_sb.border_width_top = 3
+	bg_sb.set_corner_radius_all(6)
+	bg_sb.shadow_color = Color(0, 0, 0, 0.65)
+	bg_sb.shadow_size = 6
+	bg_sb.shadow_offset = Vector2(0, 3)
+	bg_sb.content_margin_left = 16
+	bg_sb.content_margin_right = 16
+	bg_sb.content_margin_top = 14
+	bg_sb.content_margin_bottom = 14
+	bg.add_theme_stylebox_override("panel", bg_sb)
+	add_child(bg)
+
 	var v := VBoxContainer.new()
-	v.anchor_right = 1.0
-	v.anchor_bottom = 1.0
-	add_child(v)
+	v.add_theme_constant_override("separation", 10)
+	bg.add_child(v)
 
 	var title := Label.new()
 	title.text = "Inventory"
-	title.add_theme_font_size_override("font_size", 22)
+	title.add_theme_font_size_override("font_size", 26)
+	title.add_theme_color_override("font_color", Color(1.0, 0.92, 0.55))
+	title.add_theme_color_override("font_outline_color", Color(0.20, 0.05, 0.05, 1.0))
+	title.add_theme_constant_override("outline_size", 4)
+	title.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.85))
+	title.add_theme_constant_override("shadow_offset_x", 1)
+	title.add_theme_constant_override("shadow_offset_y", 2)
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	v.add_child(title)
+	# Gold filigree separator under the title
+	var sep := ColorRect.new()
+	sep.color = Color(0.78, 0.62, 0.28, 0.55)
+	sep.custom_minimum_size = Vector2(0, 1)
+	v.add_child(sep)
 
 	_grid = GridContainer.new()
 	_grid.columns = COLS
@@ -40,7 +73,10 @@ func _ready() -> void:
 		_grid.add_child(s)
 
 	_hover_label = Label.new()
-	_hover_label.modulate = Color(0.85, 0.85, 0.85)
+	_hover_label.add_theme_font_size_override("font_size", 14)
+	_hover_label.add_theme_color_override("font_color", Color(0.95, 0.92, 0.85))
+	_hover_label.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.85))
+	_hover_label.add_theme_constant_override("outline_size", 3)
 	v.add_child(_hover_label)
 
 	if _player and _player.inventory and _player.inventory.has_signal("changed"):

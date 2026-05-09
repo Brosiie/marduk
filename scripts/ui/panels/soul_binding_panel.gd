@@ -16,8 +16,13 @@ class_name SoulBindingPanel
 signal closed
 
 const SACRIFICE_COUNT := 5
+const RESPEC_SACRIFICE_COUNT := 10  # respec costs more — it's a deeper sacrifice
 const TAB_WEAPON := 0
 const TAB_ARMOR := 1
+const TAB_RESPEC := 2
+
+# Pending respec sacrifice list (separate from the binding sacrifice list).
+var _respec_sacrifices: Array = []
 
 @onready var dim: ColorRect = $Dim if has_node("Dim") else null
 @onready var panel: PanelContainer = $Panel if has_node("Panel") else null
@@ -54,6 +59,119 @@ func _input(event: InputEvent) -> void:
 func _reset_pending() -> void:
 	_bind_target = null
 	_sacrifices = []
+	_respec_sacrifices = []
+
+# ───────────────── Respec view ─────────────────
+# Sacrifice 10 items of any kind. The altar refunds every spent skill point
+# and clears the unlocked skill node ids. The character's level + class are
+# preserved; only the skill tree resets.
+
+func _render_respec(content: VBoxContainer) -> void:
+	var stats_obj = player.get("stats") if player else null
+	if not stats_obj:
+		content.add_child(_make_label("The altar cannot read your spirit. Stand closer."))
+		return
+
+	var lore := Label.new()
+	lore.text = "The altar will undo what you have learned in the way of skills. Your level remains. Your class remains. The points you spent return to you. The cost is ten of anything you carry."
+	lore.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	lore.custom_minimum_size = Vector2(680, 0)
+	lore.add_theme_font_size_override("font_size", 12)
+	lore.add_theme_color_override("font_color", Color(0.85, 0.78, 0.55))
+	content.add_child(lore)
+
+	var unspent: int = int(stats_obj.unspent_skill_points)
+	var spent_nodes: int = stats_obj.unlocked_skill_node_ids.size() if "unlocked_skill_node_ids" in stats_obj else 0
+	var info := Label.new()
+	info.text = "Currently: %d unspent · %d ranks invested across the tree." % [unspent, spent_nodes]
+	info.add_theme_font_size_override("font_size", 13)
+	info.add_theme_color_override("font_color", Color(0.95, 0.85, 0.45))
+	content.add_child(info)
+
+	if spent_nodes <= 0:
+		content.add_child(_make_label("You have not spent any skill points. There is nothing to undo."))
+		return
+
+	# Pick sacrifices (any items in bag, no slot filter)
+	var inv = player.get("inventory") if player else null
+	if not inv or not "bag" in inv or inv.bag.is_empty():
+		content.add_child(_make_label("Your bag is empty. The altar requires offerings."))
+		return
+
+	var picked_label := Label.new()
+	picked_label.text = "Sacrifices selected: %d / %d" % [_respec_sacrifices.size(), RESPEC_SACRIFICE_COUNT]
+	picked_label.add_theme_font_size_override("font_size", 14)
+	picked_label.add_theme_color_override("font_color", Color(0.95, 0.85, 0.45))
+	content.add_child(picked_label)
+
+	# Group bag by item id for compact display
+	var seen: Dictionary = {}
+	for stack in inv.bag:
+		if not stack or not stack.item:
+			continue
+		if seen.has(stack.item.id):
+			continue
+		seen[stack.item.id] = true
+		var item = stack.item
+		var picked: int = _respec_sacrifices.count(item)
+		var btn := Button.new()
+		btn.text = "%s%s" % [item.display_name, "  (×%d)" % picked if picked > 0 else ""]
+		btn.custom_minimum_size = Vector2(0, 28)
+		btn.modulate = Color(1, 1, 1) if picked > 0 else Color(0.78, 0.72, 0.60)
+		btn.pressed.connect(func():
+			if _respec_sacrifices.size() < RESPEC_SACRIFICE_COUNT:
+				_respec_sacrifices.append(item)
+				_build()
+		)
+		content.add_child(btn)
+
+	# Confirm button
+	if _respec_sacrifices.size() == RESPEC_SACRIFICE_COUNT:
+		var confirm := Button.new()
+		confirm.text = "Respec — Refund All Skill Points"
+		confirm.custom_minimum_size = Vector2(0, 44)
+		confirm.add_theme_font_size_override("font_size", 16)
+		confirm.pressed.connect(_confirm_respec)
+		content.add_child(confirm)
+	else:
+		var hint := Label.new()
+		hint.text = "Pick %d more sacrifices to enable the respec." % (RESPEC_SACRIFICE_COUNT - _respec_sacrifices.size())
+		hint.add_theme_font_size_override("font_size", 12)
+		hint.add_theme_color_override("font_color", Color(0.65, 0.60, 0.50))
+		content.add_child(hint)
+
+func _confirm_respec() -> void:
+	if _respec_sacrifices.size() != RESPEC_SACRIFICE_COUNT:
+		return
+	var stats_obj = player.get("stats") if player else null
+	if not stats_obj:
+		return
+	# Consume sacrifices
+	var inv = player.get("inventory") if player else null
+	if inv and inv.has_method("remove_item"):
+		for s in _respec_sacrifices:
+			inv.remove_item(s.id, 1)
+	# Refund: count total ranks across all unlocked nodes (each rank cost = node.cost)
+	var refunded: int = 0
+	if stats_obj.class_def and stats_obj.class_def.skill_tree:
+		for nid in stats_obj.unlocked_skill_node_ids.duplicate():
+			var node := stats_obj.class_def.skill_tree.get_node_by_id(nid)
+			if node:
+				var rank: int = stats_obj.get_node_rank(nid)
+				refunded += rank * node.cost
+	# Wipe and add back
+	stats_obj.unlocked_skill_node_ids = []
+	stats_obj.node_ranks = {}
+	stats_obj.unspent_skill_points += refunded
+	# Toast + flash
+	var juice: Node = get_node_or_null("/root/Juice")
+	if juice:
+		if juice.has_method("flash"):
+			juice.flash(Color(0.85, 0.45, 0.95), 0.4, 0.9)
+		if juice.has_method("toast"):
+			juice.toast("The tree resets. %d skill points returned to your hand." % refunded, Color(0.85, 0.45, 0.95), 3.0)
+	_respec_sacrifices = []
+	_build()
 
 # ───────────────────── Build ─────────────────────
 
@@ -104,6 +222,7 @@ func _build() -> void:
 	vbox.add_child(tabs)
 	tabs.add_child(_make_tab("Bind Weapon", TAB_WEAPON))
 	tabs.add_child(_make_tab("Bind Armor (Chest)", TAB_ARMOR))
+	tabs.add_child(_make_tab("Respec Skill Points", TAB_RESPEC))
 
 	# Content
 	var scroll := ScrollContainer.new()
@@ -116,6 +235,9 @@ func _build() -> void:
 	content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scroll.add_child(content)
 
+	if _current_tab == TAB_RESPEC:
+		_render_respec(content)
+		return
 	var slot_id: int = 1 if _current_tab == TAB_WEAPON else 4  # Item.Slot.WEAPON_MAIN or CHEST
 	var binding = _get_or_create_binding()
 	var already_bound: bool = (binding.has_weapon_binding() if _current_tab == TAB_WEAPON else binding.has_armor_binding())

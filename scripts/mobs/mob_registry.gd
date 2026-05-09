@@ -64,7 +64,7 @@ func _register_cradle_mobs() -> void:
 		&"ash_step_camp", 2, 5, Mob.Role.ARCHER, [Mob.Tag.HUMAN], 40.0, 12.0, 3.0, 3.0)
 	_make(&"raider_chieftain_minor", "Hassu's Lieutenant",
 		"Carries a hooked spear like Hassu's, but smaller. Wants Hassu's job. Will not get it.",
-		&"ash_step_camp", 4, 5, Mob.Role.ELITE, [Mob.Tag.HUMAN], 110.0, 16.0, 6.0, 3.5, 60)
+		&"ash_step_camp", 4, 5, Mob.Role.TANK, [Mob.Tag.HUMAN], 110.0, 16.0, 6.0, 3.5, 60)
 
 	# Assassin intro - Whisper Shrine
 	_make(&"shrine_acolyte", "Whisper Acolyte",
@@ -95,7 +95,7 @@ func _register_cradle_mobs() -> void:
 	# Mage intro - Inkstone Tower
 	_make(&"binding_construct", "Lesser Binding-Construct",
 		"What was meant to keep the seal shut. The seal is open now and they are still patrolling, dutifully, the same hallways.",
-		&"inkstone_tower", 2, 5, Mob.Role.ELITE, [Mob.Tag.CONSTRUCT],
+		&"inkstone_tower", 2, 5, Mob.Role.TANK, [Mob.Tag.CONSTRUCT],
 		95.0, 15.0, 8.0, 2.5, 50)
 	_make(&"animated_book", "Animated Codex",
 		"Some books read themselves when no one is watching. Some books read you.",
@@ -113,7 +113,7 @@ func _register_cradle_mobs() -> void:
 	# Paladin intro - Sunsworn Chapel
 	_make(&"siege_lieutenant", "Siege Lieutenant",
 		"Reports to Beleti. Was a soldier of the Crown until the schism. Now reports to the silver-tongued.",
-		&"sunsworn_chapel", 2, 4, Mob.Role.ELITE, [Mob.Tag.HUMAN], 95.0, 14.0, 7.0)
+		&"sunsworn_chapel", 2, 4, Mob.Role.TANK, [Mob.Tag.HUMAN], 95.0, 14.0, 7.0)
 	_make(&"chapel_breaker", "Chapel Breaker",
 		"Carries a sledge. Would rather be elsewhere. Took the contract for the silver, not the blood.",
 		&"sunsworn_chapel", 1, 4, Mob.Role.GRUNT, [Mob.Tag.HUMAN], 70.0, 12.0)
