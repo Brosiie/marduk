@@ -1,6 +1,12 @@
 extends CanvasLayer
 class_name SkillTreePanel
 
+# Preload-shadowed alias — bypasses the global class_name cache. When
+# .godot/global_script_class_cache.cfg is stale, the bare class_name
+# 'SkillTreeLines' fails to resolve and this whole panel goes offline
+# silently. Preload is order-independent and outlives editor refreshes.
+const SkillTreeLines := preload("res://scripts/ui/panels/skill_tree_lines.gd")
+
 # Procedural skill-tree UI. Reads the active player's class skill tree
 # (49 nodes laid out 7 branches x 7 tiers via grid_position) and renders:
 #   - Header bar: class name + unspent skill points

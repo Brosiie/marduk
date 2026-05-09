@@ -1,6 +1,11 @@
 extends CanvasLayer
 class_name PauseMenu
 
+# Preload-shadowed alias — bypasses the global class_name cache. Without
+# this, a stale .godot/global_script_class_cache.cfg leaves SaveSlotPicker
+# unresolved and the entire pause menu fails to load, taking Esc with it.
+const SaveSlotPicker := preload("res://scripts/ui/menus/save_slot_picker.gd")
+
 # Esc-toggle pause menu. Lives in the HUD so it ships in every in-game scene.
 # Five actions: Resume / Save / Load / Settings / Quit to Title.
 #

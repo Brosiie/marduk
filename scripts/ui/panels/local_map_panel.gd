@@ -1,6 +1,11 @@
 extends CanvasLayer
 class_name LocalMapPanel
 
+# Preload-shadowed alias — bypasses the global class_name cache. Stale
+# .godot/global_script_class_cache.cfg was leaving LocalMapDrawer
+# unresolved at parse time and taking the M key offline silently.
+const LocalMapDrawer := preload("res://scripts/ui/panels/local_map_drawer.gd")
+
 # Full-screen LOCAL map (the current scene). M toggles. Renders a top-down
 # view of nodes by polling group memberships: player (gold), boss (red),
 # enemy (orange), npc (green), item_pickup (blue/violet), boss_arena (red

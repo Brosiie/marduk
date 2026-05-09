@@ -58,6 +58,15 @@ func _ready() -> void:
 	_state_started_at = _now()
 	_next_change_at = _state_started_at + randf_range(MIN_DURATION, MAX_DURATION)
 
+func _exit_tree() -> void:
+	# Autoloads outlive normal scene tear-down by design, so the
+	# tree_changed connection survives past the point where SceneTree
+	# itself is being dismantled. Disconnect here so we don't keep
+	# firing after our subscriber side is no longer in a usable tree.
+	var t := get_tree()
+	if t and t.tree_changed.is_connected(_on_tree_changed):
+		t.tree_changed.disconnect(_on_tree_changed)
+
 func _process(delta: float) -> void:
 	if _scene_root == null or not is_instance_valid(_scene_root):
 		return
@@ -98,7 +107,13 @@ func _on_tree_changed() -> void:
 	# particles), which would re-rescan and leak follower+particle
 	# systems hundreds of times per scene load -> RID exhaustion crash.
 	# Only rescan when the SCENE ROOT actually changes.
-	var current_scene = get_tree().current_scene if get_tree() else null
+	# Guard: tree_changed can also fire mid-teardown when our own get_tree()
+	# returns null. The engine logs "Parameter data.tree is null" before
+	# any GDScript check can intercept, so check is_inside_tree() first
+	# (it's a property read, no get_tree() call).
+	if not is_inside_tree():
+		return
+	var current_scene := get_tree().current_scene
 	if current_scene == _scene_root:
 		return  # scene unchanged, ignore the spam
 	call_deferred("_rescan")
