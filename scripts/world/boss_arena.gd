@@ -75,13 +75,42 @@ func _is_boss_already_defeated() -> bool:
 	return false
 
 func _skip_arena_for_defeated_boss() -> void:
-	# Mark engaged so the trigger doesn't re-evaluate, but DON'T
-	# build gates / auto-lock / play the cinematic. Despawn any
-	# pre-instanced boss in the scene.
+	# Mark engaged so the trigger doesn't re-evaluate, but DON'T build
+	# gates / auto-lock / play the cinematic. Despawn ONLY this arena's
+	# boss, not the global boss group. A region with multiple bosses
+	# (Sword-Vow Ruins + a future expansion arena) used to have ALL of
+	# them despawned when re-entering only ONE defeated arena.
 	_engaged = true
+	# Prefer the explicit boss_path binding
+	if boss_path != NodePath():
+		var bound: Node = get_node_or_null(boss_path)
+		if bound and is_instance_valid(bound):
+			bound.queue_free()
+			return
+	# Fallback: find a boss in the scene whose boss_id matches this
+	# arena's id. Only despawn that one. Bosses without ids (legacy)
+	# are left alone rather than nuked indiscriminately.
+	var defeated_id: StringName = _resolve_my_boss_id()
+	if defeated_id == &"":
+		return
 	for n in get_tree().get_nodes_in_group("boss"):
-		if is_instance_valid(n):
+		if not is_instance_valid(n):
+			continue
+		if "boss_id" in n and StringName(n.get("boss_id")) == defeated_id:
 			n.queue_free()
+			return
+
+func _resolve_my_boss_id() -> StringName:
+	# Resolve which boss this arena owns. Mirrors the logic in
+	# _is_boss_already_defeated so the despawn path uses the same id.
+	if boss_path != NodePath():
+		var b: Node = get_node_or_null(boss_path)
+		if b and "boss_id" in b:
+			return StringName(b.get("boss_id"))
+	for n in get_tree().get_nodes_in_group("boss"):
+		if "boss_id" in n:
+			return StringName(n.get("boss_id"))
+	return &""
 
 func _engage(player_node: Node) -> void:
 	_engaged = true

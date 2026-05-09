@@ -51,15 +51,18 @@ func _load_from_save_flags() -> void:
 	var sf: Node = get_node_or_null("/root/SaveFlags")
 	if sf == null or not sf.has_method("get_run"):
 		return
-	var active_ids: Array = sf.get_run(_SAVEFLAG_ACTIVE)
-	if active_ids == null:
-		return  # nothing to restore — fresh save
-	var completed_ids: Array = sf.get_run(_SAVEFLAG_COMPLETED)
-	var progress_payload: Dictionary = sf.get_run(_SAVEFLAG_PROGRESS)
-	if completed_ids == null:
-		completed_ids = []
-	if progress_payload == null:
-		progress_payload = {}
+	# SaveFlags.get_run defaults to `false` (bool), not `null`, when the
+	# key is absent. Pass an explicit Array/Dictionary default so a
+	# fresh save doesn't try to assign bool to typed Array/Dictionary
+	# (which crashes Godot 4 typed-variable assignment).
+	var active_raw: Variant = sf.get_run(_SAVEFLAG_ACTIVE, [])
+	if not (active_raw is Array):
+		return  # fresh save or corrupted payload — nothing to restore
+	var active_ids: Array = active_raw
+	var completed_raw: Variant = sf.get_run(_SAVEFLAG_COMPLETED, [])
+	var completed_ids: Array = completed_raw if completed_raw is Array else []
+	var progress_raw: Variant = sf.get_run(_SAVEFLAG_PROGRESS, {})
+	var progress_payload: Dictionary = progress_raw if progress_raw is Dictionary else {}
 	# Rehydrate active quests
 	for id_str in active_ids:
 		var qid: StringName = StringName(String(id_str))
@@ -386,6 +389,17 @@ func complete_quest(id: StringName) -> bool:
 		player.stats.gain_xp(int(q.xp_reward))
 	if player and "stats" in player and player.stats and "gold" in player.stats:
 		player.stats.gold += int(q.gold_reward)
+	# Apply faction rep changes from the quest. Must mirror QuestLog.turn_in
+	# so kill-objective auto-completes (which never go through turn_in)
+	# still grant the diplomatic stakes the quest declared. Without this
+	# block, the 5 starter faction quests (Crown Loyalty / Black Sail /
+	# Druid Friend / etc) silently skip their rep deltas when completed
+	# via kill credit instead of NPC turn-in.
+	if q.faction_rep_changes.size() > 0:
+		var fr: Node = get_node_or_null("/root/FactionRegistry")
+		if fr and fr.has_method("add_rep"):
+			for fid in q.faction_rep_changes.keys():
+				fr.add_rep(fid, int(q.faction_rep_changes[fid]))
 	# Achievement: first quest completion
 	var ar = get_node_or_null("/root/AchievementRegistry")
 	if ar and ar.has_method("unlock"):

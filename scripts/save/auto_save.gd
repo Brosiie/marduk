@@ -17,6 +17,10 @@ var _ticks_since_save: float = 0.0
 # Track whether we've already wired event-driven autosave hooks
 # so we don't double-subscribe on scene reload.
 var _event_hooks_wired: bool = false
+# True once the player's leveled_up signal is connected. Prevents
+# the _attach_player_signals retry from chaining timers forever
+# when no player ever spawns (eg start-menu sessions).
+var _player_signals_attached: bool = false
 
 func _ready() -> void:
 	# Hook event-driven save triggers in addition to the 60s timer.
@@ -44,6 +48,11 @@ func _wire_event_hooks() -> void:
 	_attach_player_signals()
 
 func _attach_player_signals() -> void:
+	# Idempotent: once connected, never re-fire the retry chain. Without
+	# this guard, sitting on the start menu (no player) would chain
+	# 0.5s timers forever, leaking a Timer per tick.
+	if _player_signals_attached:
+		return
 	var p: Node = get_tree().get_first_node_in_group("player") if get_tree() else null
 	if p == null:
 		# Retry on next frame until player spawns
@@ -53,6 +62,7 @@ func _attach_player_signals() -> void:
 		var cb := Callable(self, "_on_milestone_event_int")
 		if not p.stats.leveled_up.is_connected(cb):
 			p.stats.leveled_up.connect(cb)
+	_player_signals_attached = true
 
 func _on_milestone_event(_a = null, _b = null) -> void:
 	# Generic catch-all for signals with 0-2 args. Saving immediately

@@ -155,7 +155,7 @@ func _toast_tier_change(faction_id: StringName, new_tier: String, was_gain: bool
 		var name: String = f.display_name if f else String(faction_id)
 		var prefix: String = "↑" if was_gain else "↓"
 		var color: Color = TIER_COLORS.get(new_tier, Color.WHITE)
-		juice.toast("%s %s — %s" % [prefix, name, new_tier], color, 3.0)
+		juice.toast("%s %s: %s" % [prefix, name, new_tier], color, 3.0)
 	# Audio: lodestone chirp ascends for gains, descends for losses (pitch
 	# shift). Picked because the cue is already a tonal sweep that suits
 	# both directions.

@@ -459,20 +459,21 @@ func _scenario_boss_fight() -> void:
 	if boss == null:
 		_findings.append("(skip boss_fight: no living boss in scene; %d total in group)" % bosses.size())
 		return
-	# Don't teleport the player — last attempt put the player INSIDE
-	# the BossArena trigger, which fired _engage and called
-	# player._set_lock + camera + audio cinematic. Something in that
-	# chain freed the boss in headless. Leave the player where it is
-	# and just force-set the boss's target so its pattern AI fires
-	# without needing the arena engage path.
+	# Move the player perpendicular to the boss's facing axis so we
+	# stay clear of the BossArena trigger geometry. A prior version
+	# parked the player at boss_pos + Vector3(0, 0, 6.5), straight
+	# through the trigger volume, which fired _engage's cinematic
+	# chain (camera, lock, audio) and froze the boss in headless.
+	# Parking along X and at >= trigger_radius keeps us inside the
+	# boss's detect_radius (default 20m) but outside the arena's
+	# default 12m trigger.
 	var boss_pos: Vector3 = (boss as Node3D).global_position
 	var boss_hp_pre: float = float(boss.hp) if "hp" in boss else -1.0
-	# Move player to within the boss's detect_radius so the boss
-	# considers it valid + in range. detect_radius default is 20m on
-	# bosses; park at 12m to stay clear of arena trigger volumes
-	# (those are typically 12m radius).
 	var detect_r: float = float(boss.detect_radius) if "detect_radius" in boss else 20.0
-	_player.global_position = boss_pos + Vector3(detect_r * 0.5, 0, 0)
+	# Target the band [13m, detect_r) so trigger is cleared and aggro
+	# is reachable. Clamp upward if detect_r itself is small.
+	var park_dist: float = clamp(13.0, 13.0, max(13.0, detect_r - 1.0))
+	_player.global_position = boss_pos + Vector3(park_dist, 0, 0)
 	if "target" in boss:
 		boss.target = _player
 	# Snapshot the boss's pattern config NOW, before the 12s observation
