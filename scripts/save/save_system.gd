@@ -107,7 +107,45 @@ func load_slot(slot: int, player) -> bool:
 	player.stats.hp = float(cfg.get_value("stats", "hp", player.stats.max_hp))
 	player.stats.mana = float(cfg.get_value("stats", "mana", player.stats.max_mana))
 	player.resource_value = float(cfg.get_value("stats", "resource_value", 0.0))
-	# Inventory left for follow-up (item resource registry needed)
+	# Inventory restore — re-instantiate items by id via ItemRegistry,
+	# add to bag, restore equipped slots. Without this, loading a save
+	# silently drops the player's loot — the biggest 'feels broken'
+	# bug Bond would notice on first relaunch.
+	if player.has_method("get_inventory"):
+		var inv: Inventory = player.get_inventory()
+		if inv:
+			inv.gold = int(cfg.get_value("inventory", "gold", 0))
+			# Clear current bag + equipped before reload to avoid
+			# duplication on repeated load_slot calls in the same run.
+			inv.bag.clear()
+			var registry: Node = get_node_or_null("/root/ItemRegistry")
+			# Bag: list of {"id": "...", "count": N}
+			var bag_data: Array = cfg.get_value("inventory", "bag_item_ids", [])
+			for entry in bag_data:
+				if typeof(entry) != TYPE_DICTIONARY:
+					continue
+				var iid: StringName = StringName(entry.get("id", ""))
+				var qty: int = int(entry.get("count", 1))
+				if iid == &"" or registry == null:
+					continue
+				var item: Item = registry.get_item(iid)
+				if item:
+					inv.add_item(item, qty)
+			# Equipped: list of {"slot": int, "id": "..."}
+			var equip_data: Array = cfg.get_value("inventory", "equipped_item_ids", [])
+			for entry in equip_data:
+				if typeof(entry) != TYPE_DICTIONARY:
+					continue
+				var iid: StringName = StringName(entry.get("id", ""))
+				var slot_idx: int = int(entry.get("slot", -1))
+				if iid == &"" or registry == null:
+					continue
+				var item: Item = registry.get_item(iid)
+				if item:
+					inv.equip(item, slot_idx, player.stats.class_def if player.stats else null)
+			# Refresh derived stats now that gear is restored
+			if player.stats.has_method("recompute_derived"):
+				player.stats.recompute_derived()
 	# Position
 	var pos = cfg.get_value("world", "position", Vector3.ZERO)
 	if pos is Vector3:

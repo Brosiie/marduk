@@ -3520,6 +3520,13 @@ func receive_loot(item: Item) -> void:
 	inventory.add_item(item, 1)
 
 func get_inventory() -> Inventory:
+	# Auto-create on first access. The player.tscn doesn't always
+	# preset an Inventory resource (depends on scene authoring) and
+	# without one, picking up items / saving has nowhere to go.
+	# Lazy creation guarantees the rest of the codebase can rely on
+	# this method returning a valid Inventory whenever it's called.
+	if inventory == null:
+		inventory = Inventory.new()
 	return inventory
 
 # CharacterCreator handoff: AppearanceRegistry stashes the just-created

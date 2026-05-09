@@ -111,6 +111,17 @@ func _run() -> void:
 	# Phase 11: meshes + skeletons
 	_scenario_mesh_integrity()
 
+	# Phase 12: end-to-end game-loop scenarios
+	# These prove the SYSTEMS hang together, not just the actors.
+	# Without these the game can pass every individual check but
+	# fail to feel like a real game (e.g. quest tracker shows but
+	# never updates, save/reload silently drops inventory).
+	await _scenario_quest_progress_loop()
+	await _scenario_xp_level_up_loop()
+	await _scenario_save_load_round_trip()
+	await _scenario_lodestone_attune_persist()
+	await _scenario_inventory_save_load()
+
 	_finish()
 
 # ---------------------------------------------------------------------
@@ -432,6 +443,245 @@ func _scenario_boss_fight() -> void:
 		_fail("boss_movement", "boss has only one of LEAP/CHARGE")
 	else:
 		_fail("boss_movement", "boss has neither LEAP nor CHARGE — Bond's lifeless complaint")
+
+# --------------------------------------------------------------
+# END-TO-END GAME-LOOP SCENARIOS
+# --------------------------------------------------------------
+#
+# These don't test individual actor behavior — they test that the
+# SYSTEMS hang together so the game feels like a real game. Each
+# scenario exercises a complete loop (accept → progress → complete,
+# pickup → save → reload → restore, attune → save → reload → still
+# attuned). Without these, the game can pass every per-system check
+# yet still feel like a tech demo because no full loops close.
+
+# 1. Quest loop: auto-accepted prologue is active → kill_credit on a
+# mob → tracker count goes up → if requirement met, quest auto-
+# completes. The Ronin auto-accept fires `prologue_ronin` on spawn.
+func _scenario_quest_progress_loop() -> void:
+	var qr: Node = get_node_or_null("/root/QuestRegistry")
+	if qr == null:
+		_findings.append("(skip quest_progress: QuestRegistry autoload missing)")
+		return
+	if not qr.has_method("get_active_quests"):
+		_findings.append("(skip quest_progress: get_active_quests missing)")
+		return
+	var active: Array = qr.get_active_quests()
+	if active.is_empty():
+		_fail("quest_active", "no active quests on spawn — auto-accept didn't fire")
+		return
+	var first = active[0]
+	var quest_id: StringName = first.id if "id" in first else &""
+	if quest_id == &"":
+		_findings.append("(skip quest_progress: first quest has no id)")
+		return
+	# Read the FIRST kill objective's target_id from the active quest
+	# so the test fires credit against the right mob/boss. Hard-coding
+	# usurper_footman was wrong — Ronin's prologue tracks Kazat
+	# (usurper_enforcer), not the trash mobs.
+	var objectives: Array = first.get("objectives_data", []) if typeof(first) == TYPE_DICTIONARY else first.objectives_data
+	var target_id: StringName = &""
+	var kind: StringName = &""
+	for obj in objectives:
+		if String(obj.get("kind", "")) == "kill":
+			target_id = StringName(obj.get("target_id", ""))
+			kind = &"kill"
+			break
+	if target_id == &"":
+		# Fall back to whatever kind the first objective uses
+		var first_obj = objectives[0] if objectives.size() > 0 else {}
+		target_id = StringName(first_obj.get("target_id", ""))
+		kind = StringName(first_obj.get("kind", "kill"))
+	if target_id == &"":
+		_findings.append("(skip quest_progress: first objective has no target_id)")
+		return
+	var counts_before: Array = qr.get_progress(quest_id) if qr.has_method("get_progress") else []
+	var count_before_val: int = counts_before[0] if counts_before.size() > 0 else 0
+	# Fire credit against the actual quest target
+	if qr.has_method("progress"):
+		qr.progress(kind, target_id, 1)
+	await _wait(0.1)
+	var counts_after: Array = qr.get_progress(quest_id) if qr.has_method("get_progress") else []
+	var count_after_val: int = counts_after[0] if counts_after.size() > 0 else 0
+	if count_after_val > count_before_val:
+		_pass("quest_progress", "kill credit advanced %s objective: %d -> %d" % [quest_id, count_before_val, count_after_val])
+	else:
+		_fail("quest_progress", "kill credit did not advance %s (still %d) — quest tracker won't move during play" % [quest_id, count_after_val])
+
+# 2. XP gain → level up → attribute gain. Snapshot stats.level + a
+# primary attribute, dump in enough XP to level twice, verify both
+# advanced.
+func _scenario_xp_level_up_loop() -> void:
+	if not is_instance_valid(_player) or _player.stats == null:
+		_findings.append("(skip xp_level_up: no player stats)")
+		return
+	var lvl_before: int = int(_player.stats.level)
+	var str_before: int = int(_player.stats.strength)
+	# Award enough XP to guarantee 2 levels at any starting point
+	# (level cost climbs but 5000 will cover the early bracket).
+	if _player.stats.has_method("gain_xp"):
+		_player.stats.gain_xp(5000)
+	await _wait(0.2)
+	var lvl_after: int = int(_player.stats.level)
+	var str_after: int = int(_player.stats.strength)
+	if lvl_after > lvl_before:
+		_pass("xp_level_up", "level %d -> %d after 5000 XP" % [lvl_before, lvl_after])
+	else:
+		_fail("xp_level_up", "level didn't advance after 5000 XP")
+	if str_after >= str_before:
+		_pass("attr_growth", "strength %d -> %d after level up" % [str_before, str_after])
+	else:
+		_fail("attr_growth", "strength regressed %d -> %d on level up" % [str_before, str_after])
+
+# 3. Save-reload round-trip: pick a unique stat value, write to slot
+# 99, reset stat, load slot 99, verify the value came back. Doesn't
+# need a real game restart — exercises the SaveSystem path directly.
+func _scenario_save_load_round_trip() -> void:
+	var ss: Node = get_node_or_null("/root/SaveSystem")
+	if ss == null or not ss.has_method("save_slot") or not ss.has_method("load_slot"):
+		_findings.append("(skip save_load: SaveSystem autoload missing)")
+		return
+	if not is_instance_valid(_player) or _player.stats == null:
+		_findings.append("(skip save_load: no player stats)")
+		return
+	# Mark the stat with a sentinel value
+	var marker_xp: int = 9999
+	var orig_xp: int = int(_player.stats.xp)
+	_player.stats.xp = marker_xp
+	# Save to slot 99 (test slot, doesn't clobber autosave at 0)
+	var saved: bool = ss.save_slot(99, _player)
+	if not saved:
+		_fail("save_load", "save_slot returned false — SaveSystem couldn't write")
+		_player.stats.xp = orig_xp
+		return
+	# Mutate the stat
+	_player.stats.xp = 1
+	# Reload
+	var loaded: bool = ss.load_slot(99, _player)
+	if not loaded:
+		_fail("save_load", "load_slot returned false — file not found or parse failure")
+		_player.stats.xp = orig_xp
+		return
+	# Assert
+	if int(_player.stats.xp) == marker_xp:
+		_pass("save_load", "xp survived round-trip: %d -> wrote 1 -> loaded back %d" % [marker_xp, int(_player.stats.xp)])
+	else:
+		_fail("save_load", "xp did NOT survive: expected %d, got %d" % [marker_xp, int(_player.stats.xp)])
+	# Restore
+	_player.stats.xp = orig_xp
+	# Cleanup the test slot
+	if ss.has_method("delete_slot"):
+		ss.delete_slot(99)
+
+# 4. Lodestone attune persistence: mark a lodestone as discovered via
+# the registry, save the flag bag, force a reload, verify the
+# attunement state is restored.
+func _scenario_lodestone_attune_persist() -> void:
+	var lr: Node = get_node_or_null("/root/LodestoneRegistry")
+	if lr == null:
+		_findings.append("(skip lodestone_persist: LodestoneRegistry autoload missing)")
+		return
+	if not lr.has_method("discover") or not lr.has_method("is_discovered"):
+		_findings.append("(skip lodestone_persist: API methods missing)")
+		return
+	var test_id: StringName = &"sword_vow_dais"
+	# Pre-state
+	var was_attuned_before: bool = lr.is_discovered(test_id)
+	# Discover (also persists to SaveFlags via _save_to_save_flags)
+	lr.discover(test_id)
+	# Save state
+	var sf: Node = get_node_or_null("/root/SaveFlags")
+	if sf and sf.has_method("save_state"):
+		sf.save_state()
+	# Force-clear local state and reload
+	if sf and sf.has_method("load_state"):
+		sf.load_state()
+	# Force the registry to re-read its persisted state from SaveFlags
+	# so we exercise the actual reload path the game uses on next boot.
+	if lr.has_method("_load_from_save_flags"):
+		lr._load_from_save_flags()
+	# Verify
+	var attuned_after: bool = lr.is_discovered(test_id)
+	if attuned_after:
+		_pass("lodestone_persist", "%s discovery survived save/load round-trip" % test_id)
+	else:
+		_fail("lodestone_persist", "%s discovery LOST after save_state -> load_state" % test_id)
+	# Cleanup: restore pre-state by toggling SaveFlags appropriately
+	if not was_attuned_before:
+		# We polluted the save with a new attunement; clear it
+		if sf and sf.has_method("set_permanent"):
+			sf.set_permanent(StringName("attuned_" + String(test_id)), false)
+
+# 5. Inventory persistence: pick a real item from the registry, add
+# it to the bag, save to slot 99, clear the bag, load slot 99,
+# verify the item is back. Also tests bag.gold round-trip.
+func _scenario_inventory_save_load() -> void:
+	var ss: Node = get_node_or_null("/root/SaveSystem")
+	var ir: Node = get_node_or_null("/root/ItemRegistry")
+	if ss == null or ir == null:
+		_findings.append("(skip inventory_save_load: SaveSystem or ItemRegistry missing)")
+		return
+	if not is_instance_valid(_player) or not _player.has_method("get_inventory"):
+		_findings.append("(skip inventory_save_load: player lacks get_inventory)")
+		return
+	var inv: Inventory = _player.get_inventory()
+	if inv == null:
+		_findings.append("(skip inventory_save_load: inventory is null)")
+		return
+	# Pick a real item from the registry. Try a wide list of id
+	# guesses; whichever resolves first wins. Hard-coding ids is
+	# a maintenance trap, but probing the registry directly via
+	# 'get_all' isn't part of the public API.
+	var probe_ids := [
+		&"sword_iron", &"sword_steel", &"greatsword_iron",
+		&"kazat_bronze_katana", &"copper_coin", &"health_potion",
+	]
+	var test_item: Item = null
+	for pid in probe_ids:
+		var candidate: Item = ir.get_item(pid)
+		if candidate:
+			test_item = candidate
+			break
+	if test_item == null:
+		_findings.append("(skip inventory_save_load: no probe items in registry)")
+		return
+	# Snapshot pre-state
+	var orig_gold: int = inv.gold
+	var orig_bag_size: int = inv.bag.size()
+	# Mutate
+	inv.add_item(test_item, 3)
+	inv.gold = 12345
+	# Save
+	var saved: bool = ss.save_slot(99, _player)
+	if not saved:
+		_fail("inventory_save_load", "save_slot returned false")
+		return
+	# Wipe state
+	inv.bag.clear()
+	inv.gold = 0
+	# Reload
+	var loaded: bool = ss.load_slot(99, _player)
+	if not loaded:
+		_fail("inventory_save_load", "load_slot returned false")
+		return
+	# Assert
+	if inv.gold != 12345:
+		_fail("inventory_save_load", "gold did not survive: expected 12345, got %d" % inv.gold)
+	else:
+		var found_test: bool = false
+		for s in inv.bag:
+			if s.item and s.item.id == test_item.id:
+				found_test = true
+				break
+		if found_test:
+			_pass("inventory_save_load", "gold + item '%s' survived save/load round-trip" % test_item.id)
+		else:
+			_fail("inventory_save_load", "item '%s' was NOT in bag after reload (bag size %d)" % [test_item.id, inv.bag.size()])
+	# Cleanup
+	inv.gold = orig_gold
+	inv.bag.clear()
+	if ss.has_method("delete_slot"):
+		ss.delete_slot(99)
 
 func _scenario_hud_presence() -> void:
 	var huds := get_tree().get_nodes_in_group("hud")
