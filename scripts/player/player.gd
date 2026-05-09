@@ -3190,28 +3190,9 @@ func _die() -> void:
 	var ar = get_node_or_null("/root/AchievementRegistry")
 	if ar and ar.has_method("unlock"):
 		ar.unlock(&"a_first_death")
-	# DEATH REPLAY: before the YOU DIED toast, pan the camera to the
-	# killer for 1.0s of deep slowmo so the player sees what got them.
-	# Then drop the toast. Souls-style 'this is the bullshit that
-	# killed you' framing.
-	if _last_damage_source and is_instance_valid(_last_damage_source) and _last_damage_source is Node3D:
-		_set_lock(_last_damage_source)  # camera tracks killer
-	var juice = get_node_or_null("/root/Juice")
-	if juice:
-		# Deep slowmo (5% speed) for the replay window
-		juice.slowmo(0.05, 1.0)
-		juice.flash(Color(0.7, 0.05, 0.05), 0.55, 1.4)
-		# Delay the YOU DIED toast slightly so the replay plays first
-		var t := get_tree().create_timer(0.6)
-		t.timeout.connect(func():
-			if juice and juice.has_method("toast"):
-				juice.toast("YOU DIED", Color(0.95, 0.20, 0.20), 2.4)
-		)
 	# Multiplayer-friendly arena rule: when a player dies, that player's
 	# engagement is dropped but the BOSS keeps its HP. In a party run, the
-	# boss only resets when every player has wiped (handled by checking
-	# party_alive elsewhere). For now in single-player this is just one
-	# arena.on_player_died() per active arena.
+	# boss only resets when every player has wiped.
 	for arena in get_tree().get_nodes_in_group("boss_arena"):
 		if arena.has_method("on_player_died"):
 			arena.on_player_died()
@@ -3227,12 +3208,33 @@ func _die() -> void:
 	var ab = get_node_or_null("/root/AudioBus")
 	if ab and ab.has_method("play_cue"):
 		ab.play_cue(&"death", global_position, -2.0, 0.85)
-	# Drop a soul-marker at the death position so the player can return for
-	# their lost XP. Soulslike convention.
+	# Single hard red flash — moment of impact, no slowmo replay.
+	var juice = get_node_or_null("/root/Juice")
+	if juice and juice.has_method("flash"):
+		juice.flash(Color(0.85, 0.05, 0.05), 0.85, 1.2)
+	# Drop a soul-marker at the death position (player returns for lost XP).
 	_drop_death_marker()
-	# Wait 2.5s then respawn at the most recently attuned lodestone (Hub
-	# fallback if none attuned).
-	get_tree().create_timer(2.5).timeout.connect(_respawn)
+	# YOU DIED screen takes over input. The player picks: Respawn at
+	# Lodestone / Wait for Revive / Quit to Title. No auto-respawn.
+	_open_death_screen()
+
+const _DEATH_SCREEN_SCENE := "res://scenes/ui/panels/death_screen.tscn"
+
+func _open_death_screen() -> void:
+	# Scene already in HUD? Reuse the instance. Otherwise spawn ad-hoc so
+	# this works for any zone that hasn't been re-opened with the latest HUD.
+	var screen: Node = get_tree().root.find_child("DeathScreen", true, false)
+	if screen == null:
+		var packed: PackedScene = load(_DEATH_SCREEN_SCENE)
+		if packed == null:
+			# No screen scene available — fall back to legacy auto-respawn so
+			# the player isn't soft-locked.
+			get_tree().create_timer(2.5).timeout.connect(_respawn)
+			return
+		screen = packed.instantiate()
+		get_tree().current_scene.add_child(screen)
+	if screen.has_method("open"):
+		screen.open(self)
 
 # Persistent state across deaths — carries over via SaveFlags.
 var _lost_xp: float = 0.0  # XP that drops on the ground at last death

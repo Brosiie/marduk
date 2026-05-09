@@ -8,6 +8,7 @@
 [ext_resource type="PackedScene" path="res://scenes/ui/panels/achievement_codex_panel.tscn" id="6_codex"]
 [ext_resource type="PackedScene" path="res://scenes/ui/panels/local_map_panel.tscn" id="7_local_map"]
 [ext_resource type="PackedScene" path="res://scenes/ui/panels/faction_rep_panel.tscn" id="8_factions"]
+[ext_resource type="PackedScene" path="res://scenes/ui/panels/death_screen.tscn" id="9_death"]
 
 [node name="HUD" type="CanvasLayer"]
 script = ExtResource("1")
@@ -69,3 +70,5 @@ mouse_filter = 2
 [node name="LocalMapPanel" parent="." instance=ExtResource("7_local_map")]
 
 [node name="FactionRepPanel" parent="." instance=ExtResource("8_factions")]
+
+[node name="DeathScreen" parent="." instance=ExtResource("9_death")]

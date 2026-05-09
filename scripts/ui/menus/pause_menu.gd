@@ -32,6 +32,7 @@ const MODAL_GROUP_NODE_NAMES := [
 	"AchievementCodexPanel",
 	"LocalMapPanel",
 	"FactionRepPanel",
+	"DeathScreen",
 ]
 
 @onready var dim: ColorRect = $Dim if has_node("Dim") else null
