@@ -63,8 +63,8 @@ func _spawn_one() -> void:
 	# runs so the right AI tree boots from frame 0.
 	#   ARCHER (1) -> kite + arrow projectile
 	#   CASTER (2) -> mid-range channel + AOE-ground orb
-	#   RUSHER (4) -> aggressive close + zero-windup melee (faster than grunt)
-	# Other roles use the base EnemyBase chase+swing.
+	#   RUSHER (4) -> aggressive close + fast melee, low HP (script-based)
+	#   TANK   (5) -> slow + tanky + big telegraphed swings
 	match int(mob.role):
 		1:  # ARCHER
 			var s: GDScript = load("res://scripts/enemies/archer_mob.gd")
@@ -72,14 +72,14 @@ func _spawn_one() -> void:
 		2:  # CASTER
 			var s2: GDScript = load("res://scripts/enemies/caster_mob.gd")
 			if s2: inst.set_script(s2)
-		4:  # RUSHER
-			# Rushers use the base script but with sped-up stats and
-			# zero attack_windup (no telegraph -> punishing if you don't
-			# disengage). Apply via property tweaks, not script swap.
-			inst.move_speed *= 1.4
-			inst.attack_windup = 0.15
-			inst.attack_cooldown *= 0.85
-			inst.attack_range = max(2.0, inst.attack_range)
+		4:  # RUSHER — script-based now (was inline tweaks). The script
+			# dials in glass-cannon stats and a brighter rim color so
+			# the player can VISUALLY tell rushers from grunts.
+			var s3: GDScript = load("res://scripts/enemies/rusher_mob.gd")
+			if s3: inst.set_script(s3)
+		5:  # TANK
+			var s4: GDScript = load("res://scripts/enemies/tank_mob.gd")
+			if s4: inst.set_script(s4)
 	# Mesh swap re-enabled now that .glb conversion landed (commit 3005718).
 	# Each mob_id pulls its own Mixamo character from ClassMeshRegistry so
 	# usurper_footman / raider_grunt / shrine_acolyte all look distinct.

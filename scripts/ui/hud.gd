@@ -106,6 +106,13 @@ func _ready() -> void:
 		pcb.set_script(pcb_script)
 		pcb.name = "PlayerCastBar"
 		$Root.add_child(pcb)
+	# Death overlay (full-screen, hidden until died signal fires)
+	var death_script: GDScript = load("res://scripts/ui/hud_components/death_overlay.gd")
+	if death_script:
+		var death_overlay := CanvasLayer.new()
+		death_overlay.set_script(death_script)
+		death_overlay.name = "DeathOverlay"
+		add_child(death_overlay)
 	# Quest tracker (top left, under bars)
 	var qt_script: GDScript = load("res://scripts/ui/hud_components/quest_tracker.gd")
 	if qt_script:
@@ -197,6 +204,18 @@ func _unhandled_input(event: InputEvent) -> void:
 		menu_panel.toggle_tab(&"options")
 
 func _on_hp(cur: float, mx: float) -> void:
+	# Damage flash: detect HP drop and pulse the full-screen flash
+	# overlay alpha 0.35 -> 0 over 250ms. Visceral 'I just got hit'
+	# read separate from the slow low-HP vignette underneath.
+	var prev_hp: float = float(hp_bar.value)
+	if cur < prev_hp - 0.5:
+		_pulse_hit_flash()
+		# Low-HP heartbeat audio cue when below 30%
+		var hp_pct_before: float = prev_hp / max(mx, 1.0)
+		if hp_pct_before < 0.30:
+			var ab: Node = get_node_or_null("/root/AudioBus")
+			if ab and ab.has_method("play_cue"):
+				ab.play_cue(&"hit", player.global_position if player else Vector3.ZERO, -3.0, 0.55)
 	hp_bar.max_value = mx
 	hp_bar.value = cur
 	_refresh_value_label(hp_bar, "hp")
@@ -208,6 +227,29 @@ func _on_hp(cur: float, mx: float) -> void:
 		var threshold: float = 0.40
 		var t: float = clamp((threshold - hp_pct) / threshold, 0.0, 1.0)  # 0 at 40%+, 1 at 0%
 		(_low_hp_vignette.material as ShaderMaterial).set_shader_parameter("intensity", t)
+
+# Full-screen damage flash overlay. Sibling of the low-HP vignette
+# but lazy-spawned because most players don't take damage on the
+# very first frame.
+var _hit_flash: ColorRect = null
+
+func _pulse_hit_flash() -> void:
+	if _hit_flash == null or not is_instance_valid(_hit_flash):
+		_hit_flash = ColorRect.new()
+		_hit_flash.name = "HitFlash"
+		_hit_flash.color = Color(0.85, 0.10, 0.10, 0.0)
+		_hit_flash.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		_hit_flash.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_hit_flash.z_index = 50
+		$Root.add_child(_hit_flash)
+	_hit_flash.color.a = 0.35
+	# Tween fade-out
+	var tw := create_tween()
+	tw.tween_property(_hit_flash, "color:a", 0.0, 0.25).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	# Camera shake on hit (small kick)
+	var juice: Node = get_node_or_null("/root/Juice")
+	if juice and juice.has_method("shake"):
+		juice.shake(0.18, 0.10)
 
 func _install_low_hp_vignette() -> void:
 	# Full-screen ColorRect with a radial-gradient shader. The shader is
