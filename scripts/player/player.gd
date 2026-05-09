@@ -149,7 +149,7 @@ const CLASS_BUFF_COLOR := {
 	&"paladin_lightbringer": Color(1.00, 0.95, 0.55, 1.0),  # sun bright gold
 }
 
-# Buff trigger registries — abilities whose IDs match these get the
+# Buff trigger registries, abilities whose IDs match these get the
 # corresponding effect. Adding new abilities to a class kit just needs
 # the right ID pattern; no per-class plumbing.
 const BATTLE_CRY_IDS := [
@@ -367,7 +367,7 @@ func _spawn_fallback_capsule() -> void:
 	lit.omni_range = 6.0
 	lit.position = Vector3(0, 1.6, 0)
 	mesh.add_child(lit)
-	print("[Player] mesh invisible (skinning collapse) — spawned glowing fallback capsule + label + light")
+	print("[Player] mesh invisible (skinning collapse), spawned glowing fallback capsule + label + light")
 
 # Look at the active scene's Geometry node (where ZoneComposer lives),
 # read its style_id (e.g. &"sword_vow_ruins"), reverse-lookup the matching
@@ -579,7 +579,7 @@ func _resolve_anim_alias_map() -> void:
 		return
 	# Use has_animation() not `alias in get_animation_list()`. The list
 	# returns PackedStringArray entries that don't compare equal to plain
-	# String aliases via the `in` operator in Godot 4.6 — the lookup
+	# String aliases via the `in` operator in Godot 4.6, the lookup
 	# silently misses every alias and the player T-poses despite the
 	# library being fully bound. has_animation() does the right hash
 	# lookup. THIS is what made Bond's Kachujin freeze on every anim
@@ -633,7 +633,7 @@ func toggle_mount() -> void:
 func _mount() -> void:
 	if locked or stats == null:
 		return
-	# Don't allow mounting in combat — last hit must be 5+ seconds ago
+	# Don't allow mounting in combat, last hit must be 5+ seconds ago
 	var now: float = Time.get_ticks_msec() / 1000.0
 	if now - _last_combat_time < 5.0:
 		_play_deny_cue()
@@ -803,7 +803,7 @@ func _cast_ability_slot(slot: int) -> void:
 	# Cooldown
 	_ability_cooldowns[slot] = now + float(k.get("cooldown", 1.0))
 	# Announce the cast so the HUD can show the cast bar with the
-	# ability name. Duration is the ANIMATION TIME — for one-shot
+	# ability name. Duration is the ANIMATION TIME, for one-shot
 	# swings that's ~0.6s; for charged abilities it could be longer
 	# from a `windup_seconds` field on the kit dict if we ever add one.
 	var cast_duration: float = float(k.get("windup_seconds", 0.5))
@@ -841,7 +841,7 @@ func _cast_ability_slot(slot: int) -> void:
 	elif ability_id in HEAL_IDS:
 		_trigger_heal()
 	# Revive is intentionally OUTSIDE the elif chain so it stacks with
-	# healing_aura — Lightbringer's aura both heals the caster AND ressurects
+	# healing_aura, Lightbringer's aura both heals the caster AND ressurects
 	# downed allies in range. A dedicated &"revive_ally" id can also fire it
 	# standalone for non-paladin classes that someday gain rez utility.
 	if ability_id in REVIVE_IDS or ability_id == &"healing_aura":
@@ -874,7 +874,7 @@ func _cast_ability_slot(slot: int) -> void:
 	swing.display_name = String(k.get("name", "Ability"))
 	# Riposte buff: if the player just perfect-dodged, the next swing
 	# does +50% damage and is consumed on first hit. Apply BEFORE
-	# chain_mult so the rewards stack — a perfect-dodge into a chain
+	# chain_mult so the rewards stack, a perfect-dodge into a chain
 	# combo is the highest-DPS expression of skill.
 	var dmg: float = float(k.get("damage", 30.0)) * chain_mult
 	if has_riposte_buff():
@@ -937,9 +937,9 @@ func _cast_ability_slot(slot: int) -> void:
 	# AND coat the katana blade in matching elemental material for
 	# the duration of the swing. Demon-Slayer style.
 	_spawn_breath_vfx(StringName(k.get("id", "")))
-	# Weapon trail arc — element-tinted curve sweeping in front of
+	# Weapon trail arc, element-tinted curve sweeping in front of
 	# the player to read the SWING SHAPE clearly. Distinct from the
-	# blade-coat (which sticks to the katana mesh) — this is the
+	# blade-coat (which sticks to the katana mesh), this is the
 	# motion-blur read of the strike itself.
 	_spawn_swing_arc(int(k.get("element", Ability.DamageType.PHYSICAL)))
 	on_combat_event(2.0)
@@ -1097,7 +1097,7 @@ func _spawn_swing_arc(element: int) -> void:
 # skip its normal attack path).
 #
 # Mechanics:
-# - 3.0x damage (closing the posture loop — staggering should mean
+# - 3.0x damage (closing the posture loop, staggering should mean
 #   real reward, not just a free hit)
 # - 0.20x slowmo for 0.8s (Mortal-Kombat-finisher cadence)
 # - Camera spring tightens via temporary distance override
@@ -1116,7 +1116,7 @@ func _try_execution_on_staggered_boss() -> bool:
 		return false
 	var t: Node = _lock_target
 	# Boss must expose `posture` and be staggered (Time check via
-	# _staggered_until > now). Probe via duck-typing — only BossBase
+	# _staggered_until > now). Probe via duck-typing, only BossBase
 	# carries these fields.
 	if not ("_staggered_until" in t):
 		return false
@@ -1149,7 +1149,7 @@ func _fire_execution(target_node: Node) -> void:
 	if ab and ab.has_method("play_cue"):
 		ab.play_cue(&"crit", target_node.global_position, -1.0, 0.55)
 		ab.play_cue(&"victory", target_node.global_position, -3.0, 1.20)
-	# Heavy strike anim if available — falls back to attack
+	# Heavy strike anim if available, falls back to attack
 	if anim_player:
 		var heavy_name: String = _resolved_anims.get("heavy", _resolved_anims.get("attack", ""))
 		if heavy_name != "":
@@ -1163,7 +1163,7 @@ func _fire_execution(target_node: Node) -> void:
 		get_tree().create_timer(EXECUTION_SLOWMO_DURATION + 0.4).timeout.connect(func():
 			if is_instance_valid(cam_rig):
 				cam_rig.distance = saved_distance)
-	# Apply 3.0x damage to the boss. Skip the hitbox path — direct
+	# Apply 3.0x damage to the boss. Skip the hitbox path, direct
 	# take_damage so the cinematic is reliably-deterministic instead
 	# of dependent on hitbox overlap timing during slowmo.
 	if target_node.has_method("take_damage"):
@@ -1217,7 +1217,7 @@ func _spawn_breath_vfx(ability_id: StringName) -> void:
 	var color: Color = _breath_color_for(style)
 	_spawn_mouth_puff(color, style)
 	_spawn_blade_coat(color, style)
-	# Per-style signature layer — one ribbon for water, one arc for
+	# Per-style signature layer, one ribbon for water, one arc for
 	# thunder, etc. The puff+coat give the GENERIC 'this breathing
 	# form just fired' read; the signature gives the SPECIFIC element.
 	# Demon Slayer reference: Tanjiro's water dragon spiral, Zenitsu's
@@ -1240,7 +1240,7 @@ func _spawn_breath_signature(color: Color, style: StringName) -> void:
 
 # WATER: trailing ribbon of slow particles with strong tangential
 # acceleration so they spiral around the blade like Tanjiro's dragon.
-# Two layers — saturated core + lighter foam — for depth.
+# Two layers, saturated core + lighter foam, for depth.
 func _signature_water(color: Color) -> void:
 	var socket: Node3D = mesh.get_node_or_null("KatanaSocket") if mesh else null
 	if socket == null:
@@ -1251,7 +1251,7 @@ func _signature_water(color: Color) -> void:
 		ribbon.amount = 60
 		ribbon.lifetime = 1.4
 		ribbon.one_shot = true
-		ribbon.explosiveness = 0.05  # SLOW continuous — long arc
+		ribbon.explosiveness = 0.05  # SLOW continuous, long arc
 		ribbon.visibility_aabb = AABB(Vector3(-2, -1, -2), Vector3(4, 3, 4))
 		var pm := ParticleProcessMaterial.new()
 		pm.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_BOX
@@ -1292,7 +1292,7 @@ func _signature_thunder(color: Color) -> void:
 	var socket: Node3D = mesh.get_node_or_null("KatanaSocket") if mesh else null
 	if socket == null:
 		return
-	# Jagged bolt mesh — 6 segments with random perpendicular jitter
+	# Jagged bolt mesh, 6 segments with random perpendicular jitter
 	var bolt := MeshInstance3D.new()
 	bolt.name = "ThunderBolt"
 	var im := ImmediateMesh.new()
@@ -1357,7 +1357,7 @@ func _signature_thunder(color: Color) -> void:
 	get_tree().create_timer(1.0).timeout.connect(func():
 		if is_instance_valid(spark): spark.queue_free())
 
-# FLAME: two-layer fire — saturated orange core rising fast, lighter
+# FLAME: two-layer fire, saturated orange core rising fast, lighter
 # yellow halo rising slower. Plus wisps drifting up from the blade.
 # Demon Slayer reference: Rengoku's flame columns layered against
 # each other.
@@ -1526,7 +1526,7 @@ func _signature_sun(color: Color) -> void:
 	get_tree().create_timer(1.4).timeout.connect(func():
 		if is_instance_valid(s): s.queue_free())
 
-# MOON: crescent-shaped sweep — particles emit in a horizontal arc and
+# MOON: crescent-shaped sweep, particles emit in a horizontal arc and
 # fade fast for the hanging-crescent silhouette.
 # Demon Slayer reference: Kokushibo's crescent moon arcs.
 func _signature_moon(color: Color) -> void:
@@ -1850,18 +1850,18 @@ func _attach_katana_to_hand_bone() -> void:
 	#        pointing where the character is facing)
 	#   +Y = world -X direction = along the arm toward fingertips
 	#   +Z = world -Y direction = downward through the palm
-	# (This differs from naive Mixamo-doc guesses — always probe
+	# (This differs from naive Mixamo-doc guesses, always probe
 	# before assuming a rig's local axes.)
 	#
 	# Procedural katana extends along its OWN local +Y (grip at origin,
 	# blade tip at far +Y). For a natural samurai grip the blade
-	# should point FORWARD relative to the body — that's bone +X.
+	# should point FORWARD relative to the body, that's bone +X.
 	# Rotate the socket -90 around its own +Z so the katana's +Y axis
 	# rotates to align with the local +X axis (= bone +X = forward).
 	# Then -10 around bone +Y angles the blade slightly forward-and-
 	# down for the iaido resting stance.
 	# Position offset (0, 0.04, 0) seats the grip ~4cm along bone +Y
-	# toward the fingers — between thumb and forefinger, where a
+	# toward the fingers, between thumb and forefinger, where a
 	# real katana sits.
 	socket.transform = Transform3D(
 		Basis().rotated(Vector3(0, 0, 1), deg_to_rad(-90))
@@ -2057,10 +2057,10 @@ func is_blocking() -> bool:
 
 # Called by take_damage to determine what happened to an incoming hit.
 # Returns:
-#   "parry" — the player deflected at the perfect moment (ZERO damage,
+#   "parry", the player deflected at the perfect moment (ZERO damage,
 #             brief riposte buff applied, attacker's posture damaged)
-#   "block" — soaked 65% (caller multiplies amount by 0.35)
-#   ""      — not blocking; full damage applies
+#   "block", soaked 65% (caller multiplies amount by 0.35)
+#   ""     , not blocking; full damage applies
 func resolve_block_state(attacker: Node) -> String:
 	if not _blocking:
 		return ""
@@ -2113,7 +2113,7 @@ func _tick_block(delta: float) -> void:
 	elif not holding and _blocking:
 		_blocking = false
 	# Drain stamina while blocking. If stamina runs out, force-release
-	# the block — player has to catch their breath.
+	# the block, player has to catch their breath.
 	if _blocking:
 		# Use stamina_value (always present) rather than resource_value
 		# (which may be mana for Mage, blood for Demon, etc.) so block
@@ -2170,7 +2170,7 @@ func _trigger_heal() -> void:
 # Sweep "player" group for downed allies (DeathScreen visible) inside
 # REVIVE_RANGE and ressurect each by calling DeathScreen.consume_revive().
 # In single-player there is no party so the loop walks past `self` and
-# returns 0 revives — the call is harmless. Multiplayer reuses the exact
+# returns 0 revives, the call is harmless. Multiplayer reuses the exact
 # same code path. Returns the number of allies brought back so the caller
 # can tune flavor messaging.
 #
@@ -2193,7 +2193,7 @@ func _trigger_revive_ally() -> int:
 			continue
 		# DeathScreen tracks which player it opened for; consume_revive() will
 		# no-op if the player it's holding isn't this ally. That's fine for
-		# single-host coop — the dead player's own DeathScreen handles them.
+		# single-host coop, the dead player's own DeathScreen handles them.
 		var did_revive: bool = bool(screen.consume_revive())
 		if did_revive:
 			revived += 1
@@ -2207,7 +2207,7 @@ func _trigger_revive_ally() -> int:
 				juice.toast(text, Color(1.0, 0.95, 0.55), 2.5)
 		var ab: Node = get_node_or_null("/root/AudioBus")
 		if ab and ab.has_method("play_cue"):
-			# Lodestone cue at upbeat pitch — same chime that fires for fav
+			# Lodestone cue at upbeat pitch, same chime that fires for fav
 			# rep-tier gains, picked because the sweep already reads as
 			# "good thing happened."
 			ab.play_cue(&"lodestone", global_position, -2.0, 1.5)
@@ -2236,13 +2236,13 @@ func _kit_ronin() -> Array:
 	# Water Breathing Forms 1-3 for Phase 1 demo. Chain: W1 -> W2 -> W3.
 	# chain_predecessor / chain_window / chain_bonus_mult mirror the .tres resources.
 	return [
-		# Q: Water Form 1 — Flowing Cut. Entry form, no chain predecessor.
-		{"id": &"water_1", "name": "Flowing Cut", "damage": 22.0, "range": 2.4, "radius": 1.4, "cooldown": 0.4, "cost": 12.0, "element": Ability.DamageType.PHYSICAL, "anim": "attack", "pitch": 1.2, "desc": "First Form — a fluid forward slash.", "chain_predecessor": &"", "chain_window": 0.0, "chain_bonus_mult": 1.0, "target_mode": Ability.TargetMode.FORWARD_CONE},
-		# E: Water Form 2 — Still Water Redirect. Chains from W1 at 1.35x.
-		{"id": &"water_2", "name": "Still Water Redirect", "damage": 18.0, "range": 2.0, "radius": 1.0, "cooldown": 0.55, "cost": 10.0, "element": Ability.DamageType.PHYSICAL, "anim": "block", "pitch": 1.0, "desc": "Second Form — deflect and counter.", "chain_predecessor": &"water_1", "chain_window": 1.8, "chain_bonus_mult": 1.35, "target_mode": Ability.TargetMode.FORWARD_CONE},
-		# R: Water Form 3 — Rising Tide. Full chain from W1->W2->W3 pays 1.60x. AoE finisher.
-		{"id": &"water_3", "name": "Rising Tide", "damage": 38.0, "range": 0.0, "radius": 2.6, "cooldown": 0.85, "cost": 20.0, "element": Ability.DamageType.PHYSICAL, "anim": "heavy", "pitch": 0.85, "desc": "Third Form — rising arc AoE. Punishes whiffs.", "chain_predecessor": &"water_2", "chain_window": 1.8, "chain_bonus_mult": 1.60, "target_mode": Ability.TargetMode.AOE_AROUND_SELF, "miss_punishment": 0.40},
-		# F: Stance Resolve — +35% damage 6s buff.
+		# Q: Water Form 1, Flowing Cut. Entry form, no chain predecessor.
+		{"id": &"water_1", "name": "Flowing Cut", "damage": 22.0, "range": 2.4, "radius": 1.4, "cooldown": 0.4, "cost": 12.0, "element": Ability.DamageType.PHYSICAL, "anim": "attack", "pitch": 1.2, "desc": "First Form, a fluid forward slash.", "chain_predecessor": &"", "chain_window": 0.0, "chain_bonus_mult": 1.0, "target_mode": Ability.TargetMode.FORWARD_CONE},
+		# E: Water Form 2, Still Water Redirect. Chains from W1 at 1.35x.
+		{"id": &"water_2", "name": "Still Water Redirect", "damage": 18.0, "range": 2.0, "radius": 1.0, "cooldown": 0.55, "cost": 10.0, "element": Ability.DamageType.PHYSICAL, "anim": "block", "pitch": 1.0, "desc": "Second Form, deflect and counter.", "chain_predecessor": &"water_1", "chain_window": 1.8, "chain_bonus_mult": 1.35, "target_mode": Ability.TargetMode.FORWARD_CONE},
+		# R: Water Form 3, Rising Tide. Full chain from W1->W2->W3 pays 1.60x. AoE finisher.
+		{"id": &"water_3", "name": "Rising Tide", "damage": 38.0, "range": 0.0, "radius": 2.6, "cooldown": 0.85, "cost": 20.0, "element": Ability.DamageType.PHYSICAL, "anim": "heavy", "pitch": 0.85, "desc": "Third Form, rising arc AoE. Punishes whiffs.", "chain_predecessor": &"water_2", "chain_window": 1.8, "chain_bonus_mult": 1.60, "target_mode": Ability.TargetMode.AOE_AROUND_SELF, "miss_punishment": 0.40},
+		# F: Stance Resolve, +35% damage 6s buff.
 		{"id": &"katana_power_up", "name": "Stance Resolve", "damage": 0.0, "range": 1.0, "radius": 1.0, "cooldown": 18.0, "anim": "power_up", "desc": "Center yourself. +35% damage for 6 seconds.", "chain_predecessor": &"", "chain_window": 0.0, "chain_bonus_mult": 1.0, "target_mode": Ability.TargetMode.SELF},
 	]
 
@@ -2390,7 +2390,7 @@ func _classify_dodge_dir(world_dir: Vector3) -> String:
 	var right_dot: float = right.dot(world_dir)
 	return "dodge_right" if right_dot > 0.0 else "dodge_left"
 
-# Combat damage filter — dodging i-frames make the player invulnerable
+# Combat damage filter, dodging i-frames make the player invulnerable
 # during the early window. Combat code can call this gate before applying
 # damage.
 func is_invulnerable() -> bool:
@@ -2430,7 +2430,7 @@ func check_perfect_dodge() -> bool:
 	if not _dodging:
 		return false
 	var now: float = Time.get_ticks_msec() / 1000.0
-	# The perfect window is the LAST 0.10s of the i-frame duration —
+	# The perfect window is the LAST 0.10s of the i-frame duration ,
 	# i.e. the player dodged AT THE LAST FRAME. Compute the window
 	# start as iframe_end - PERFECT_DODGE_WINDOW.
 	var perfect_window_start: float = _dodge_iframes_until - PERFECT_DODGE_WINDOW
@@ -2442,7 +2442,7 @@ func check_perfect_dodge() -> bool:
 func _trigger_riposte() -> void:
 	_riposte_until = Time.get_ticks_msec() / 1000.0 + RIPOSTE_DURATION
 	perfect_dodge_triggered.emit()
-	# Slowmo punch — 0.30x for 0.40s
+	# Slowmo punch, 0.30x for 0.40s
 	var juice: Node = get_node_or_null("/root/Juice")
 	if juice:
 		if juice.has_method("slowmo"):
@@ -2453,7 +2453,7 @@ func _trigger_riposte() -> void:
 			juice.toast("PERFECT DODGE", Color(1.0, 0.92, 0.55), 1.5)
 		if juice.has_method("hit_stop"):
 			juice.hit_stop(0.10)
-	# Audio chord (use victory cue at higher pitch — short triumphant)
+	# Audio chord (use victory cue at higher pitch, short triumphant)
 	var ab: Node = get_node_or_null("/root/AudioBus")
 	if ab and ab.has_method("play_cue"):
 		ab.play_cue(&"crit", global_position, -3.0, 1.4)
@@ -2506,7 +2506,7 @@ func has_riposte_buff() -> bool:
 	return Time.get_ticks_msec() / 1000.0 < _riposte_until
 
 # Consume the Riposte buff. Called by attack code AFTER the damage
-# calc reads has_riposte_buff() and applies the multiplier — this
+# calc reads has_riposte_buff() and applies the multiplier, this
 # clears the buff so it only applies to the FIRST hit.
 func consume_riposte_buff() -> void:
 	_riposte_until = 0.0
@@ -2671,7 +2671,7 @@ func _auto_equip_weapon(item: Item) -> void:
 			inventory.equip(item, Item.Slot.WEAPON_MAIN)
 		_refresh_weapon_mesh()
 
-# Public — call this after manual equip changes too.
+# Public, call this after manual equip changes too.
 func _refresh_weapon_mesh() -> void:
 	var socket: Node3D = mesh.get_node_or_null("KatanaSocket") if mesh else null
 	if socket == null:
@@ -2715,7 +2715,7 @@ func _perform_basic_attack() -> void:
 	# Player (no class assigned yet) can still hit things in the demo arena.
 	if locked or not stats:
 		return
-	# EXECUTION CHECK — closes the posture loop. If the locked target
+	# EXECUTION CHECK, closes the posture loop. If the locked target
 	# is a boss in the staggered window AND the player is within 3m
 	# (deep melee range) AND facing it, fire the cinematic finisher
 	# instead of a regular swing.
@@ -2936,7 +2936,7 @@ func _tick_posture_decay(delta: float) -> void:
 		return
 	player_posture = max(0.0, player_posture - PLAYER_POSTURE_DECAY_PER_SEC * delta)
 	posture_changed.emit(player_posture, PLAYER_MAX_POSTURE)
-	# Heartbeat log — once per second print player position + on-floor
+	# Heartbeat log, once per second print player position + on-floor
 	# state + input dir so we can see remotely whether movement is working.
 	_debug_tick += delta
 	if _debug_tick >= 1.0:
@@ -3156,7 +3156,7 @@ func take_damage(amount: float, source: Node = null) -> void:
 		var ab2: Node = get_node_or_null("/root/AudioBus")
 		if ab2 and ab2.has_method("play_cue"):
 			ab2.play_cue(&"block", global_position, -8.0, 0.95)
-	# PLAYER POSTURE — each hit adds clamped posture. Full = brief
+	# PLAYER POSTURE, each hit adds clamped posture. Full = brief
 	# stagger (locks input for 1s). Symmetric to the boss posture
 	# system so combat is bidirectional risk.
 	var posture_dmg: float = min(PLAYER_POSTURE_DAMAGE_PER_HIT_MAX, amount * PLAYER_POSTURE_DAMAGE_SCALE)
@@ -3267,7 +3267,7 @@ func _die() -> void:
 	var ab = get_node_or_null("/root/AudioBus")
 	if ab and ab.has_method("play_cue"):
 		ab.play_cue(&"death", global_position, -2.0, 0.85)
-	# Single hard red flash — moment of impact, no slowmo replay.
+	# Single hard red flash, moment of impact, no slowmo replay.
 	var juice = get_node_or_null("/root/Juice")
 	if juice and juice.has_method("flash"):
 		juice.flash(Color(0.85, 0.05, 0.05), 0.85, 1.2)
@@ -3286,7 +3286,7 @@ func _open_death_screen() -> void:
 	if screen == null:
 		var packed: PackedScene = load(_DEATH_SCREEN_SCENE)
 		if packed == null:
-			# No screen scene available — fall back to legacy auto-respawn so
+			# No screen scene available, fall back to legacy auto-respawn so
 			# the player isn't soft-locked.
 			get_tree().create_timer(2.5).timeout.connect(_respawn)
 			return
@@ -3295,7 +3295,7 @@ func _open_death_screen() -> void:
 	if screen.has_method("open"):
 		screen.open(self)
 
-# Persistent state across deaths — carries over via SaveFlags.
+# Persistent state across deaths, carries over via SaveFlags.
 var _lost_xp: float = 0.0  # XP that drops on the ground at last death
 
 func _drop_death_marker() -> void:
@@ -3624,7 +3624,7 @@ func _attach_achievement_tracker() -> void:
 			cb.kill_registered.connect(_on_combatbus_kill)
 
 # Forwards CombatBus.kill_registered into the local AchievementTracker. We
-# infer tags from the killed node — bosses always count, mobs use their
+# infer tags from the killed node, bosses always count, mobs use their
 # `mob_id` as a tag, and demon/undead/human group memberships add tags.
 func _on_combatbus_kill(target: Node, _killer: Node) -> void:
 	if not target or not is_instance_valid(target):
@@ -3863,7 +3863,7 @@ func _tick_music_combat_decay(delta: float) -> void:
 	_music_decay_accum = 0.0
 	var now: float = Time.get_ticks_msec() / 1000.0
 	# Out of combat for the threshold? clear to 0 once. Don't spam set_combat_intensity(0)
-	# every tick — we only want the call when state actually changes.
+	# every tick, we only want the call when state actually changes.
 	if now - _last_combat_time > _MUSIC_COMBAT_QUIET_THRESHOLD:
 		if _music_active_intensity:
 			var md: Node = get_node_or_null("/root/MusicDirector")

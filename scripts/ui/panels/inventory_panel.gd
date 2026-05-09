@@ -18,7 +18,7 @@ func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_PASS
 	_player = get_tree().get_first_node_in_group("player")
 
-	# Polished frame matching the rest of the HUD — gold filigree
+	# Polished frame matching the rest of the HUD, gold filigree
 	# border + drop shadow + dark slate bg. Was a bare VBoxContainer
 	# floating over the menu background.
 	var bg := PanelContainer.new()
@@ -105,7 +105,17 @@ func _read_inventory_slots() -> Array:
 	return []
 
 func _make_slot() -> Control:
-	var slot := PanelContainer.new()
+	# InventorySlot is a PanelContainer subclass that overrides
+	# _make_custom_tooltip so the hover card is a styled BBCode panel
+	# (rarity-colored title + green/red diff arrows) instead of the
+	# engine's plain-text tooltip. Falls back to PanelContainer if the
+	# slot script isn't available so legacy panels still render.
+	var slot_script: GDScript = load("res://scripts/ui/components/inventory_slot.gd")
+	var slot: PanelContainer
+	if slot_script:
+		slot = slot_script.new()
+	else:
+		slot = PanelContainer.new()
 	slot.custom_minimum_size = SLOT_PX
 	var bg := ColorRect.new()
 	bg.color = Color(0.1, 0.1, 0.13, 0.95)
@@ -141,6 +151,12 @@ func _paint_slot(slot: Control, item: Item, qty: int) -> void:
 		icon.texture = null
 		label.text = ""
 		slot.tooltip_text = ""
+		# Clear any previous item from custom-tooltip slot so the rich
+		# tooltip stops appearing after a slot empties.
+		if "item" in slot:
+			slot.set("item", null)
+		if "equipped_compare" in slot:
+			slot.set("equipped_compare", null)
 		return
 	var atlas: Node = get_node_or_null("/root/IconAtlas")
 	if atlas and atlas.has_method("get_icon_for_item"):
@@ -148,11 +164,28 @@ func _paint_slot(slot: Control, item: Item, qty: int) -> void:
 	else:
 		icon.texture = item.icon
 	label.text = ("x%d" % qty) if qty > 1 else ""
-	slot.tooltip_text = _compose_tooltip(item)
+	# Custom-tooltip path: set the item + currently-equipped comparator
+	# on the slot so InventorySlot._make_custom_tooltip can render the
+	# styled BBCode card. The plain-text tooltip_text is kept as a
+	# fallback for slots that aren't InventorySlot.
+	if "item" in slot:
+		slot.set("item", item)
+		var equipped: Item = null
+		if _player and _player.inventory and _player.inventory.has_method("equipped_in") and item.slot != Item.Slot.NONE:
+			equipped = _player.inventory.equipped_in(item.slot)
+		if "equipped_compare" in slot:
+			slot.set("equipped_compare", equipped)
+		# Engine still calls tooltip_text-based path during the brief
+		# moment before _make_custom_tooltip fires, set a non-empty
+		# string so the tooltip surfaces at all. Content is the same
+		# plain-text we used to ship.
+		slot.tooltip_text = " "  # one space: engine needs non-empty to surface, but the rich card replaces it
+	else:
+		slot.tooltip_text = _compose_tooltip(item)
 
 # Builds a plain-text tooltip with rarity, slot/weapon type, stats, bonuses,
 # and an equip-compare diff against the currently-equipped item in the same
-# slot. Plain text (no BBCode) — Godot's slot tooltips don't render markup,
+# slot. Plain text (no BBCode), Godot's slot tooltips don't render markup,
 # so we use ASCII +/-/= prefixes for the diff to read at a glance.
 func _compose_tooltip(item: Item) -> String:
 	var lines: Array[String] = []

@@ -47,6 +47,13 @@ func _ready() -> void:
 	_apply_faction_groups()
 	_apply_prestige_scaling()
 	_attach_nameplate()
+	# Quest waypoint: floats a bobbing gold diamond above this enemy
+	# whenever an active quest objective targets its mob_id. Self-polls,
+	# so quests started/completed at runtime light up/dim the marker
+	# without us wiring signals from QuestLog into every spawner.
+	var qw_script: GDScript = load("res://scripts/quests/quest_waypoint.gd")
+	if qw_script and qw_script.has_method("attach_to"):
+		qw_script.attach_to(self)
 	# Crimson rim-light pass on enemy meshes: separates them from the
 	# volumetric-fogged backgrounds and signals 'hostile' through color.
 	# Bosses override this with a stronger pulse in BossBase._ready.
@@ -61,7 +68,7 @@ func _ready() -> void:
 
 # Tags this enemy with its faction group(s) on spawn so the player's
 # CombatBus.kill_registered bridge can apply rep deltas via the
-# _MOB_GROUP_TO_FACTION_REP table. Map is by mob_id substring — keeps
+# _MOB_GROUP_TO_FACTION_REP table. Map is by mob_id substring, keeps
 # the table concise and avoids requiring every Mob registration to
 # explicitly carry a faction string.
 const _MOB_FACTION_GROUPS := {
@@ -179,7 +186,7 @@ func _play_one_shot(anim_name: String, max_lock_s: float = 1.5) -> void:
 
 func _on_anim_finished(anim_name: String) -> void:
 	# Only release the lock if the FINISHED anim is the one we're
-	# tracking — other animations finishing (e.g. an idle clip looping
+	# tracking, other animations finishing (e.g. an idle clip looping
 	# wraps once on first play) shouldn't unlock a pending hit-react.
 	if anim_name == _last_one_shot:
 		_one_shot_lock_until = 0.0
@@ -199,7 +206,7 @@ func _resolve_first(candidates: Array) -> String:
 		return ""
 	# Use has_animation() instead of `in get_animation_list()`. The list
 	# returns PackedStringArray entries that don't compare equal to plain
-	# String candidates with the `in` operator in Godot 4.6 — the lookup
+	# String candidates with the `in` operator in Godot 4.6, the lookup
 	# silently misses every alias and EVERY mob/boss ends up T-posing
 	# despite the library being fully bound. has_animation() does its
 	# own internal hash lookup with proper string equivalence.
@@ -245,7 +252,7 @@ func _attach_nameplate() -> void:
 	# Skip when this enemy has no resolvable identity. Without a mob_id
 	# (and no display_name on a Boss subclass), the nameplate would render
 	# Godot auto-names like "@CharacterBody3D@3184" floating above the
-	# actor — debug noise, not a UI feature.
+	# actor, debug noise, not a UI feature.
 	var has_mob_id: bool = mob_id != &""
 	var has_display: bool = ("display_name" in self) and (str(get("display_name")) != "")
 	if not has_mob_id and not has_display:
@@ -351,7 +358,7 @@ func _chase(_delta: float) -> void:
 	# look_at() points the node's -Z at the target, which would make the
 	# imported mesh visually face AWAY. We rotate via atan2 directly so
 	# the body's +Z (the mesh's forward) points at the player. Without
-	# this, every mob/boss spins to face away the moment they aggro —
+	# this, every mob/boss spins to face away the moment they aggro ,
 	# THE "boss fight inverts the boss and the player" bug.
 	rotation.y = atan2(dir.x, dir.z)
 
@@ -517,7 +524,7 @@ func _spawn_death_puff() -> void:
 	mat.gravity = Vector3(0, -2.0, 0)
 	mat.scale_min = 0.20
 	mat.scale_max = 0.45
-	# Dark crimson with slight orange glow — souls + spent blood
+	# Dark crimson with slight orange glow, souls + spent blood
 	mat.color = Color(0.45, 0.10, 0.10, 0.95)
 	mat.angular_velocity_min = -180.0
 	mat.angular_velocity_max = 180.0
@@ -577,7 +584,7 @@ func take_damage(amount: float, source: Node = null) -> void:
 		if is_crit:
 			juice.flash(Color(1.0, 0.95, 0.55), 0.20, 0.18)
 	# Hit-react anim flashes on every non-lethal hit. Now that the
-	# library actually binds, fire it. Dodge/lethal hits skip — the
+	# library actually binds, fire it. Dodge/lethal hits skip, the
 	# death anim takes priority, and reactions stutter combat anyway
 	# if the mob was about to die. Lock 0.4s so the reaction plays
 	# without _update_anim snapping back to walk mid-flinch.

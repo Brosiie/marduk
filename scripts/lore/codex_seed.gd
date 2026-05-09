@@ -1,6 +1,6 @@
 extends Node
 
-# CodexSeed — autoload that registers every canonical lore entry with
+# CodexSeed, autoload that registers every canonical lore entry with
 # the CodexRegistry on _ready. Pure data; no runtime logic.
 #
 # Entry shape:
@@ -25,6 +25,12 @@ func _ready() -> void:
 	_seed_lore(codex)
 	_seed_items(codex)
 	_seed_bestiary(codex)
+	# Auto-seed every mob_id from MobRegistry that doesn't already have a
+	# hand-written bestiary entry. The manual _seed_bestiary entries above
+	# carry the polished prose; this pass picks up the long tail (60+ mobs)
+	# so EnemyBase._die's `cdx.unlock(b_<mob_id>)` resolves to a real entry
+	# with the mob's name + lore instead of the fallback "id: misc" stub.
+	_seed_bestiary_from_mob_registry(codex)
 
 # Helper: register one entry; unlock_hint defaults to a generic line.
 func _entry(codex: Node, id: StringName, category: StringName,
@@ -236,3 +242,39 @@ func _seed_bestiary(codex: Node) -> void:
 	_entry(codex, &"b_animated_book", &"bestiary", "Animated Book",
 		"Inkstone Tower books that read themselves until the binding gave way. Float. Fire pages like darts. Surrender if their spine is cracked.",
 		"Defeat one in the Inkstone Tower.")
+
+# Walks every mob declared in MobRegistry and registers a fallback
+# bestiary entry for any id not already covered by the hand-written
+# block above. Skip-if-exists keeps the curated entries authoritative;
+# this pass exists so the long tail (Lapis Bay, Mist Vale, Sundered
+# Coast, etc) all have entries the moment the player kills one.
+#
+# CodexRegistry's `register()` is idempotent and overwrites metadata,
+# so we explicitly check `_entries.has(id)` first to avoid clobbering
+# the hand-written prose with the registry's shorter lore field.
+func _seed_bestiary_from_mob_registry(codex: Node) -> void:
+	var registry := get_node_or_null("/root/MobRegistry")
+	if registry == null:
+		return
+	var mobs_dict = registry.get("mobs") if "mobs" in registry else null
+	if not (mobs_dict is Dictionary):
+		return
+	var existing: Dictionary = codex.get("_entries") if "_entries" in codex else {}
+	for mob_id in (mobs_dict as Dictionary).keys():
+		var entry_id := StringName("b_" + String(mob_id))
+		if existing.has(entry_id):
+			continue
+		var mob = mobs_dict[mob_id]
+		if mob == null:
+			continue
+		var name: String = String(mob.get("display_name") if "display_name" in mob else String(mob_id))
+		var lore: String = String(mob.get("lore") if "lore" in mob else "")
+		if lore == "":
+			lore = "An adversary of Marduk. Field notes pending."
+		var zone: StringName = StringName(mob.get("home_zone") if "home_zone" in mob else &"")
+		var hint: String = "Defeat one"
+		if zone != &"":
+			hint = "Defeat one in %s." % String(zone).capitalize().replace("_", " ")
+		else:
+			hint = "Defeat one in the field."
+		_entry(codex, entry_id, &"bestiary", name, lore, hint)
