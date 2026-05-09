@@ -35,6 +35,10 @@ var questions: Array[CreatorQuestion] = []
 var _current_index: int = 0
 var _appearance: CharacterAppearance = null
 var _biographical_tags: Array[StringName] = []
+# Side channel for text-input answers (character name, etc) that don't fit on
+# CharacterAppearance directly. The spawn flow reads these and applies them
+# to the Player instance.
+var _pending_text_inputs: Dictionary = {}
 
 func _ready() -> void:
 	_load_all_questions()
@@ -100,16 +104,62 @@ func _render(q: CreatorQuestion) -> void:
 	if choices_container:
 		for c in choices_container.get_children():
 			c.queue_free()
-		# Spawn one button per choice
-		for choice in q.choices:
-			var btn := Button.new()
-			btn.text = choice.text
-			btn.custom_minimum_size = Vector2(0, 44)
-			btn.pressed.connect(_on_choice_picked.bind(choice))
-			choices_container.add_child(btn)
+		if q.text_input_mode:
+			_render_text_input(q)
+		else:
+			_render_choice_buttons(q)
 	if storyteller_response_label:
 		storyteller_response_label.text = ""
 		storyteller_response_label.visible = false
+
+func _render_choice_buttons(q: CreatorQuestion) -> void:
+	# Race-affinity filter: a choice with race_filter set is hidden when it
+	# doesn't match the in-progress appearance's race. Lets one question carry
+	# race-specific options that filter to the relevant 4-5 at runtime.
+	for choice in q.choices:
+		if choice.race_filter != &"" and choice.race_filter != _appearance.race_id:
+			continue
+		var btn := Button.new()
+		btn.text = choice.text
+		btn.custom_minimum_size = Vector2(0, 44)
+		btn.pressed.connect(_on_choice_picked.bind(choice))
+		choices_container.add_child(btn)
+
+func _render_text_input(q: CreatorQuestion) -> void:
+	# LineEdit + confirm button for name-style questions.
+	var input := LineEdit.new()
+	input.placeholder_text = q.text_input_placeholder
+	input.max_length = q.text_input_max_length
+	input.custom_minimum_size = Vector2(0, 44)
+	input.add_theme_font_size_override("font_size", 18)
+	choices_container.add_child(input)
+	var confirm := Button.new()
+	confirm.text = "Confirm"
+	confirm.custom_minimum_size = Vector2(0, 44)
+	confirm.pressed.connect(func():
+		var v: String = input.text.strip_edges()
+		if v == "":
+			v = "Champion"  # default if blank
+		_apply_text_input(q, v)
+		_advance_to(_current_index + 1)
+	)
+	choices_container.add_child(confirm)
+	# Auto-focus so the player can just type
+	input.grab_focus()
+	# Allow Enter to confirm
+	input.text_submitted.connect(func(_t):
+		confirm.emit_signal("pressed")
+	)
+
+func _apply_text_input(q: CreatorQuestion, value: String) -> void:
+	# Currently only character_name is supported. Extend by adding fields here.
+	match q.text_input_target:
+		&"character_name":
+			# CharacterAppearance doesn't carry a name field by default — the name
+			# lives on Player. Stash it on a side dict so the spawn flow picks it up.
+			_pending_text_inputs[&"character_name"] = value
+		_:
+			push_warning("[CharacterCreator] unknown text_input_target: %s" % q.text_input_target)
 
 func _on_choice_picked(choice: CreatorChoice) -> void:
 	_apply_choice(choice)
@@ -167,7 +217,31 @@ func _finish() -> void:
 	var errs: Array = _appearance.validate()
 	if not errs.is_empty():
 		push_warning("[CharacterCreator] appearance validation: %s" % errs)
+	# Stash the appearance + name on AppearanceRegistry so the spawned Player
+	# can pick them up across the scene change.
+	var ar: Node = get_node_or_null("/root/AppearanceRegistry")
+	if ar:
+		if "pending_appearance" in ar:
+			ar.pending_appearance = _appearance
+		if "pending_name" in ar:
+			ar.pending_name = String(_pending_text_inputs.get(&"character_name", "Champion"))
 	creator_finished.emit(_appearance)
+	_route_to_intro_zone()
+
+# Route to the class-appropriate intro zone. Falls back to Sword-Vow Ruins for
+# classes whose intro hasn't been authored yet (Phase 2 work).
+const INTRO_ZONES := {
+	&"ronin":                "res://scenes/world/intros/sword_vow_ruins.tscn",
+	&"paladin_guardian":     "res://scenes/world/intros/sunsworn_chapel.tscn",
+	&"paladin_lightbringer": "res://scenes/world/intros/sunsworn_chapel.tscn",
+}
+
+const FALLBACK_INTRO := "res://scenes/world/intros/sword_vow_ruins.tscn"
+
+func _route_to_intro_zone() -> void:
+	var class_id: StringName = _appearance.class_id if _appearance else &"ronin"
+	var path: String = INTRO_ZONES.get(class_id, FALLBACK_INTRO)
+	get_tree().change_scene_to_file(path)
 
 # === Public API for cancellation / restart ===
 func cancel() -> void:

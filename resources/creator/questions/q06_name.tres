@@ -1,0 +1,13 @@
+[gd_resource type="CreatorQuestion" format=3]
+
+[resource]
+question_id = &"q06_name"
+question_order = 60
+prompt = "What name will you carry into Ashurim?"
+subtext = "(this is what other players will see above your head, what NPCs will call you, what the Codex will record)"
+required = true
+category = "name"
+text_input_mode = true
+text_input_target = &"character_name"
+text_input_placeholder = "your name"
+text_input_max_length = 24

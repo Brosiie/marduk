@@ -1,0 +1,164 @@
+[gd_resource type="CreatorQuestion" load_steps=22 format=3]
+
+[ext_resource type="Script" path="res://scripts/player/creator_choice.gd" id="1_choice"]
+
+; ── Anunnaki-Blooded markings ───────────────────────────────────────
+[sub_resource type="Resource" id="c_an_kohl"]
+script = ExtResource("1_choice")
+choice_id = &"mark_an_kohl"
+text = "Kohl-lined eyes. The court script around the lid."
+sets_cultural_marking = 1
+race_filter = &"anunnaki"
+
+[sub_resource type="Resource" id="c_an_bindi"]
+script = ExtResource("1_choice")
+choice_id = &"mark_an_bindi"
+text = "Gold bindi at the brow. Thin script down the temple."
+sets_cultural_marking = 2
+race_filter = &"anunnaki"
+
+[sub_resource type="Resource" id="c_an_calligraphy"]
+script = ExtResource("1_choice")
+choice_id = &"mark_an_calligraphy"
+text = "Calligraphy tattoos along the forearm. The first poem you memorized."
+sets_cultural_marking = 3
+race_filter = &"anunnaki"
+
+[sub_resource type="Resource" id="c_an_none"]
+script = ExtResource("1_choice")
+choice_id = &"mark_an_none"
+text = "Nothing visible. The court doesn't always advertise."
+sets_cultural_marking = 0
+race_filter = &"anunnaki"
+
+; ── Ash-Born markings ──────────────────────────────────────────────
+[sub_resource type="Resource" id="c_ash_chest"]
+script = ExtResource("1_choice")
+choice_id = &"mark_ash_chest"
+text = "Soot war-paint across the chest. The clan pattern."
+sets_cultural_marking = 1
+race_filter = &"ash_born"
+
+[sub_resource type="Resource" id="c_ash_face"]
+script = ExtResource("1_choice")
+choice_id = &"mark_ash_face"
+text = "Two black bands across the eyes. Nothing else."
+sets_cultural_marking = 2
+race_filter = &"ash_born"
+
+[sub_resource type="Resource" id="c_ash_scarring"]
+script = ExtResource("1_choice")
+choice_id = &"mark_ash_scarring"
+text = "Ritual scarring on the shoulders and arms. Earned in trial."
+sets_cultural_marking = 3
+race_filter = &"ash_born"
+
+[sub_resource type="Resource" id="c_ash_none"]
+script = ExtResource("1_choice")
+choice_id = &"mark_ash_none"
+text = "Nothing. I was exiled before the first mark could be cut."
+sets_cultural_marking = 0
+race_filter = &"ash_born"
+
+; ── Reed-Walker markings ───────────────────────────────────────────
+[sub_resource type="Resource" id="c_rw_blue"]
+script = ExtResource("1_choice")
+choice_id = &"mark_rw_blue"
+text = "Blue dye line under each eye. Sea-charm against drowning."
+sets_cultural_marking = 1
+race_filter = &"reed_walker"
+
+[sub_resource type="Resource" id="c_rw_shells"]
+script = ExtResource("1_choice")
+choice_id = &"mark_rw_shells"
+text = "Shell-disc earrings. Salt-cracked, reset each year."
+sets_cultural_marking = 2
+race_filter = &"reed_walker"
+
+[sub_resource type="Resource" id="c_rw_reed"]
+script = ExtResource("1_choice")
+choice_id = &"mark_rw_reed"
+text = "Reed-fiber bracelets braided around the wrist. From the Wastes."
+sets_cultural_marking = 3
+race_filter = &"reed_walker"
+
+[sub_resource type="Resource" id="c_rw_none"]
+script = ExtResource("1_choice")
+choice_id = &"mark_rw_none"
+text = "Nothing. The sea took my charms a long time ago."
+sets_cultural_marking = 0
+race_filter = &"reed_walker"
+
+; ── Mountain-Forged markings ───────────────────────────────────────
+[sub_resource type="Resource" id="c_mf_burns"]
+script = ExtResource("1_choice")
+choice_id = &"mark_mf_burns"
+text = "Forge-burns in geometric pattern down the forearms. Apprentice trial scars."
+sets_cultural_marking = 1
+race_filter = &"mountain_forged"
+
+[sub_resource type="Resource" id="c_mf_rings"]
+script = ExtResource("1_choice")
+choice_id = &"mark_mf_rings"
+text = "Iron rings woven into the beard or hair plait."
+sets_cultural_marking = 2
+race_filter = &"mountain_forged"
+
+[sub_resource type="Resource" id="c_mf_pillar"]
+script = ExtResource("1_choice")
+choice_id = &"mark_mf_pillar"
+text = "A pillar-stone amulet on a chain. Family-heirloom."
+sets_cultural_marking = 3
+race_filter = &"mountain_forged"
+
+[sub_resource type="Resource" id="c_mf_none"]
+script = ExtResource("1_choice")
+choice_id = &"mark_mf_none"
+text = "Nothing. The clan stripped me when I left the forge."
+sets_cultural_marking = 0
+race_filter = &"mountain_forged"
+
+; ── Wound-Marked markings ──────────────────────────────────────────
+[sub_resource type="Resource" id="c_wm_woad"]
+script = ExtResource("1_choice")
+choice_id = &"mark_wm_woad"
+text = "Woad body-paint in vine-and-antler patterns."
+sets_cultural_marking = 1
+race_filter = &"wound_marked"
+
+[sub_resource type="Resource" id="c_wm_thorn"]
+script = ExtResource("1_choice")
+choice_id = &"mark_wm_thorn"
+text = "Bone-thorn piercings down the brow."
+sets_cultural_marking = 2
+race_filter = &"wound_marked"
+
+[sub_resource type="Resource" id="c_wm_brand"]
+script = ExtResource("1_choice")
+choice_id = &"mark_wm_brand"
+text = "Scar-rune brand on the cheek. Earned in the Wound Survival rite."
+sets_cultural_marking = 3
+race_filter = &"wound_marked"
+
+[sub_resource type="Resource" id="c_wm_antler"]
+script = ExtResource("1_choice")
+choice_id = &"mark_wm_antler"
+text = "Antler hair-pins. Heavy, but they hold the storm-braid."
+sets_cultural_marking = 4
+race_filter = &"wound_marked"
+
+[sub_resource type="Resource" id="c_wm_none"]
+script = ExtResource("1_choice")
+choice_id = &"mark_wm_none"
+text = "Nothing. I left before the marks were cut."
+sets_cultural_marking = 0
+race_filter = &"wound_marked"
+
+[resource]
+question_id = &"q07_marking"
+question_order = 55
+prompt = "How does your body mark your people?"
+subtext = "(determines cultural marking — choices filter to your race)"
+choices = [SubResource("c_an_kohl"), SubResource("c_an_bindi"), SubResource("c_an_calligraphy"), SubResource("c_an_none"), SubResource("c_ash_chest"), SubResource("c_ash_face"), SubResource("c_ash_scarring"), SubResource("c_ash_none"), SubResource("c_rw_blue"), SubResource("c_rw_shells"), SubResource("c_rw_reed"), SubResource("c_rw_none"), SubResource("c_mf_burns"), SubResource("c_mf_rings"), SubResource("c_mf_pillar"), SubResource("c_mf_none"), SubResource("c_wm_woad"), SubResource("c_wm_thorn"), SubResource("c_wm_brand"), SubResource("c_wm_antler"), SubResource("c_wm_none")]
+required = true
+category = "face"

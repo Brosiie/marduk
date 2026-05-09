@@ -24,7 +24,12 @@ func _has_existing_save() -> bool:
 	return SaveSystem and SaveSystem.list_slots().any(func(s): return not s.get("empty", true))
 
 func _on_new() -> void:
-	get_tree().change_scene_to_file("res://scenes/menus/character_creation.tscn")
+	# Canonical New Character path: the Storyteller-narrated dialogue flow.
+	# Walks the player through 7 questions (origin / class / gender / body /
+	# voice / cultural marking / name) and routes to the chosen class's intro
+	# zone on finish. The legacy class-list creator (character_creation.tscn)
+	# remains in the tree for now as a Quick Start fallback wired separately.
+	get_tree().change_scene_to_file("res://scenes/menus/character_creator.tscn")
 
 func _on_continue() -> void:
 	# Phase 2: route to slot-pick screen, then load slot, then jump into the saved zone

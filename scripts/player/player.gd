@@ -183,6 +183,11 @@ func _ready() -> void:
 	if not stats:
 		stats = PlayerStats.new()
 		stats.recompute_derived()
+	# Pending-appearance consumption: if the player just came through the
+	# CharacterCreator (Storyteller flow), AppearanceRegistry holds the
+	# created CharacterAppearance + chosen name. Apply them BEFORE class
+	# auto-assign so the creator's class pick wins over zone-inferred class.
+	_consume_pending_appearance()
 	# Auto-class assignment: when the player spawns in an intro zone
 	# (sword_vow_ruins, sunsworn_chapel, etc.) without a class picked
 	# yet, infer the matching class from the zone. This means Kachujin
@@ -1592,20 +1597,39 @@ func _attach_katana_to_hand_bone() -> void:
 	if katana_mesh:
 		katana_mesh.transform = Transform3D.IDENTITY
 	# Mixamo right-hand bone local frame (T-pose):
-	#   +Y = along finger length (out from wrist)
+	#   +Y = along finger length (out from wrist toward fingertips)
 	#   +X = thumb direction (out from palm side of hand)
 	#   +Z = top-of-hand (knuckles up when palm down)
 	# Procedural katana extends along its OWN local +Y (grip at origin,
-	# blade tip at far +Y). For samurai grip: blade extends forward
-	# through the palm in roughly the bone's +Y direction (along fingers).
-	# Identity rotation already lines the blade with bone +Y, but the
-	# grip needs to seat in the palm — slide along +Y by ~5cm so the
-	# blade clears the fingers, and tip the blade ~10deg outward via
-	# small Z rotation so the cutting edge faces forward in idle.
+	# blade tip at far +Y). The previous version left the katana
+	# aligned with bone +Y, which made the blade extend out FROM THE
+	# FINGERTIPS like a wand — visually wrong AND it explained Bond's
+	# "doesn't stay in hand" (the blade was clipping through the palm
+	# during arm-swing animations because its grip was at fingertip
+	# height, not in the palm). Real sword grip:
+	#   blade perpendicular to the forearm, pointing OUT from the
+	#   palm in the +Z direction of the bone (which is roughly
+	#   forearm-forward when arm is at side).
+	# Rotate -90 around bone +X so katana +Y -> bone +Z. Then a small
+	# forward tilt (-12 around new +X) angles the blade slightly down
+	# from the wrist for the iaido resting stance.
 	socket.transform = Transform3D(
-		Basis().rotated(Vector3.FORWARD, deg_to_rad(-10)),
-		Vector3(0.0, 0.05, 0.0)
+		Basis().rotated(Vector3.RIGHT, deg_to_rad(-90))
+		      .rotated(Vector3.RIGHT, deg_to_rad(-12)),
+		Vector3(0.0, 0.02, 0.06)
 	)
+	# Defensive bone-tracking: BoneAttachment3D's bone_idx can become
+	# stale if the skeleton's bone count changes (e.g. some imports
+	# rebuild the skeleton when an animation library is added). Set
+	# both bone_idx AND bone_name so Godot can re-resolve via name
+	# if idx goes out of range.
+	attachment.bone_name = skeleton.get_bone_name(hand_bone_idx)
+	attachment.bone_idx = hand_bone_idx
+	# Force the attachment to update its local transform from the
+	# bone pose immediately, so the sword shows up in the right place
+	# on the very first rendered frame instead of one frame later.
+	attachment.use_external_skeleton = false  # default; explicit for clarity
+	attachment.notify_property_list_changed()
 	print("[Player] Katana attached to bone '%s' (idx %d)" % [skeleton.get_bone_name(hand_bone_idx), hand_bone_idx])
 
 func _find_skeleton_recursive(node: Node) -> Skeleton3D:
@@ -2954,6 +2978,38 @@ func receive_loot(item: Item) -> void:
 
 func get_inventory() -> Inventory:
 	return inventory
+
+# CharacterCreator handoff: AppearanceRegistry stashes the just-created
+# CharacterAppearance + chosen name in pending slots when the Storyteller
+# flow finishes. The first Player to spawn in the new scene consumes them.
+# Gracefully no-ops if nothing is pending (eg legacy direct-load of an intro).
+func _consume_pending_appearance() -> void:
+	var ar: Node = get_node_or_null("/root/AppearanceRegistry")
+	if not ar or not ar.has_method("take_pending"):
+		return
+	var pending: Dictionary = ar.take_pending()
+	var appearance = pending.get("appearance")
+	var picked_name: String = String(pending.get("name", ""))
+	if appearance:
+		character_appearance = appearance
+		# If the creator picked a class, seed the stats with it so the
+		# zone's auto-assign skips. Direct field write (not via class
+		# resource registry) so the appearance.class_id is the source of truth.
+		if appearance.class_id != &"" and stats and not stats.class_def:
+			var class_registry: Node = get_node_or_null("/root/ClassRegistry")
+			if class_registry and class_registry.has_method("get_class_def"):
+				stats.class_def = class_registry.get_class_def(appearance.class_id)
+				if stats.class_def:
+					stats.recompute_derived()
+		# Apply the visual layer (skin/hair/eye tint, height scale, halos, founder mark).
+		# Deferred so the mesh tree is fully _ready before tinting.
+		call_deferred("_apply_appearance_now", ar)
+	if picked_name != "":
+		character_name = picked_name
+
+func _apply_appearance_now(ar: Node) -> void:
+	if ar and ar.has_method("apply") and character_appearance:
+		ar.apply(self, character_appearance)
 
 # HUD reads these to show cooldown overlays and ability names without needing
 # direct access to the private dictionary kit.

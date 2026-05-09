@@ -48,3 +48,10 @@ class_name CreatorChoice
 # Tags get stored on the appearance as biographical hints. Lets NPCs later say
 # "I see your father worked the forge" if the player picked the smith answer.
 @export var biographical_tags: Array[StringName] = []
+
+# === Race-affinity filter ===
+# Optional. If set, this choice only appears when the in-progress appearance's
+# race_id matches. Lets a single CreatorQuestion carry race-specific options
+# (eg cultural markings) that filter at runtime to the relevant 4-5 instead of
+# bombarding the player with all 25.
+@export var race_filter: StringName = &""

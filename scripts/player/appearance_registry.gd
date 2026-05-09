@@ -26,6 +26,12 @@ const FOUNDING_DATE := "05-08"  # Marduk's founding day
 
 var races: Dictionary = {}  # StringName -> Race resource
 
+# Cross-scene handoff: the CharacterCreator stashes the just-created appearance
+# (and chosen name) here at flow-finish, then changes scene. The first Player
+# that enters the new scene consumes them via take_pending().
+var pending_appearance: CharacterAppearance = null
+var pending_name: String = ""
+
 signal appearance_applied(player: Node, appearance: CharacterAppearance)
 
 func _ready() -> void:
@@ -186,6 +192,18 @@ func _apply_apothecary_saturation(player: Node, appearance: CharacterAppearance)
 	# Apply the tint on top of the existing skin tint
 	if player.has_node("MeshRoot"):
 		_apply_modulate_recursive(player.get_node("MeshRoot"), tint_color)
+
+# Public: pop the pending appearance + name (one-shot consumption pattern).
+# Returns {appearance, name}; both fields may be null/"" if nothing is pending.
+# After return, the slots are cleared so subsequent Players don't re-consume.
+func take_pending() -> Dictionary:
+	var out := {
+		"appearance": pending_appearance,
+		"name": pending_name,
+	}
+	pending_appearance = null
+	pending_name = ""
+	return out
 
 # Public: detects which time-of-creation gifts are active right now (real-world clock).
 # Called by the character creator at confirm-time to bake gift flags into the appearance.

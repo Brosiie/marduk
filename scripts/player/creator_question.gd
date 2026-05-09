@@ -24,3 +24,12 @@ class_name CreatorQuestion
 # with one of the listed biographical_tags (e.g. only ask the breath-style
 # question if the class is Ronin).
 @export var requires_tags: Array[StringName] = []
+
+# Free-text input mode. When true, the controller renders a LineEdit + confirm
+# button instead of choice buttons. The typed string is written to the in-progress
+# appearance via the field named in `text_input_target` (currently &"character_name").
+# Used for q06_name and any future text questions (clan name, weapon nickname, etc).
+@export var text_input_mode: bool = false
+@export var text_input_target: StringName = &"character_name"
+@export var text_input_placeholder: String = ""
+@export var text_input_max_length: int = 24
