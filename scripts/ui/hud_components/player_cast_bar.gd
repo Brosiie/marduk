@@ -13,7 +13,7 @@ class_name PlayerCastBar
 #
 # Without this widget the player has zero visual feedback when they
 # press Q/E/R/F other than the cooldown overlay starting on the slot
-# icon — which doesn't tell them WHICH ability fired (any of the 4
+# icon, which doesn't tell them WHICH ability fired (any of the 4
 # could be on cooldown for unrelated reasons).
 
 const BAR_WIDTH: float = 360.0
@@ -66,7 +66,7 @@ func _ready() -> void:
 	_bar.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
 	_bar.offset_top = -BAR_HEIGHT
 	_bar.offset_bottom = 0
-	# Bar background — dark slate with gold border (HUD language)
+	# Bar background, dark slate with gold border (HUD language)
 	var bg_sb := StyleBoxFlat.new()
 	bg_sb.bg_color = Color(0.04, 0.03, 0.07, 0.92)
 	bg_sb.border_color = Color(0.78, 0.62, 0.28, 0.95)
@@ -77,7 +77,7 @@ func _ready() -> void:
 	bg_sb.shadow_size = 4
 	bg_sb.shadow_offset = Vector2(0, 2)
 	_bar.add_theme_stylebox_override("background", bg_sb)
-	# Fill — class-color tinted, will adjust per-cast color via the
+	# Fill, class-color tinted, will adjust per-cast color via the
 	# cached stylebox. Default = warm gold.
 	_bar_fill_sb = StyleBoxFlat.new()
 	_bar_fill_sb.bg_color = Color(1.0, 0.78, 0.32)

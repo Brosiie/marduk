@@ -4,7 +4,7 @@ class_name SettingsMenu
 # Sectioned settings panel. Reads/writes GameSettings autoload.
 # Tabs: Display / Audio / Controls / Gameplay / Accessibility / Privacy.
 # Each field is declared in FIELDS as (key, label, type, options) and the
-# UI builds itself from that — adding a setting later is a dict edit, not a
+# UI builds itself from that, adding a setting later is a dict edit, not a
 # scene rebuild.
 
 signal closed

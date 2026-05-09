@@ -1,6 +1,6 @@
 extends Node
 
-# WeatherDirector — autoload that drives the active scene's weather:
+# WeatherDirector, autoload that drives the active scene's weather:
 # rain / storms / mist / lightning / post-storm rainbows. Auto-discovers
 # the scene's camera and parents particle emitters under a follower so
 # rain falls around the player wherever they are.
@@ -173,7 +173,7 @@ func _strike_lightning() -> void:
 	# Brief white flash via the Juice autoload + a thunder cue if the
 	# audio bus is wired. Two-stage: bright flash, then dim flicker.
 	# Thunder fires 0.4s after the flash for that "see the bolt, hear
-	# it shortly after" lag (light is faster than sound) — sells
+	# it shortly after" lag (light is faster than sound), sells
 	# distance and scale.
 	var juice: Node = get_node_or_null("/root/Juice")
 	if juice and juice.has_method("flash"):

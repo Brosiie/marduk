@@ -1,8 +1,8 @@
 extends Node
 
-# WorldLife — autoload that spawns ambient "the world is alive" details:
+# WorldLife, autoload that spawns ambient "the world is alive" details:
 # birds arcing across the sky, smoke rising from chimneys, magical motes
-# drifting at intro zones. None of these affect gameplay — they exist
+# drifting at intro zones. None of these affect gameplay, they exist
 # purely so the world feels inhabited.
 #
 # Usage from a zone scene (or zone_composer):
@@ -71,14 +71,14 @@ func spawn_bird_flock(parent: Node, count: int, center: Vector3, radius: float) 
 		_birds.append(entry)
 	return flock
 
-# Slow grey smoke column at `at_pos` — chimneys, campfires, braziers.
+# Slow grey smoke column at `at_pos`, chimneys, campfires, braziers.
 func spawn_chimney_smoke(parent: Node, at_pos: Vector3) -> GPUParticles3D:
 	var smoke := _make_smoke_particles()
 	parent.add_child(smoke)
 	smoke.global_position = at_pos
 	return smoke
 
-# Golden floating motes over a radius — sacred zones, lodestones, boss arenas.
+# Golden floating motes over a radius, sacred zones, lodestones, boss arenas.
 func spawn_intro_motes(parent: Node, at_pos: Vector3, radius: float, color: Color = Color(1.0, 0.85, 0.5, 1.0)) -> GPUParticles3D:
 	var motes := _make_mote_particles(radius, color)
 	parent.add_child(motes)
@@ -87,7 +87,7 @@ func spawn_intro_motes(parent: Node, at_pos: Vector3, radius: float, color: Colo
 
 # Cherry blossom petals drifting down across an area. For Japanese-themed
 # zones (Sword-Vow Ruins). Petals drift sideways with wind, fall slowly,
-# rotate gently. Read as pink confetti from far away — instantly says
+# rotate gently. Read as pink confetti from far away, instantly says
 # "Japan / spring / sakura". Returns the GPUParticles3D so caller can
 # parent-rotate or move it.
 func spawn_petal_fall(parent: Node, area_center: Vector3, area_size: Vector3, petal_color: Color = Color(1.0, 0.65, 0.75, 0.95)) -> GPUParticles3D:
@@ -145,7 +145,7 @@ func _make_petal_particles(area_size: Vector3, color: Color) -> GPUParticles3D:
 func _make_bird() -> Node3D:
 	var bird := MeshInstance3D.new()
 	bird.name = "Bird"
-	# Tiny dark "winged silhouette" mesh — reads as a bird at any angle.
+	# Tiny dark "winged silhouette" mesh, reads as a bird at any angle.
 	# 4 verts: tail, two wingtips, dorsal point. 3 triangles.
 	var arr_mesh := ArrayMesh.new()
 	var verts := PackedVector3Array([

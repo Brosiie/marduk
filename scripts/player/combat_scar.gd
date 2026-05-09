@@ -29,7 +29,7 @@ func element_color() -> Color:
 	return ELEMENT_COLORS.get(element, ELEMENT_COLORS[0])
 
 # Visible alpha based on intensity and heal progress.
-# Boss scars cap at 30% faded — they always remain visible.
+# Boss scars cap at 30% faded, they always remain visible.
 func visible_alpha() -> float:
 	var fade_cap: float = 0.30 if is_boss_scar else 1.0
 	var faded: float = min(heal_progress, fade_cap)

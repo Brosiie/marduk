@@ -1,6 +1,6 @@
 extends Node
 
-# AnimationRegistry — autoload (added in project.godot autoload list).
+# AnimationRegistry, autoload (added in project.godot autoload list).
 #
 # Single source of truth for which Mixamo .fbx animations get merged onto
 # which character. The runtime AnimationLibraryLoader uses this to build a
@@ -318,7 +318,7 @@ const NPC_SLOTS := {
 		&"sweep":             "peasant_male/sweep.glb",
 	},
 	&"peasant_female": {
-		# Catwalk anim set — Bond's drops, lands as runway-style female NPC loops.
+		# Catwalk anim set, Bond's drops, lands as runway-style female NPC loops.
 		# Override shared SLOT_IDLE/SLOT_WALK so feminine NPCs use these instead.
 		SLOT_IDLE:            "peasant_female/idle.glb",          # Catwalk Idle Twist R
 		SLOT_WALK:            "peasant_female/walk.glb",          # Catwalk Walk Forward 02

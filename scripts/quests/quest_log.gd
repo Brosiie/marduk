@@ -70,7 +70,7 @@ func turn_in(quest_id: StringName) -> bool:
 		SaveFlags.set_run(aq.quest.sets_run_flag, true)
 	if aq.quest.sets_permanent_flag != &"":
 		SaveFlags.set_permanent(aq.quest.sets_permanent_flag, true)
-	# Faction reputation changes — applied via FactionRegistry which handles
+	# Faction reputation changes, applied via FactionRegistry which handles
 	# clamping, persistence, signal emission, and tier-change toasts.
 	if aq.quest.faction_rep_changes.size() > 0:
 		var fr: Node = get_node_or_null("/root/FactionRegistry")

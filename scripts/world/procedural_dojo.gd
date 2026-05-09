@@ -9,7 +9,7 @@ class_name ProceduralDojo
 #   3. Outer WALLS along three sides (back + left + right) with gold
 #      framing strips. Front wall has a wide entrance gap so the player
 #      walks straight in from the path
-#   4. Hipped ROOF — a 2-tier angled tile slab construction. Lower tier
+#   4. Hipped ROOF, a 2-tier angled tile slab construction. Lower tier
 #      is wide and flat (gable veranda); upper tier is the iconic
 #      curved-eaves Japanese roof
 #   5. Two PAPER LANTERNS hanging from the front roof eaves
@@ -33,7 +33,7 @@ class_name ProceduralDojo
 @export var wall_thickness: float = 0.20
 @export var roof_pitch_deg: float = 18.0
 
-# Material colors — warm cedar palette
+# Material colors, warm cedar palette
 const COL_FLOOR: Color = Color(0.55, 0.36, 0.20, 1.0)
 const COL_FLOOR_TRIM: Color = Color(0.40, 0.24, 0.14, 1.0)
 const COL_WALL: Color = Color(0.92, 0.85, 0.72, 1.0)  # off-white shoji
@@ -50,7 +50,7 @@ func _build() -> void:
 	var w: float = dojo_size.x
 	var d: float = dojo_size.y
 	var fy: float = floor_y
-	# 1. Floor — a raised wooden slab. Two layers: planks on top, dark
+	# 1. Floor, a raised wooden slab. Two layers: planks on top, dark
 	# trim ring around the edge. Tagged with `surface_type` so the
 	# player's footstep raycast can pick the wooden step audio cue.
 	var floor_node := _make_box(Vector3(w, 0.10, d), COL_FLOOR, true)
@@ -58,12 +58,12 @@ func _build() -> void:
 	floor_node.set_meta("surface_type", "wood")
 	floor_node.position = Vector3(0, fy, 0)
 	add_child(floor_node)
-	# Trim — slightly larger flat slab below the floor for the edge
+	# Trim, slightly larger flat slab below the floor for the edge
 	# overhang look
 	var trim := _make_box(Vector3(w + 0.6, 0.06, d + 0.6), COL_FLOOR_TRIM, false)
 	trim.position = Vector3(0, fy - 0.06, 0)
 	add_child(trim)
-	# Three step risers in front of the entrance — stairs from ground
+	# Three step risers in front of the entrance, stairs from ground
 	# up to the dojo floor. Player walks UP into the building.
 	for i in range(3):
 		var step_y: float = fy * float(i + 1) / 3.0 - 0.05
@@ -72,7 +72,7 @@ func _build() -> void:
 		step.position = Vector3(0, step_y, step_z)
 		add_child(step)
 
-	# 2. Posts — six corner+entrance posts, each a tapered cylinder
+	# 2. Posts, six corner+entrance posts, each a tapered cylinder
 	# from floor to roof underside (height 3.6m).
 	var post_height: float = 3.6
 	var post_y: float = fy + post_height * 0.5
@@ -87,7 +87,7 @@ func _build() -> void:
 	_spawn_post(Vector3(-ex, post_y, hd), post_height)
 	_spawn_post(Vector3(ex, post_y, hd), post_height)
 
-	# 3. Walls — back wall full-width, left/right walls full-depth,
+	# 3. Walls, back wall full-width, left/right walls full-depth,
 	# front wall split into two pieces flanking the entrance gap.
 	var wall_height: float = 2.6
 	var wall_y: float = fy + wall_height * 0.5 + 0.1
@@ -97,7 +97,7 @@ func _build() -> void:
 	_spawn_wall(Vector3(-hw, wall_y, 0), Vector3(wall_thickness, wall_height, d))
 	# Right wall (x = +hw)
 	_spawn_wall(Vector3(hw, wall_y, 0), Vector3(wall_thickness, wall_height, d))
-	# Front wall — two segments flanking the entrance
+	# Front wall, two segments flanking the entrance
 	var front_seg_w: float = (w - entrance_width) * 0.5
 	_spawn_wall(Vector3(-(entrance_width * 0.5 + front_seg_w * 0.5), wall_y, hd),
 		Vector3(front_seg_w, wall_height, wall_thickness))
@@ -115,12 +115,12 @@ func _build() -> void:
 	_spawn_beam(Vector3(hw, beam_y, 0), Vector3(0.18, 0.18, d + 0.4))
 	_spawn_beam(Vector3(-hw, beam_y, 0), Vector3(0.18, 0.18, d + 0.4))
 
-	# 4. Roof — two-tier hipped roof. Lower tier (veranda eaves) is
+	# 4. Roof, two-tier hipped roof. Lower tier (veranda eaves) is
 	# wide+flat; upper tier is the iconic angled-up hipped roof. Built
 	# from 4 angled BoxMesh slabs forming the inverted-pyramid roof.
 	var eave_overhang: float = 1.6
 	var lower_y: float = beam_y + 0.10
-	# Lower tier — a flat slab wider than the building footprint, gold-
+	# Lower tier, a flat slab wider than the building footprint, gold-
 	# trimmed gable feel
 	var lower_roof := _make_box(Vector3(w + eave_overhang * 2.0, 0.20, d + eave_overhang * 2.0), COL_ROOF, false)
 	lower_roof.position = Vector3(0, lower_y, 0)
@@ -129,7 +129,7 @@ func _build() -> void:
 	var gold_strip := _make_box(Vector3(w + eave_overhang * 2.0 + 0.2, 0.04, d + eave_overhang * 2.0 + 0.2), COL_GOLD, false)
 	gold_strip.position = Vector3(0, lower_y - 0.10, 0)
 	add_child(gold_strip)
-	# Upper tier — 4 angled slabs forming a hipped roof. Each slab is
+	# Upper tier, 4 angled slabs forming a hipped roof. Each slab is
 	# tilted up toward the center via Z rotation, producing the signature
 	# Japanese roof silhouette.
 	var upper_y: float = lower_y + 0.7
@@ -160,7 +160,7 @@ func _build() -> void:
 		Vector3(upper_w * 0.7, 0.18, upper_d),
 		Vector3.FORWARD, -pitch
 	)
-	# Roof crest — a thin gold beam along the ridge (top of hipped roof)
+	# Roof crest, a thin gold beam along the ridge (top of hipped roof)
 	var crest := _make_box(Vector3(w * 0.35, 0.10, 0.20), COL_GOLD, false)
 	crest.position = Vector3(0, upper_y + 0.65, 0)
 	add_child(crest)
@@ -196,7 +196,7 @@ func _build() -> void:
 		cap.position = pillar.position + Vector3(0, 1.25, 0)
 		add_child(cap)
 
-	# 7. Interior dressing — Bond's "we go inside to fight the boss"
+	# 7. Interior dressing, Bond's "we go inside to fight the boss"
 	# means the interior should READ as a dojo, not an empty crate.
 	# Add tatami mat pattern + wall scrolls + weapon rack + throne.
 	_dress_interior(w, d, fy)
@@ -208,7 +208,7 @@ func _build() -> void:
 func _dress_interior(w: float, d: float, fy: float) -> void:
 	var hw: float = w * 0.5
 	var hd: float = d * 0.5
-	# 7a. Tatami mats — 3x4 grid of large rectangular mats with their
+	# 7a. Tatami mats, 3x4 grid of large rectangular mats with their
 	# own dark border. Tatami are traditionally laid in alternating
 	# orientations, but the simple grid reads correctly at gameplay
 	# distance and doesn't require complex layout logic.
@@ -240,7 +240,7 @@ func _dress_interior(w: float, d: float, fy: float) -> void:
 			tatami.material_override = tmat
 			tatami.position = Vector3(cx, mat_y, cz)
 			add_child(tatami)
-			# Dark border strip — a slightly larger box just under
+			# Dark border strip, a slightly larger box just under
 			# the mat that shows around the edges
 			var border := MeshInstance3D.new()
 			var bm := BoxMesh.new()
@@ -252,7 +252,7 @@ func _dress_interior(w: float, d: float, fy: float) -> void:
 			border.position = Vector3(cx, mat_y - 0.005, cz)
 			add_child(border)
 
-	# 7b. Wall scrolls — 4 hanging vertical banners on the back wall
+	# 7b. Wall scrolls, 4 hanging vertical banners on the back wall
 	# and one on each side wall. Cream paper with a red kanji-like
 	# stripe down the middle (we don't have a real kanji texture so
 	# the stripe is decorative only).
@@ -266,11 +266,11 @@ func _dress_interior(w: float, d: float, fy: float) -> void:
 		_spawn_scroll(Vector3(-hw + 0.30, fy + 1.8, scroll_z), 90.0)
 		_spawn_scroll(Vector3(hw - 0.30, fy + 1.8, scroll_z), -90.0)
 
-	# 7c. Weapon rack — left wall, mid-height. 3 katanas resting on
+	# 7c. Weapon rack, left wall, mid-height. 3 katanas resting on
 	# horizontal pegs.
 	_spawn_weapon_rack(Vector3(-hw + 0.45, fy + 0.0, hd * 0.35), 90.0)
 
-	# 7d. Throne dais — a low wide raised platform at the rear with
+	# 7d. Throne dais, a low wide raised platform at the rear with
 	# a simple cushion-style block. Marks the boss's anchor visually
 	# so the player reads "this is where the master sits".
 	var dais := _make_box(Vector3(4.0, 0.20, 1.6), Color(0.32, 0.20, 0.14, 1.0), false)
@@ -280,7 +280,7 @@ func _dress_interior(w: float, d: float, fy: float) -> void:
 	var dais_trim := _make_box(Vector3(4.2, 0.04, 1.8), COL_GOLD, false)
 	dais_trim.position = Vector3(0, fy + 0.04, -hd + 1.5)
 	add_child(dais_trim)
-	# Cushion — dark red velvet block
+	# Cushion, dark red velvet block
 	var cushion := _make_box(Vector3(2.0, 0.18, 1.0), Color(0.55, 0.12, 0.10, 1.0), false)
 	cushion.position = Vector3(0, fy + 0.30, -hd + 1.5)
 	add_child(cushion)
@@ -356,7 +356,7 @@ func _spawn_scroll(pos: Vector3, rot_y_deg: float = 0.0) -> void:
 		rod.position = pos + Vector3(0, ry, 0)
 		add_child(rod)
 
-# Weapon rack — vertical posts + horizontal pegs holding 3 katanas.
+# Weapon rack, vertical posts + horizontal pegs holding 3 katanas.
 # Decorative; players can't pick them up. Reads as "this is a place
 # where weapons are kept."
 func _spawn_weapon_rack(pos: Vector3, rot_y_deg: float = 0.0) -> void:
@@ -394,7 +394,7 @@ func _spawn_weapon_rack(pos: Vector3, rot_y_deg: float = 0.0) -> void:
 		peg.rotation_degrees = Vector3(0, 0, 90)  # horizontal
 		peg.position = Vector3(0, peg_y, 0)
 		rack.add_child(peg)
-		# Katana resting on the peg — simplified: thin BoxMesh blade
+		# Katana resting on the peg, simplified: thin BoxMesh blade
 		# with brown grip. Just visual.
 		var blade := MeshInstance3D.new()
 		var bm := BoxMesh.new()
@@ -418,7 +418,7 @@ func _spawn_weapon_rack(pos: Vector3, rot_y_deg: float = 0.0) -> void:
 		grip.position = Vector3(0, peg_y + 0.05, -0.6)
 		rack.add_child(grip)
 
-# Standing floor lantern — short stone base + paper-orange glowing
+# Standing floor lantern, short stone base + paper-orange glowing
 # upper. Casts warm light into the dojo interior so the boss arena
 # isn't a dark cave.
 func _spawn_floor_lantern(pos: Vector3) -> void:
@@ -445,7 +445,7 @@ func _spawn_floor_lantern(pos: Vector3) -> void:
 	stem.material_override = bmat
 	stem.position = pos + Vector3(0, 0.55, 0)
 	add_child(stem)
-	# Paper lantern body — glowing
+	# Paper lantern body, glowing
 	var body := MeshInstance3D.new()
 	var bb := CylinderMesh.new()
 	bb.top_radius = 0.18
@@ -524,7 +524,7 @@ func _spawn_wall(pos: Vector3, size: Vector3) -> void:
 	var wall := _make_box(size, COL_WALL, true)
 	wall.position = pos
 	add_child(wall)
-	# Gold horizontal trim strip across the wall — visible on inside +
+	# Gold horizontal trim strip across the wall, visible on inside +
 	# outside. Slightly inset depth so it shows even when the wall is
 	# thick.
 	var trim_h: float = 0.05
@@ -545,7 +545,7 @@ func _spawn_beam(pos: Vector3, size: Vector3) -> void:
 	beam.position = pos
 	add_child(beam)
 
-# Roof slab — angled BoxMesh tilted by `angle_rad` around `axis`.
+# Roof slab, angled BoxMesh tilted by `angle_rad` around `axis`.
 # Static body so the roof reads as solid (player can't fly through it).
 func _spawn_roof_slab(pos: Vector3, size: Vector3, axis: Vector3, angle_rad: float) -> void:
 	var slab := _make_box(size, COL_ROOF, true)
@@ -568,7 +568,7 @@ func _spawn_lantern(pos: Vector3) -> void:
 	rope.material_override = rmat
 	rope.position = pos + Vector3(0, 0.20, 0)
 	add_child(rope)
-	# Lantern body — short fat cylinder, glowing
+	# Lantern body, short fat cylinder, glowing
 	var lant := MeshInstance3D.new()
 	var lm := CylinderMesh.new()
 	lm.top_radius = 0.20

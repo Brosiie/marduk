@@ -123,7 +123,7 @@ func _build_patterns(id: StringName) -> Array[BossAttackPattern]:
 				BossAttackPattern.Shape.FORWARD_CONE,
 				1.0, 0.25, 0.7, 4.0, 90.0, 0, 4.0, 1.4, 0, 99, 8.0))
 			# Phase 0+: SKYBREAK overhead slam. AOE_GROUND tracks the
-			# player's feet — keeps them moving, not just dodging
+			# player's feet, keeps them moving, not just dodging
 			# sideways. Gives the early fight rhythmic variety.
 			arr.append(_p(&"kazat_skybreak", "Skybreak",
 				BossAttackPattern.Shape.AOE_GROUND,
@@ -134,7 +134,7 @@ func _build_patterns(id: StringName) -> Array[BossAttackPattern]:
 			arr.append(_p(&"kazat_charge", "Iron Charge",
 				BossAttackPattern.Shape.CHARGE,
 				1.20, 1.00, 1.5, 9.0, 130.0, 0, 9.0, 1.2, 1, 99, 6.0))
-			# Phase 1+: IRON ROAR — AOE_AROUND_BOSS knockback to punish
+			# Phase 1+: IRON ROAR, AOE_AROUND_BOSS knockback to punish
 			# tail-hugging. Forces the player to space and re-engage.
 			arr.append(_p(&"kazat_iron_roar", "Iron Roar",
 				BossAttackPattern.Shape.AOE_AROUND_BOSS,

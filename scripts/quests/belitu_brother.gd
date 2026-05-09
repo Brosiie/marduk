@@ -138,7 +138,7 @@ func _investigate() -> void:
 		"He's young. Maybe twelve. His ribs rise and fall. Barely.\n\nThe Cradle's stone has a fresh red on it that's already drying.\n\nHe's still breathing. You can carry him back to Ashurim. The walk will be slow. He may not make it.\n\n[ Press V to lift him ]",
 		Color(0.95, 0.55, 0.45))
 
-# Step 2 -> 3: pick up — attach to player as follower with HP timer
+# Step 2 -> 3: pick up, attach to player as follower with HP timer
 func _pick_up() -> void:
 	_state = "carrying"
 	_save_state()

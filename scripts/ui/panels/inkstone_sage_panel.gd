@@ -3,9 +3,9 @@ class_name InkstoneSagePanel
 
 # Multi-action panel for the Inkstone Sage NPC. Replaces the simple
 # greeting-only dialogue with three branches:
-#   - Speak    — the prose chronicle (the existing _generate_chronicle)
-#   - Inscribe — turn earned glyphs into permanent body tattoos
-#   - Purify   — remove an inscribed glyph (free; lore-respected)
+#   - Speak   , the prose chronicle (the existing _generate_chronicle)
+#   - Inscribe, turn earned glyphs into permanent body tattoos
+#   - Purify  , remove an inscribed glyph (free; lore-respected)
 #
 # The Sage instantiates this panel on player interact instead of opening
 # the base NPC dialogue.
@@ -269,7 +269,7 @@ func _attempt_inscribe(glyph: Glyph, loc_id: StringName, gr: Node) -> void:
 	var inv = player.get("inventory") if player else null
 	if not inv:
 		return
-	# Token check (lenient — if token isn't in inventory, fail with message)
+	# Token check (lenient, if token isn't in inventory, fail with message)
 	if glyph.inscribe_token_id != &"":
 		if inv.has_method("count_of") and inv.count_of(glyph.inscribe_token_id) < glyph.inscribe_token_count:
 			_show_toast("You're missing the %s token. Bring it and return." % _short_token(glyph.inscribe_token_id))
@@ -293,7 +293,7 @@ func _short_token(token_id: StringName) -> String:
 	return String(token_id).replace("_", " ")
 
 # ───────────────────── Purify view ─────────────────────
-# Lists inscribed glyphs. Click one to remove it (no cost — the Sage purifies
+# Lists inscribed glyphs. Click one to remove it (no cost, the Sage purifies
 # in exchange for the privilege of having known the wearer).
 
 func _render_purify() -> void:
@@ -323,7 +323,7 @@ func _make_purify_row(glyph: Glyph, loc: String, gr: Node) -> Control:
 	row.add_theme_constant_override("separation", 16)
 
 	var label := Label.new()
-	label.text = "%s — on your %s" % [glyph.display_name, LOCATION_LABELS.get(StringName(loc), loc.capitalize())]
+	label.text = "%s, on your %s" % [glyph.display_name, LOCATION_LABELS.get(StringName(loc), loc.capitalize())]
 	label.add_theme_color_override("font_color", glyph.emission_color)
 	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	row.add_child(label)

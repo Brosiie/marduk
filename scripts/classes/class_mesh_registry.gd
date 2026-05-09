@@ -48,21 +48,21 @@ const CLASS_MESHES := {
 
 # Mob mesh map. Keep mobs visually distinct from players.
 const MOB_MESHES := {
-	# Tashmu's invasion forces — castle guards in iron livery
+	# Tashmu's invasion forces, castle guards in iron livery
 	&"usurper_footman":     "res://assets/characters/mixamo/mobs/usurper_footman.glb",
 	&"usurper_archer":      "res://assets/characters/mixamo/mobs/usurper_archer.glb",
-	# Generic raiders — Mixamo Ch05/Ch24 slim civilians for bandit packs
+	# Generic raiders, Mixamo Ch05/Ch24 slim civilians for bandit packs
 	&"raider_grunt":        "res://assets/characters/mixamo/mobs/raider_grunt.glb",
 	&"raider_archer":       "res://assets/characters/mixamo/mobs/raider_archer.glb",
-	# Cult ranks — small hooded scuttlers (goblin)
+	# Cult ranks, small hooded scuttlers (goblin)
 	&"shrine_acolyte":      "res://assets/characters/mixamo/mobs/shrine_acolyte.glb",
-	# Undead — bound bones reanimated by binding magic (skeleton-zombie hybrid)
+	# Undead, bound bones reanimated by binding magic (skeleton-zombie hybrid)
 	&"binding_construct":   "res://assets/characters/mixamo/mobs/binding_construct.glb",
 	# Vampire-tier blood drinker
 	&"blood_hunter":        "res://assets/characters/mixamo/mobs/blood_hunter.glb",
-	# Heavy bruiser — Warrok orc-class siege thug (also reused as boss usurper_enforcer)
+	# Heavy bruiser, Warrok orc-class siege thug (also reused as boss usurper_enforcer)
 	&"siege_lieutenant":    "res://assets/characters/mixamo/bosses/usurper_enforcer.glb",
-	# Slots without dedicated Mixamo mesh yet — fall back to thematically-closest Mixamo + scale tint
+	# Slots without dedicated Mixamo mesh yet, fall back to thematically-closest Mixamo + scale tint
 	&"corrupted_wolf":      "res://assets/characters/mixamo/mobs/binding_construct.glb",
 	&"animated_book":       "res://assets/characters/mixamo/mobs/shrine_acolyte.glb",
 	&"witch_burner":        "res://assets/characters/mixamo/classes/mage.glb",
@@ -73,9 +73,9 @@ const MOB_MESHES := {
 
 # Boss mesh map. Bigger / scaled / more imposing.
 const BOSS_MESHES := {
-	# Enforcer Kazat, the Iron-Faced — Tashmu's lieutenant, Ronin's mini-boss
+	# Enforcer Kazat, the Iron-Faced, Tashmu's lieutenant, Ronin's mini-boss
 	&"usurper_enforcer":    "res://assets/characters/mixamo/bosses/usurper_enforcer.glb",  # Warrok W Kurniawan
-	# Slots without dedicated Mixamo mesh yet — fall back to closest archetype + scale up
+	# Slots without dedicated Mixamo mesh yet, fall back to closest archetype + scale up
 	&"raid_captain":        "res://assets/characters/mixamo/classes/berserker.glb",
 	&"corrupt_master":      "res://assets/characters/mixamo/classes/mage.glb",
 	&"glade_terror":        "res://assets/characters/mixamo/mobs/binding_construct.glb",
@@ -86,7 +86,7 @@ const BOSS_MESHES := {
 	&"_default":            "res://assets/characters/mixamo/bosses/usurper_enforcer.glb",
 }
 
-# NPC mesh map — towns, villagers, quest-givers, vendors.
+# NPC mesh map, towns, villagers, quest-givers, vendors.
 const NPC_MESHES := {
 	&"peasant_male":        "res://assets/characters/mixamo/npcs/peasant_male.glb",   # Storyteller / Iddinu / villagers
 	&"peasant_female":      "res://assets/characters/mixamo/npcs/peasant_female.glb", # Belitu / market girls

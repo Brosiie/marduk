@@ -1,6 +1,6 @@
 extends Node
 
-# Juice — autoload owning the universal "make it feel good" hooks every
+# Juice, autoload owning the universal "make it feel good" hooks every
 # combat / pickup / cutscene system calls into.
 #
 # API:
@@ -59,7 +59,7 @@ func _ready() -> void:
 # every successful hit; the freeze is short enough that gameplay
 # isn't interrupted, but long enough to feel meaty.
 func hit_stop(duration: float = 0.06) -> void:
-	# Gated on GameSettings.hit_stop. Default is 0.0 (off) — slomo on every
+	# Gated on GameSettings.hit_stop. Default is 0.0 (off), slomo on every
 	# hit was reported as nauseating during boss fights. Re-enable in
 	# Settings → A11y → "Hit-stop intensity" if desired.
 	if not _slomo_enabled():
@@ -75,7 +75,7 @@ func _restore_time_scale() -> void:
 # fade). Different magnitudes for different moments; restores after
 # duration.
 func slowmo(scale: float = 0.35, duration: float = 0.4) -> void:
-	# Same kill-switch as hit_stop — boss arena cinematic + lodestone discovery
+	# Same kill-switch as hit_stop, boss arena cinematic + lodestone discovery
 	# both call this and the cumulative effect made movement feel weird.
 	if not _slomo_enabled():
 		return

@@ -26,7 +26,7 @@ func _ready() -> void:
 
 func _process(delta: float) -> void:
 	# Hit stop: pause physics briefly for impact emphasis. Gated on the
-	# GameSettings.hit_stop slider — default 0.0 means we never set
+	# GameSettings.hit_stop slider, default 0.0 means we never set
 	# Engine.time_scale here. Tracked timer still ticks down so the
 	# request signal fires for any system that wants visual-only feedback.
 	if _hit_stop_remaining > 0.0:

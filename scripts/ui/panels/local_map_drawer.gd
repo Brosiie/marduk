@@ -3,7 +3,7 @@ class_name LocalMapDrawer
 
 # Renders a top-down view of the current scene by polling group memberships.
 # Auto-frames the visible content; uses simple colored circles per node type.
-# Refresh on open or every frame while visible (cheap — just queue_redraw).
+# Refresh on open or every frame while visible (cheap, just queue_redraw).
 
 const COLOR_FLOOR := Color(0.10, 0.08, 0.06, 0.92)
 const COLOR_GRID  := Color(0.22, 0.18, 0.14, 0.55)
@@ -29,7 +29,7 @@ func refresh() -> void:
 	queue_redraw()
 
 func _process(_delta: float) -> void:
-	# Live updates while open — cheap, only redraw when visible
+	# Live updates while open, cheap, only redraw when visible
 	if visible:
 		queue_redraw()
 
@@ -98,7 +98,7 @@ func _draw_grid() -> void:
 
 func _draw_compass() -> void:
 	var origin := Vector2(28, 28)
-	var label := Label.new()  # not actually added — use draw_string instead
+	var label := Label.new()  # not actually added, use draw_string instead
 	var font := ThemeDB.fallback_font
 	if not font:
 		return
@@ -128,7 +128,7 @@ func _gather_entries() -> Array:
 	var tree := get_tree()
 	if not tree:
 		return out
-	# Player(s) — diamond marker
+	# Player(s), diamond marker
 	for p in tree.get_nodes_in_group("player"):
 		if p is Node3D:
 			out.append({"pos": _xz(p.global_position), "kind": "player", "r": 7})
@@ -181,7 +181,7 @@ func _compute_bounds(entries: Array) -> void:
 	var aspect_ratio: float = size.x / max(1.0, size.y)
 	var span_aspect: float = span.x / max(0.001, span.y)
 	if span_aspect > aspect_ratio:
-		# wider than panel — pad y
+		# wider than panel, pad y
 		var target_y: float = span.x / aspect_ratio
 		var pad: float = (target_y - span.y) * 0.5
 		_world_min.y -= pad

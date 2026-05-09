@@ -32,7 +32,7 @@ class Phase:
 # Faction reputation impact on death. Per-faction integer deltas that the
 # Player's _on_combatbus_kill bridge applies to FactionRegistry. Negative
 # values DAMAGE rep (eg killing a Crown enforcer drops Crown rep, raises
-# Druid rep). Empty by default — only bosses with diplomatic stakes set
+# Druid rep). Empty by default, only bosses with diplomatic stakes set
 # this. Set in _ready of subclasses.
 @export var faction_rep_on_kill: Dictionary = {}
 
@@ -70,12 +70,12 @@ const _LEAP_ARC_HEIGHT: float = 5.5
 
 signal phase_changed(phase_index: int, phase_name: String)
 signal boss_defeated(boss_id: StringName, killer: Node)
-# Cinematic windup signal — emitted when a pattern enters its
+# Cinematic windup signal, emitted when a pattern enters its
 # WINDUP state. The HUD / camera can use this to tighten framing
 # during the danger window. Boss arena listens too for camera shake.
 signal windup_started(pattern_id: StringName, windup_seconds: float)
 signal windup_ended(pattern_id: StringName)
-# Posture gauge — fills with player damage, decays over time. When
+# Posture gauge, fills with player damage, decays over time. When
 # full, the boss is staggered (cannot act for STAGGER_DURATION) and
 # the player can fire an EXECUTION attack for massive bonus damage.
 # Sekiro/Bloodborne/Lies-of-P pattern. Reads as a SECOND meter above
@@ -83,7 +83,7 @@ signal windup_ended(pattern_id: StringName)
 signal posture_changed(current: float, max_posture: float)
 signal posture_broken
 signal posture_recovered  # stagger ended, boss back in pattern AI
-# Enrage signal — fires at the 25% HP gate. HUD picks up to flash a
+# Enrage signal, fires at the 25% HP gate. HUD picks up to flash a
 # warning + tint the boss bar red.
 signal enraged
 
@@ -99,7 +99,7 @@ var _staggered_until: float = 0.0
 # crit doesn't insta-stagger.
 const POSTURE_DAMAGE_SCALE: float = 0.55
 const POSTURE_DAMAGE_PER_HIT_MAX: float = 35.0
-# Enrage — flips at 25% HP gate, persists for the rest of the fight.
+# Enrage, flips at 25% HP gate, persists for the rest of the fight.
 var _enraged: bool = false
 
 func _ready() -> void:
@@ -150,7 +150,7 @@ func take_damage(amount: float, source: Node = null) -> void:
 	super.take_damage(amount, source)
 	_check_phase_transition()
 	# Posture: each hit adds clamped posture. Riposte-buffed attacks
-	# deal 2x posture (stronger 'parry into stagger' loop) — read via
+	# deal 2x posture (stronger 'parry into stagger' loop), read via
 	# the source player's recently-consumed riposte buff isn't available
 	# here, so we approximate by checking if the current attacker_stats
 	# was the player who recently pressed a fresh attack (heuristic).
@@ -184,7 +184,7 @@ func _break_posture() -> void:
 			juice.shake(0.35, 0.30)
 		if juice.has_method("toast"):
 			juice.toast("STAGGERED", Color(1.0, 0.92, 0.55), 1.5)
-	# Audio sting — a chord that says 'opening!'
+	# Audio sting, a chord that says 'opening!'
 	var ab: Node = get_node_or_null("/root/AudioBus")
 	if ab and ab.has_method("play_cue"):
 		ab.play_cue(&"victory", global_position, -6.0, 1.4)
@@ -246,7 +246,7 @@ func _physics_process(delta: float) -> void:
 	if _move_pattern_active:
 		_advance_move_pattern()
 		return
-	# Stagger: while staggered, the boss is frozen — no chase, no
+	# Stagger: while staggered, the boss is frozen, no chase, no
 	# attack patterns. This is the player's window to commit big
 	# damage / execution. Posture decays normally during stagger so
 	# the bar visibly empties as recovery progresses.
@@ -265,7 +265,7 @@ func _decay_posture(delta: float) -> void:
 	if posture <= 0.0:
 		return
 	var now_s: float = Time.get_ticks_msec() / 1000.0
-	# Don't decay until the posture-hit-cool-down expires — ensures
+	# Don't decay until the posture-hit-cool-down expires, ensures
 	# combos register as a single sustained pressure, not 'one hit
 	# then decay'.
 	if now_s - _last_posture_hit_at < POSTURE_DECAY_DELAY:
@@ -392,7 +392,7 @@ func _spawn_landing_shockwave(p: BossAttackPattern) -> void:
 	ring.global_position = global_position + Vector3(0, 0.1, 0)
 	get_tree().create_timer(1.5).timeout.connect(func():
 		if is_instance_valid(ring): ring.queue_free())
-	# PERSISTENT IMPACT CRATER — leaves a battle scar at the landing
+	# PERSISTENT IMPACT CRATER, leaves a battle scar at the landing
 	# spot. The player can SEE that the boss was here, then here, then
 	# here over the course of the fight. Stays for the rest of the
 	# encounter (cleaned up when the boss queue_frees, since it's
@@ -485,7 +485,7 @@ func _tick_attack_pattern_ai(_delta: float) -> void:
 	if _current_pattern:
 		# During windup, push 0..1 progress to the telegraph shader so
 		# the pulse intensifies as the strike approaches. This is the
-		# 'urgency' channel — the player sees the decal getting harsher.
+		# 'urgency' channel, the player sees the decal getting harsher.
 		if _pattern_state == &"windup" and _telegraph_decal and is_instance_valid(_telegraph_decal):
 			var windup_total: float = max(0.001, _current_pattern.windup_seconds)
 			var elapsed: float = windup_total - max(0.0, _pattern_state_until - now)
@@ -560,7 +560,7 @@ func _select_pattern(now: float) -> BossAttackPattern:
 					if dist > p.range + 5.0:
 						continue
 				BossAttackPattern.Shape.LEAP:
-					# LEAP is an OPENING-distance attack — only useful
+					# LEAP is an OPENING-distance attack, only useful
 					# when the player has run AWAY mid-fight. Skip if
 					# already in melee range (boss should sweep instead)
 					# and skip if outrun by more than 1.5x the leap range.
@@ -596,7 +596,7 @@ func _begin_pattern(p: BossAttackPattern, now: float) -> void:
 	_pattern_state = &"windup"
 	_pattern_state_until = now + p.windup_seconds
 	# First-pattern hook: tell the AchievementTracker we're engaged so it
-	# starts the no-hit + time-attack timers. Idempotent — tracker
+	# starts the no-hit + time-attack timers. Idempotent, tracker
 	# re-stamps start_time on each call. Once-per-engagement is the
 	# achievable behavior; even if the boss resets, current_boss_fight
 	# entry just gets refreshed.
@@ -608,7 +608,7 @@ func _begin_pattern(p: BossAttackPattern, now: float) -> void:
 # One-shot per fight: tells the active player's AchievementTracker to
 # start the no-hit + under-time timers. Re-firing within the same fight
 # is harmless (tracker just overwrites start_time, which would defeat
-# the time-attack — so we guard with _achievement_engaged_fired).
+# the time-attack, so we guard with _achievement_engaged_fired).
 var _achievement_engaged_fired: bool = false
 
 func _notify_achievement_engaged() -> void:
@@ -625,7 +625,7 @@ func _notify_achievement_engaged() -> void:
 	# the spring length during this window for the cinematic threat
 	# read.
 	windup_started.emit(p.id, p.windup_seconds)
-	# Pattern-specific audio sting — different shapes get different
+	# Pattern-specific audio sting, different shapes get different
 	# tonal cues so the player can READ THE INCOMING ATTACK from
 	# audio alone. Pitch + volume tuned so the sting sits under the
 	# music but above ambient. Layers with the existing telegraph
@@ -634,25 +634,25 @@ func _notify_achievement_engaged() -> void:
 	if ab and ab.has_method("play_cue"):
 		match p.shape:
 			BossAttackPattern.Shape.LEAP:
-				# Low rumble — boss is COMING DOWN ON YOU
+				# Low rumble, boss is COMING DOWN ON YOU
 				ab.play_cue(&"thunder", global_position, -4.0, 0.55)
 			BossAttackPattern.Shape.CHARGE:
-				# Sharp hiss/wind — boss is RUSHING
+				# Sharp hiss/wind, boss is RUSHING
 				ab.play_cue(&"swing", global_position, -3.0, 0.50)
 			BossAttackPattern.Shape.AOE_AROUND_BOSS:
-				# Deep gathering tone — boss is CONCENTRATING
+				# Deep gathering tone, boss is CONCENTRATING
 				ab.play_cue(&"shadow_cast", global_position, -4.0, 0.85)
 			BossAttackPattern.Shape.AOE_GROUND:
-				# Falling chime — boss MARKED THE GROUND
+				# Falling chime, boss MARKED THE GROUND
 				ab.play_cue(&"frost_cast", global_position, -3.0, 0.70)
 			BossAttackPattern.Shape.FORWARD_CONE, BossAttackPattern.Shape.LINE:
-				# Sword draw — generic melee strike
+				# Sword draw, generic melee strike
 				ab.play_cue(&"swing", global_position, -4.0, 0.85)
 			BossAttackPattern.Shape.PROJECTILE:
-				# Bowstring tension — projectile loosed
+				# Bowstring tension, projectile loosed
 				ab.play_cue(&"hit", global_position, -5.0, 1.4)
 			BossAttackPattern.Shape.ARENA_WIDE:
-				# Catastrophic gathering — full warning chord
+				# Catastrophic gathering, full warning chord
 				ab.play_cue(&"victory", global_position, -2.0, 0.45)
 			_:
 				ab.play_cue(&"swing", global_position, -5.0, 0.95)
@@ -684,7 +684,7 @@ func _execute_pattern(p: BossAttackPattern) -> void:
 		_move_t0 = Time.get_ticks_msec() / 1000.0
 		_move_duration = max(0.20, p.execute_seconds)
 		_move_pattern = p
-		# Boss aura roar moment — slight camera flash so the leap reads
+		# Boss aura roar moment, slight camera flash so the leap reads
 		# as a Big Move, not a quiet sidestep.
 		var juice = get_node_or_null("/root/Juice")
 		if juice and juice.has_method("flash"):
@@ -853,7 +853,7 @@ func _play_phase_transition_cinematic(idx: int, p: Phase) -> void:
 		ab.play_cue(&"death", global_position, -1.0, pitch)
 		ab.play_cue(&"thunder", global_position, -3.0, 0.7)
 	# Music: bump combat intensity for the phase. Phase 0=1.0,
-	# 1=1.15, 2=1.3, 3=1.45 — saturating push as the boss escalates.
+	# 1=1.15, 2=1.3, 3=1.45, saturating push as the boss escalates.
 	var md: Node = get_node_or_null("/root/MusicDirector")
 	if md and md.has_method("set_combat_intensity"):
 		md.set_combat_intensity(1.0 + 0.15 * float(idx))
@@ -863,7 +863,7 @@ func _play_phase_transition_cinematic(idx: int, p: Phase) -> void:
 	# 1. Rim color shifts to the phase color so the silhouette glows
 	#    differently ('amber armor' -> 'crimson armor' -> 'void armor')
 	# 2. Rim strength bumps each phase (more aggressive backlight)
-	# 3. Spawn a one-shot aura burst at the boss's feet — visible
+	# 3. Spawn a one-shot aura burst at the boss's feet, visible
 	#    transformation moment
 	rim_color = color
 	rim_strength = min(2.0, rim_strength + 0.25)
@@ -872,14 +872,14 @@ func _play_phase_transition_cinematic(idx: int, p: Phase) -> void:
 	# this boss's shader path.
 	var shader: Shader = load("res://shaders/rim_pass.gdshader")
 	if shader:
-		# Re-apply rim recursively — rebuilds the cache key under the
+		# Re-apply rim recursively, rebuilds the cache key under the
 		# new color/strength so this boss's meshes update next frame.
 		_apply_rim_recurse(self, shader)
 	# Aura burst at boss feet (50 particles, 0.8s lifetime, color-tinted)
 	_spawn_phase_burst(color)
 	# Boss scale bump on phase 2+ for visible 'powering up' read.
 	# Mesh starts at 1.4 base scale (set in boss_base.tscn). Each
-	# phase adds 0.06 — phase 1 = 1.46, phase 2 = 1.52. Capped so
+	# phase adds 0.06, phase 1 = 1.46, phase 2 = 1.52. Capped so
 	# silhouette doesn't blow out the arena.
 	if idx >= 1:
 		var bm: Node3D = get_node_or_null("BossMesh")
@@ -906,7 +906,7 @@ func _spawn_loot_reveal_ring(killer: Node) -> void:
 	estimated_count = max(4, estimated_count)
 	# Cap at 12 orbs so the screen doesn't get visually overrun.
 	estimated_count = min(12, estimated_count)
-	# Rarity color cycle for the orbs (cosmetic only — actual rarity
+	# Rarity color cycle for the orbs (cosmetic only, actual rarity
 	# resolution still happens via receive_loot below). Cycles common
 	# -> rare -> epic -> legendary so the reveal builds visually.
 	var rarity_colors := [
@@ -921,7 +921,7 @@ func _spawn_loot_reveal_ring(killer: Node) -> void:
 		var ring_radius: float = 1.4
 		var origin: Vector3 = global_position + Vector3(0, 0.5, 0)
 		var orb_pos: Vector3 = origin + Vector3(cos(angle) * ring_radius, 0, sin(angle) * ring_radius)
-		# Pick a rarity color — bias toward higher tiers as i grows so
+		# Pick a rarity color, bias toward higher tiers as i grows so
 		# the LAST orb in the reveal is always epic/legendary glow
 		# (final-flourish read).
 		var color_idx: int = min(int(float(i) / float(estimated_count) * 5.0), rarity_colors.size() - 1)
@@ -1049,7 +1049,7 @@ func _die(killer: Node) -> void:
 	# Set save flags for major bosses (mini-bosses have their own quest flags via QuestLog)
 	if is_main_boss or is_final_boss or is_secret_boss:
 		SaveFlags.mark_boss_defeated(boss_id)
-	# CINEMATIC DEATH SEQUENCE — earned-victory feedback. Spawned in
+	# CINEMATIC DEATH SEQUENCE, earned-victory feedback. Spawned in
 	# current_scene so it survives the boss queue_free below. Slowmo,
 	# screen flash, golden particle burst, vertical god-ray pillar,
 	# 'FALLEN' toast all fire-and-forget.
@@ -1062,7 +1062,7 @@ func _die(killer: Node) -> void:
 
 func _play_boss_death_cinematic() -> void:
 	var juice: Node = get_node_or_null("/root/Juice")
-	# Slowmo for 1.2s — gives the player time to read the kill
+	# Slowmo for 1.2s, gives the player time to read the kill
 	if juice:
 		if juice.has_method("slowmo"):
 			juice.slowmo(0.18, 1.2)  # deeper than normal kill (0.30) for boss
@@ -1073,8 +1073,8 @@ func _play_boss_death_cinematic() -> void:
 		if juice.has_method("toast"):
 			var nm: String = String(display_name) if display_name != "" else "FOE"
 			juice.toast("⚔  %s  FALLEN  ⚔" % nm.to_upper(), Color(1.0, 0.85, 0.45), 5.0)
-	# Victory audio chord — 5-note arpeggio that rises as the slowmo
-	# fades. The chord is the player's reward sound — earns the win.
+	# Victory audio chord, 5-note arpeggio that rises as the slowmo
+	# fades. The chord is the player's reward sound, earns the win.
 	var ab: Node = get_node_or_null("/root/AudioBus")
 	if ab and ab.has_method("play_cue"):
 		ab.play_cue(&"victory", global_position, -3.0, 1.0)
@@ -1127,7 +1127,7 @@ func _play_boss_death_cinematic() -> void:
 	burst.global_position = global_position + Vector3(0, 1.6, 0)
 	get_tree().create_timer(2.5).timeout.connect(func():
 		if is_instance_valid(burst): burst.queue_free())
-	# Vertical light pillar — bright god-ray that lasts 2s and fades
+	# Vertical light pillar, bright god-ray that lasts 2s and fades
 	var pillar := MeshInstance3D.new()
 	pillar.name = "BossDeathPillar"
 	var cm := CylinderMesh.new()
@@ -1156,7 +1156,7 @@ func _play_boss_death_cinematic() -> void:
 func _award_guaranteed_drops(killer: Node) -> void:
 	if not killer or not killer.has_method("receive_loot"):
 		return
-	# CEREMONIAL LOOT REVEAL — items still go into the player's
+	# CEREMONIAL LOOT REVEAL, items still go into the player's
 	# inventory via receive_loot below, but we ALSO spawn ghost orbs
 	# in a ring around the corpse for a visible 'spoils of victory'
 	# moment. Each orb drifts up + outward, glows in rarity color,
@@ -1318,7 +1318,7 @@ func _telegraph_size_for(p: BossAttackPattern) -> Vector2:
 		BossAttackPattern.Shape.ARENA_WIDE:
 			return Vector2(36.0, 36.0)
 		BossAttackPattern.Shape.LEAP:
-			# Big circle at the landing zone — same diameter as the
+			# Big circle at the landing zone, same diameter as the
 			# shockwave radius so the player can read 'don't be in this
 			# circle when the boss lands'.
 			return Vector2(p.radius * 2.4, p.radius * 2.4)

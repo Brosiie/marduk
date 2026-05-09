@@ -14,7 +14,7 @@ class_name BuffBar
 #
 # Without this bar the player has no way to see whether their buff
 # (Iai stance, Ronin breath, ProcsBlessing) is still active or whether
-# they're suffering from an ongoing DoT — combat reads as 'numbers
+# they're suffering from an ongoing DoT, combat reads as 'numbers
 # happening' rather than 'systems interacting'.
 
 const ICON_SIZE: Vector2 = Vector2(38, 38)
@@ -72,7 +72,7 @@ func _attach_player_signals() -> void:
 		return
 	_holder = _player.get_node_or_null("StatusEffectsHolder")
 	if _holder == null:
-		# Player doesn't carry a holder — buff bar stays empty.
+		# Player doesn't carry a holder, buff bar stays empty.
 		return
 	if _holder.has_signal("effect_applied") and not _holder.effect_applied.is_connected(_on_effect_changed):
 		_holder.effect_applied.connect(_on_effect_changed)
@@ -167,7 +167,7 @@ func _process(_delta: float) -> void:
 		if ae == null or not "time_left" in ae:
 			continue
 		ic.tooltip_text = "%s\n%.1fs left" % [ae.effect.display_name, ae.time_left]
-		# When duration is short, fade the icon alpha as it expires —
+		# When duration is short, fade the icon alpha as it expires ,
 		# under 1.5s remaining = visible 'about to fall off' cue.
 		if ae.effect.duration > 0:
 			var pct: float = clamp(ae.time_left / 1.5, 0.0, 1.0)

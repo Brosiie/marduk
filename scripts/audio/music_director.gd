@@ -1,6 +1,6 @@
 extends Node
 
-# MusicDirector — autoload that picks a procedural ambient music tone for
+# MusicDirector, autoload that picks a procedural ambient music tone for
 # the current scene's region_id. Until a sound designer ships .ogg tracks,
 # we generate a slow looping pad with a region-specific chord using
 # AudioStreamGenerator. Crossfades on scene change.
@@ -114,7 +114,7 @@ func _fill_combat_pad(pb: AudioStreamGeneratorPlayback, freqs: Array) -> void:
 		pb.push_frame(Vector2(sample, sample))
 
 func _on_tree_changed() -> void:
-	# Debounce — only check once per frame
+	# Debounce, only check once per frame
 	call_deferred("_refresh")
 
 func _refresh() -> void:

@@ -252,7 +252,7 @@ func _on_body_exited(body: Node3D) -> void:
 	_label3d.modulate = Color(0.55, 0.95, 0.55)
 	_hide_interact_prompt()
 
-# Floating "press V to talk" Label3D above the NPC's head — visible
+# Floating "press V to talk" Label3D above the NPC's head, visible
 # only when the player is inside the interaction area. Without this
 # the player has no visual cue that the NPC is interactable.
 var _interact_prompt: Label3D = null
@@ -294,7 +294,7 @@ func _open_dialogue() -> void:
 		# Try by display_name -> "c_<slug>" (storyteller, iddinu, belitu)
 		var slug: String = display_name.to_lower().replace(",", "").replace(" ", "_").split("_")[0]
 		cdx.unlock(StringName("c_" + slug))
-	# Polished dialogue panel — gold-filigree slate frame matching the
+	# Polished dialogue panel, gold-filigree slate frame matching the
 	# rest of the HUD language. Fade in / out via tween.
 	var dialog_panel := PanelContainer.new()
 	dialog_panel.anchor_left = 0.5

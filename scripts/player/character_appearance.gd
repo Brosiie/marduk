@@ -5,7 +5,7 @@ class_name CharacterAppearance
 # See CHARACTER_DESIGN.md § 3 for the design.
 #
 # Lifecycle:
-#   1. Created in the character creator (scenes/menus/character_creator.tscn — TODO)
+#   1. Created in the character creator (scenes/menus/character_creator.tscn, TODO)
 #   2. Stored on Player.character_appearance
 #   3. Persisted in the save slot
 #   4. Applied at scene load via AppearanceRegistry.apply(player_node, appearance)

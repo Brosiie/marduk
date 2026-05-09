@@ -12,7 +12,7 @@ signal sacrifice_accepted(player: Node, item: Item)
 signal sacrifice_refused(player: Node, item: Item)
 
 const RONIN_BIND_LINE := "Heaven will bind:   YES"
-const NON_RONIN_NO_BIND_LINE := "Heaven will bind:   NO — the sword remains Ronin-only"
+const NON_RONIN_NO_BIND_LINE := "Heaven will bind:   NO, the sword remains Ronin-only"
 
 @onready var dim_layer: ColorRect = $DimLayer if has_node("DimLayer") else null
 @onready var panel: PanelContainer = $Panel if has_node("Panel") else null
@@ -69,7 +69,7 @@ func _show_modal() -> void:
 	visible = true
 	if dim_layer:
 		dim_layer.color = Color(0, 0, 0, 0.7)
-	# Pause the game while the prompt is up — this is a sacred moment
+	# Pause the game while the prompt is up, this is a sacred moment
 	get_tree().paused = true
 	process_mode = Node.PROCESS_MODE_ALWAYS  # we keep ticking even while paused
 
@@ -95,8 +95,8 @@ func _show_modal() -> void:
 			+ "You may walk back through Lucifer's gate. Once.\n\n"
 			+ "The Demon you became will dissolve. The soul you walked into Lucifer with will return.\n"
 			+ "You will be mortal again.\n\n"
-			+ "Your race, your face, the marks you bear from the fight to here — these stay.\n"
-			+ "The horns, the veins, the hunger — these go.\n\n"
+			+ "Your race, your face, the marks you bear from the fight to here, these stay.\n"
+			+ "The horns, the veins, the hunger, these go.\n\n"
 			+ "The gate does not open twice. Once chosen, this cannot be undone."
 		)
 	if info_label:
@@ -105,9 +105,9 @@ func _show_modal() -> void:
 	# Accept button label echoes the binding outcome
 	if accept_btn:
 		if pre_class_id == &"ronin":
-			accept_btn.text = "ACCEPT — WALK BACK AND CLAIM HEAVEN"
+			accept_btn.text = "ACCEPT, WALK BACK AND CLAIM HEAVEN"
 		else:
-			accept_btn.text = "ACCEPT — WALK BACK (Heaven will not bind)"
+			accept_btn.text = "ACCEPT, WALK BACK (Heaven will not bind)"
 
 func _hide_modal() -> void:
 	visible = false

@@ -6,7 +6,7 @@ class_name HassuTheHooked
 # Steppe warlord with a chained hook on a long haft. Brawls like he means it.
 #
 # Phase 1 (100-50% HP): Patient. Reads the player. Cleave + hook-pull lure.
-# Phase 2 (50-0% HP):   Berserk. Adds leap, charge, ground slam — the whole
+# Phase 2 (50-0% HP):   Berserk. Adds leap, charge, ground slam, the whole
 #                       Bond's-overhaul kit. Hassu's blood is up; you brought
 #                       this on him.
 
@@ -24,7 +24,7 @@ func _ready() -> void:
 	hp = max_hp
 	armor = 6.0
 	magic_resist = 3.0
-	move_speed = 3.5  # slightly faster than Kazat — Hassu hunts, doesn't anchor
+	move_speed = 3.5  # slightly faster than Kazat, Hassu hunts, doesn't anchor
 	detect_radius = 22.0
 	attack_range = 3.2
 	attack_cooldown = 0.0
@@ -41,12 +41,12 @@ func _ready() -> void:
 
 func _build_patterns() -> Array[BossAttackPattern]:
 	# CLEAVE: wide horizontal hook-arc. Phase 1 mainstay.
-	# Different read from Kazat's vertical sweep — the arc starts low and
+	# Different read from Kazat's vertical sweep, the arc starts low and
 	# rises, so dodging UNDER the swing doesn't work. Step inside or back.
 	var cleave := BossAttackPattern.new()
 	cleave.id = &"hassu_cleave"
 	cleave.display_name = "Hook Arc"
-	cleave.tell_description = "Hassu drops his weight onto his back foot — the arc is coming."
+	cleave.tell_description = "Hassu drops his weight onto his back foot, the arc is coming."
 	cleave.shape = BossAttackPattern.Shape.FORWARD_CONE
 	cleave.range = 3.4
 	cleave.radius = 2.6
@@ -67,7 +67,7 @@ func _build_patterns() -> Array[BossAttackPattern]:
 	var cleave_fast := BossAttackPattern.new()
 	cleave_fast.id = &"hassu_cleave_fast"
 	cleave_fast.display_name = "Hook Arc (Bloodied)"
-	cleave_fast.tell_description = "Hassu cleaves without setting his feet — there is no warning."
+	cleave_fast.tell_description = "Hassu cleaves without setting his feet, there is no warning."
 	cleave_fast.shape = BossAttackPattern.Shape.FORWARD_CONE
 	cleave_fast.range = 3.4
 	cleave_fast.radius = 2.6
@@ -85,14 +85,14 @@ func _build_patterns() -> Array[BossAttackPattern]:
 	cleave_fast.dodge_window = 0.40
 
 	# HOOK-PULL: a thrown hook that strikes the player at range and yanks them
-	# into melee. Phase 1 — Hassu's distance-closer. Implemented as a long
+	# into melee. Phase 1, Hassu's distance-closer. Implemented as a long
 	# narrow LINE pattern; if it lands the player should be dragged into cleave
 	# range on hit. The pull effect is a TODO for the engine; for now the
 	# pattern just deals damage at range, which still rewards reading + dodging.
 	var pull := BossAttackPattern.new()
 	pull.id = &"hassu_pull"
 	pull.display_name = "Hook Pull"
-	pull.tell_description = "Hassu winds the chain around his arm — the hook is leaving his hand soon."
+	pull.tell_description = "Hassu winds the chain around his arm, the hook is leaving his hand soon."
 	pull.shape = BossAttackPattern.Shape.LINE
 	pull.range = 8.0
 	pull.radius = 0.7
@@ -113,7 +113,7 @@ func _build_patterns() -> Array[BossAttackPattern]:
 	var charge := BossAttackPattern.new()
 	charge.id = &"hassu_charge"
 	charge.display_name = "Steppe Charge"
-	charge.tell_description = "Hassu lowers his shoulder and spits — sidestep, do not back-pedal."
+	charge.tell_description = "Hassu lowers his shoulder and spits, sidestep, do not back-pedal."
 	charge.shape = BossAttackPattern.Shape.CHARGE
 	charge.range = 9.0
 	charge.radius = 1.2
@@ -134,7 +134,7 @@ func _build_patterns() -> Array[BossAttackPattern]:
 	var leap := BossAttackPattern.new()
 	leap.id = &"hassu_leap"
 	leap.display_name = "Pillar-Vault"
-	leap.tell_description = "Hassu bounds toward the broken pillar — he is using it. Watch the marker."
+	leap.tell_description = "Hassu bounds toward the broken pillar, he is using it. Watch the marker."
 	leap.shape = BossAttackPattern.Shape.LEAP
 	leap.range = 11.0
 	leap.radius = 3.2
@@ -152,12 +152,12 @@ func _build_patterns() -> Array[BossAttackPattern]:
 	leap.dodge_window = 0.55
 
 	# SLAM: tracking AOE_GROUND that follows the player's feet. Phase 2.
-	# Different read from cleave — this CHASES, so the player has to MOVE
+	# Different read from cleave, this CHASES, so the player has to MOVE
 	# rather than just dodge sideways.
 	var slam := BossAttackPattern.new()
 	slam.id = &"hassu_slam"
 	slam.display_name = "Earth-Splitter"
-	slam.tell_description = "Hassu raises the hook overhead — the marker chases your feet, keep moving."
+	slam.tell_description = "Hassu raises the hook overhead, the marker chases your feet, keep moving."
 	slam.shape = BossAttackPattern.Shape.AOE_GROUND
 	slam.range = 8.0
 	slam.radius = 2.0
@@ -178,7 +178,7 @@ func _build_patterns() -> Array[BossAttackPattern]:
 	var burst := BossAttackPattern.new()
 	burst.id = &"hassu_burst"
 	burst.display_name = "Steppe-Roar"
-	burst.tell_description = "Hassu plants and roars — back away before the burst lands."
+	burst.tell_description = "Hassu plants and roars, back away before the burst lands."
 	burst.shape = BossAttackPattern.Shape.AOE_AROUND_BOSS
 	burst.radius = 3.2
 	burst.range = 3.2

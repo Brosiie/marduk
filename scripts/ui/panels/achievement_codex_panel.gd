@@ -7,7 +7,7 @@ class_name AchievementCodexPanel
 # unlocked/locked indicator and a progress count in the tab label.
 #
 # Hidden achievements (hidden_until_unlocked = true) only appear once unlocked
-# — they're easter eggs.
+#, they're easter eggs.
 
 @onready var dim: ColorRect = $Dim if has_node("Dim") else null
 @onready var panel: PanelContainer = $Panel if has_node("Panel") else null
@@ -16,13 +16,13 @@ const SIBLING_MODALS := ["SkillTreePanel", "InkstoneSagePanel", "SacrificePrompt
 
 const CATEGORY_NAMES := ["Combat", "Exploration", "Professions", "Story", "Feats", "Collection", "Meta"]
 const CATEGORY_COLORS := [
-	Color(0.85, 0.30, 0.20),  # COMBAT — blood red
-	Color(0.55, 0.85, 0.45),  # EXPLORATION — leaf green
-	Color(0.65, 0.55, 0.30),  # PROFESSIONS — earth
-	Color(0.85, 0.45, 0.95),  # STORY — story-violet
-	Color(1.00, 0.85, 0.30),  # FEATS — gold
-	Color(0.55, 0.45, 0.95),  # COLLECTION — arcane
-	Color(0.65, 0.65, 0.65),  # META — neutral
+	Color(0.85, 0.30, 0.20),  # COMBAT, blood red
+	Color(0.55, 0.85, 0.45),  # EXPLORATION, leaf green
+	Color(0.65, 0.55, 0.30),  # PROFESSIONS, earth
+	Color(0.85, 0.45, 0.95),  # STORY, story-violet
+	Color(1.00, 0.85, 0.30),  # FEATS, gold
+	Color(0.55, 0.45, 0.95),  # COLLECTION, arcane
+	Color(0.65, 0.65, 0.65),  # META, neutral
 ]
 
 var _current_category: int = 0  # Achievement.Category index
@@ -35,7 +35,7 @@ func _ready() -> void:
 
 func _input(event: InputEvent) -> void:
 	# P key toggles. Listen for raw key event since toggle_achievements isn't
-	# bound to a project input action yet — plain KEY_P, no modifiers.
+	# bound to a project input action yet, plain KEY_P, no modifiers.
 	if event is InputEventKey and event.pressed and not event.echo:
 		var key_event: InputEventKey = event
 		if key_event.physical_keycode == KEY_P and not _has_text_focus():
@@ -217,7 +217,7 @@ func _make_achievement_row(ach, unlocked: bool) -> Control:
 	desc_label.add_theme_color_override("font_color", Color(0.78, 0.72, 0.60) if unlocked else Color(0.55, 0.50, 0.42))
 	v.add_child(desc_label)
 
-	# Lore on unlocked achievements only — hidden until earned
+	# Lore on unlocked achievements only, hidden until earned
 	if unlocked and "lore" in ach and String(ach.lore) != "":
 		var lore_label := Label.new()
 		lore_label.text = String(ach.lore)

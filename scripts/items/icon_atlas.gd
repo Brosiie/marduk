@@ -1,6 +1,6 @@
 extends Node
 
-# IconAtlas — autoload that returns a procedural Texture2D for any Item.
+# IconAtlas, autoload that returns a procedural Texture2D for any Item.
 #
 # Why procedural: hand-drawing 200+ pixel icons before tonight's playtest is
 # unrealistic. Each item's icon is generated from its slot + weapon type +
@@ -118,7 +118,7 @@ func _draw(slot: int, weapon_type: int, rarity: int) -> Image:
 			# Vertical gradient lighter top -> darker bottom
 			var t: float = float(y - RIM_THICKNESS) / float(ICON_SIZE - 2 * RIM_THICKNESS)
 			img.set_pixel(x, y, body_color.lerp(inner_color, t))
-	# Glyph — simple shape per weapon type / slot family
+	# Glyph, simple shape per weapon type / slot family
 	_draw_glyph(img, slot, weapon_type)
 	return img
 

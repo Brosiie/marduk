@@ -16,7 +16,7 @@ class_name SoulBindingPanel
 signal closed
 
 const SACRIFICE_COUNT := 5
-const RESPEC_SACRIFICE_COUNT := 10  # respec costs more — it's a deeper sacrifice
+const RESPEC_SACRIFICE_COUNT := 10  # respec costs more, it's a deeper sacrifice
 const TAB_WEAPON := 0
 const TAB_ARMOR := 1
 const TAB_RESPEC := 2
@@ -128,7 +128,7 @@ func _render_respec(content: VBoxContainer) -> void:
 	# Confirm button
 	if _respec_sacrifices.size() == RESPEC_SACRIFICE_COUNT:
 		var confirm := Button.new()
-		confirm.text = "Respec — Refund All Skill Points"
+		confirm.text = "Respec, Refund All Skill Points"
 		confirm.custom_minimum_size = Vector2(0, 44)
 		confirm.add_theme_font_size_override("font_size", 16)
 		confirm.pressed.connect(_confirm_respec)
@@ -405,7 +405,7 @@ func _confirm_binding(slot_id: int) -> void:
 			juice.flash(Color(1.0, 0.85, 0.30), 0.4, 0.9)
 		if juice.has_method("toast"):
 			juice.toast("Bound: %s. The stone will not let go." % _bind_target.display_name, Color(1.0, 0.85, 0.30), 3.0)
-	# Audio: layered cue — level_up arpeggio + lodestone chirp underneath.
+	# Audio: layered cue, level_up arpeggio + lodestone chirp underneath.
 	# Reads as ceremony.
 	var ab: Node = get_node_or_null("/root/AudioBus")
 	if ab and ab.has_method("play_cue") and player is Node3D:

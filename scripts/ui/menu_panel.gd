@@ -135,7 +135,7 @@ func _spawn_tab_panel(tab: StringName) -> Control:
 func _make_placeholder_panel(tab: StringName) -> Control:
 	var c := Control.new()
 	var lbl := Label.new()
-	lbl.text = "[%s] panel coming online — stub for now." % String(tab).to_upper()
+	lbl.text = "[%s] panel coming online, stub for now." % String(tab).to_upper()
 	lbl.anchor_left = 0.5
 	lbl.anchor_top = 0.5
 	lbl.offset_left = -180.0
@@ -146,7 +146,7 @@ func _make_placeholder_panel(tab: StringName) -> Control:
 func _on_tab_button_pressed(tab: StringName) -> void:
 	_show_tab(tab)
 
-# Public — called from HUD when a hotkey fires.
+# Public, called from HUD when a hotkey fires.
 func toggle_tab(tab: StringName) -> void:
 	if visible and _open_tab == tab:
 		close()

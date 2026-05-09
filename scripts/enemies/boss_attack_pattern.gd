@@ -15,7 +15,7 @@ enum Shape {
 	ARENA_WIDE,       # full arena sweep, requires position-counter
 	LEAP,             # boss arcs through the air to target's last position
 	                  # and lands with a shockwave AOE. The landing decal
-	                  # is the player's dodge cue — get out of the circle.
+	                  # is the player's dodge cue, get out of the circle.
 	CHARGE,           # boss sprints in a straight line at high speed,
 	                  # damaging anything in its path. Sidestep, don't backpedal.
 }

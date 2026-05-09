@@ -32,7 +32,7 @@ func _seed_glyphs() -> void:
 	# each Phase 2/3 boss adds its own mark.
 	_add_glyph(&"glyph_kazat_iron",
 		"Iron-Faced Mark",
-		"The geometric brand of Enforcer Kazat — three iron lines crossed with a single horizontal stroke. Earned by the first to put him down.",
+		"The geometric brand of Enforcer Kazat, three iron lines crossed with a single horizontal stroke. Earned by the first to put him down.",
 		&"enforcer_kazat",
 		"Enforcer Kazat the Iron-Faced",
 		6,  # cross
@@ -80,7 +80,7 @@ func _seed_glyphs() -> void:
 		"A cracked shield with a hammer through it. The mark of those who put down Beleti at the Sun-Sworn Chapel doors.",
 		&"beleti_siege_master",
 		"Beleti the Siege-Master",
-		7,  # crown — closest to a battered helm-shape in the placeholder set
+		7,  # crown, closest to a battered helm-shape in the placeholder set
 		Color(1.00, 0.85, 0.45),
 		&"crown_siege",
 		0.005,
@@ -95,7 +95,7 @@ func _seed_glyphs() -> void:
 		"A four-pointed antler over a single eye. The mark of those who put down the Tiamat-spawn that came through the Greenheart Glade.",
 		&"glade_terror",
 		"The Glade Terror",
-		8,  # horn — antler-curve
+		8,  # horn, antler-curve
 		Color(0.65, 0.85, 0.45),
 		&"tiamat_spawn",  # +0.5% damage vs Tiamat-spawn enemies
 		0.005,
@@ -125,7 +125,7 @@ func _seed_glyphs() -> void:
 		"A jagged hook-curve crossed by a chain link. Hassu's mark; carried by those who put down the Hooked One in the Ash-Step Camp.",
 		&"hassu_hooked",
 		"Hassu the Hooked",
-		8,  # horn — closest shape to a hook curve in the placeholder set
+		8,  # horn, closest shape to a hook curve in the placeholder set
 		Color(0.95, 0.45, 0.20),
 		&"steppe_clans",  # +0.5% damage vs steppe-clan mobs
 		0.005,
@@ -216,7 +216,7 @@ func inscribe_glyph(character_id: String, glyph_id: StringName, location: String
 		"location": location,
 	})
 	glyph_inscribed.emit(glyphs[glyph_id], location, character_id)
-	# Audio: lodestone chirp at higher pitch — the Inkstone "settling" the
+	# Audio: lodestone chirp at higher pitch, the Inkstone "settling" the
 	# mark into skin. Distinguishes inscription from a generic pickup.
 	var ab: Node = get_node_or_null("/root/AudioBus")
 	if ab and ab.has_method("play_cue"):
@@ -250,6 +250,6 @@ func _on_kill_registered(target: Node, _killer: Node) -> void:
 	var glyph: Glyph = glyph_for_boss(boss_id)
 	if not glyph:
 		return
-	# For now use a single character_id "active" — proper save-slot wiring is Phase 2.
+	# For now use a single character_id "active", proper save-slot wiring is Phase 2.
 	var char_id: String = "active"
 	earn_glyph(char_id, glyph.glyph_id)

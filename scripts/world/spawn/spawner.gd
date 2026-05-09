@@ -63,7 +63,7 @@ func _spawn_one() -> void:
 	# runs so the right AI tree boots from frame 0.
 	# Enum values are sourced from Mob.Role (see scripts/mobs/mob.gd).
 	# Reading via Mob.Role.* keeps these in sync if the enum is
-	# reordered — raw integer literals were a maintenance trap.
+	# reordered, raw integer literals were a maintenance trap.
 	match int(mob.role):
 		Mob.Role.ARCHER:
 			var s: GDScript = load("res://scripts/enemies/archer_mob.gd")
@@ -72,7 +72,7 @@ func _spawn_one() -> void:
 			var s2: GDScript = load("res://scripts/enemies/caster_mob.gd")
 			if s2: inst.set_script(s2)
 		Mob.Role.RUSHER:
-			# Glass cannon — fast move speed, low HP, low windup.
+			# Glass cannon, fast move speed, low HP, low windup.
 			# Script swaps in dedicated stats + orange rim color so
 			# the player can read the threat type at a glance.
 			var s3: GDScript = load("res://scripts/enemies/rusher_mob.gd")

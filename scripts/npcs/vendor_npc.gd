@@ -50,7 +50,7 @@ func _open_shop_panel() -> void:
 	v.add_theme_constant_override("separation", 8)
 	frame.add_child(v)
 	var hdr := Label.new()
-	hdr.text = display_name + " — Shop"
+	hdr.text = display_name + ", Shop"
 	hdr.add_theme_font_size_override("font_size", 22)
 	hdr.modulate = Color(1.0, 0.85, 0.55)
 	v.add_child(hdr)

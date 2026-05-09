@@ -1,6 +1,6 @@
 extends Node
 
-# CodexRegistry — autoload that holds the canonical lore archive. The
+# CodexRegistry, autoload that holds the canonical lore archive. The
 # Codex is the player's compounding archive of everything they have
 # encountered: regions visited, characters spoken to, items found,
 # lore notes read, achievements earned. Each entry is registered once
@@ -24,7 +24,7 @@ extends Node
 #   count_total() -> int
 #
 # Signals:
-#   entry_unlocked(entry: Dictionary) — fires after a successful unlock
+#   entry_unlocked(entry: Dictionary), fires after a successful unlock
 #
 # Persistence: each unlock writes a SaveFlags permanent flag named
 # "codex_<id>". On _ready the registry walks all known entries and
@@ -70,7 +70,7 @@ func register(entry: Dictionary) -> void:
 # Subsequent calls are silent no-ops (so call sites can fire freely).
 func unlock(id: StringName) -> bool:
 	if not _entries.has(id):
-		# Tolerate unlocks for entries not yet registered — register a
+		# Tolerate unlocks for entries not yet registered, register a
 		# minimal stub so progress is captured. The owning system can
 		# call register() later with the real prose.
 		register({"id": id, "category": &"misc", "display_name": String(id)})
@@ -79,7 +79,7 @@ func unlock(id: StringName) -> bool:
 	_unlocked[id] = true
 	_save_flag(id)
 	entry_unlocked.emit(_entries[id])
-	# Soft toast — codex unlocks accumulate fast and shouldn't
+	# Soft toast, codex unlocks accumulate fast and shouldn't
 	# interrupt with a screen flash. Just a smaller banner.
 	var juice = get_node_or_null("/root/Juice")
 	if juice:

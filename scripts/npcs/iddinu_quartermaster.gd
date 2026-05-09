@@ -5,7 +5,7 @@ class_name IddinuQuartermaster
 # and a lit pipe. Crown's logistics arm in the city. Hands the player a
 # crate-recovery quest (q_iddinu_supplies) when they're up to it.
 #
-# Class-aware greeting flavor — Iddinu has opinions about every class he
+# Class-aware greeting flavor, Iddinu has opinions about every class he
 # fields. Same quest_log bridge pattern as the Storyteller.
 
 const CLASS_GREETINGS := {
@@ -15,7 +15,7 @@ const CLASS_GREETINGS := {
 	&"ranger":               "I keep a list of who can find a thing without breaking it. You're going on the list. I expect you back with three.",
 	&"mage":                 "I do not pay in mana. I pay in coin. If that's a problem, the Crown has a different desk for you.",
 	&"chaos_druid":          "The Wound followed you in here. Wipe your boots. Take the assignment. Go.",
-	&"paladin_guardian":     "Crown's white. Good. The crates have the Crown's seal — bring them back to the Crown.",
+	&"paladin_guardian":     "Crown's white. Good. The crates have the Crown's seal, bring them back to the Crown.",
 	&"paladin_lightbringer": "Sun-blooded. The crates I want recovered have Crown stamps. The Crown stamps are stamped over older marks. Bring back both.",
 	&"demon":                "I do business with whoever pays. The Crown does not. So sit down, and we'll talk about what you carry that I might want.",
 }
@@ -23,9 +23,9 @@ const CLASS_GREETINGS := {
 const DEFAULT_GREETING := "Quartermaster's hut. State your business. I have ledgers."
 
 const IDDINU_QUEST_LADDER := [
-	&"q_iddinu_supplies",          # lvl 1 — kill 6 Tashmu's Footmen, +Crown
-	&"q_iddinu_crown_loyalty",     # lvl 3 — Caravan Toll, big +Crown
-	&"q_iddinu_blacksail_sidegig", # lvl 4 — side-gig, +BlackSail / -Crown
+	&"q_iddinu_supplies",          # lvl 1, kill 6 Tashmu's Footmen, +Crown
+	&"q_iddinu_crown_loyalty",     # lvl 3, Caravan Toll, big +Crown
+	&"q_iddinu_blacksail_sidegig", # lvl 4, side-gig, +BlackSail / -Crown
 ]
 
 func _ready() -> void:
@@ -109,7 +109,7 @@ func _open_dialogue() -> void:
 	var sk: Node = get_node_or_null("/root/ShopkeeperRegistry")
 	if sk and sk.has_method("get_vendor"):
 		# Iddinu's vendor in Babilim was named babilim_market_general; in
-		# Ashurim he runs the quartermaster station — wire through ashurim_general
+		# Ashurim he runs the quartermaster station, wire through ashurim_general
 		# as a fallback so Belitu/Iddinu both have a stocked shop.
 		var vendor = sk.get_vendor(&"ashurim_general")
 		if vendor:

@@ -28,7 +28,7 @@ func _ready() -> void:
 	offset_right = offset_left + PANEL_WIDTH
 	offset_bottom = offset_top + 200.0
 
-	# Background panel — same gold-filigree language as the rest of
+	# Background panel, same gold-filigree language as the rest of
 	# the HUD. Old version was a transparent dark rect with a barely-
 	# visible 1px border. Now a polished slate panel with shadow.
 	var sb := StyleBoxFlat.new()
@@ -101,7 +101,7 @@ func refresh() -> void:
 	sep.color = Color(0.78, 0.62, 0.28, 0.55)
 	sep.custom_minimum_size = Vector2(0, 1)
 	_v.add_child(sep)
-	# Objectives list — pull live counters from QuestRegistry.get_progress
+	# Objectives list, pull live counters from QuestRegistry.get_progress
 	var objectives: Array = []
 	var quest_id: StringName = &""
 	if typeof(focused) == TYPE_DICTIONARY:

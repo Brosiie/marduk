@@ -63,7 +63,7 @@ func _build_ui() -> void:
 	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_root.add_child(bg)
 	# Animated radial-gradient + film-grain + slow vignette pulse.
-	# Old version was a static radial gradient — readable but flat. The
+	# Old version was a static radial gradient, readable but flat. The
 	# new shader pulses the inner color slowly (breathing) and overlays
 	# a faint TIME-driven grain so the screen feels ALIVE the entire
 	# load. Without this the loading screen reads as a static png.
@@ -75,16 +75,16 @@ uniform vec4 outer : source_color = vec4(0.02, 0.01, 0.04, 1.0);
 uniform vec4 accent : source_color = vec4(0.55, 0.18, 0.10, 1.0);
 void fragment() {
 	float d = distance(SCREEN_UV, vec2(0.5));
-	// Slow breathing on the inner glow size — makes the corona pulse
+	// Slow breathing on the inner glow size, makes the corona pulse
 	// over a 4s cycle. 0.5 * sin = +/- 0.5 amplitude around 0.85 base.
 	float pulse = 0.85 + 0.06 * sin(TIME * 1.6);
 	vec4 base = mix(inner, outer, smoothstep(0.0, pulse, d));
 	// Crimson accent at the outer ring so the screen edges glow
-	// red — frames Tiamat's heart-of-the-world theme.
+	// red, frames Tiamat's heart-of-the-world theme.
 	float ring = smoothstep(0.55, 0.95, d) * (1.0 - smoothstep(0.95, 1.20, d));
 	base.rgb += accent.rgb * ring * 0.18;
 	// Per-pixel grain. screen_uv * 1024 and fract gives a deterministic
-	// noise-per-pixel that shifts via TIME — stops banding from showing.
+	// noise-per-pixel that shifts via TIME, stops banding from showing.
 	float grain = fract(sin(dot(SCREEN_UV * 1024.0 + TIME * 0.7, vec2(12.9898, 78.233))) * 43758.5453);
 	base.rgb += (grain - 0.5) * 0.025;
 	COLOR = base;
@@ -159,7 +159,7 @@ void fragment() {
 	_tip.offset_bottom = 40
 	_root.add_child(_tip)
 
-	# Progress bar — beefier (8px tall, 480px wide) with a gold inset
+	# Progress bar, beefier (8px tall, 480px wide) with a gold inset
 	# frame, dark recessed bg, and a moving shimmer overlay on the fill
 	# so the bar reads as 'energetically loading' rather than 'static
 	# orange rectangle'.
@@ -187,7 +187,7 @@ void fragment() {
 	bar_frame.offset_bottom = 2
 	bar_frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var frame_sb := StyleBoxFlat.new()
-	frame_sb.bg_color = Color(0, 0, 0, 0)  # transparent — we just want the border
+	frame_sb.bg_color = Color(0, 0, 0, 0)  # transparent, we just want the border
 	frame_sb.border_color = Color(0.78, 0.62, 0.28, 0.95)
 	frame_sb.set_border_width_all(1)
 	frame_sb.set_corner_radius_all(4)
@@ -203,7 +203,7 @@ void fragment() {
 	_progress_fill.anchor_right = 0.0  # animated to 1.0 as load progresses
 	_progress_fill.anchor_bottom = 1.0
 	_progress_fill.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	# Moving shimmer band — a brighter strip slides left-to-right across
+	# Moving shimmer band, a brighter strip slides left-to-right across
 	# the fill via a ShaderMaterial. Tells the player the load is
 	# THINKING, not stuck.
 	var shimmer_shader := Shader.new()

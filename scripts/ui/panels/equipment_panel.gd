@@ -119,7 +119,7 @@ func _paint_slot(slot: Control, item: Item, slot_name: StringName) -> void:
 	var icon: TextureRect = slot.get_node("Icon")
 	if item == null:
 		icon.texture = null
-		slot.tooltip_text = "%s — empty" % String(slot_name).replace("_", " ")
+		slot.tooltip_text = "%s, empty" % String(slot_name).replace("_", " ")
 		return
 	var atlas: Node = get_node_or_null("/root/IconAtlas")
 	if atlas and atlas.has_method("get_icon_for_item"):

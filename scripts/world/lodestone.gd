@@ -56,7 +56,7 @@ func _ready() -> void:
 	add_child(_light)
 	# Floating label (only shows once you're close)
 	_label3d = Label3D.new()
-	_label3d.text = "Lodestone — V to attune"
+	_label3d.text = "Lodestone, V to attune"
 	_label3d.modulate = Color(0.85, 0.85, 1.0)
 	_label3d.position = Vector3(0, 2.6, 0)
 	_label3d.billboard = BaseMaterial3D.BILLBOARD_ENABLED

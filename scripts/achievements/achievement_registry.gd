@@ -462,7 +462,7 @@ func unlock(id: StringName) -> bool:
 	if juice:
 		var ach: Achievement = achievements[id]
 		juice.toast("★  Achievement: %s" % ach.display_name, Color(1.0, 0.65, 0.10), 3.0)
-	# Audio cue — reuse the level_up arpeggio so unlocks have the same
+	# Audio cue, reuse the level_up arpeggio so unlocks have the same
 	# 'you-earned-something' shape players already learned.
 	var ab = get_node_or_null("/root/AudioBus")
 	if ab and ab.has_method("play_cue"):

@@ -36,7 +36,7 @@ class_name CreatorChoice
 
 # === Stat lean push (additive on top of race lean) ===
 # Use this for "soft" character-shaping questions: "Which weapon did you
-# train with as a child?" — the answer pushes 1 stat point regardless of class.
+# train with as a child?", the answer pushes 1 stat point regardless of class.
 @export var pushes_stat_lean: Dictionary = {}      # StringName -> int
 
 # === Branching ===

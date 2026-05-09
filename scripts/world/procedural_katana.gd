@@ -102,7 +102,7 @@ func _build() -> void:
 	tsuba_mesh.bottom_radius = TSUBA_RADIUS
 	tsuba_mesh.height = TSUBA_THICKNESS
 	tsuba.mesh = tsuba_mesh
-	# Darker patinated iron core — real tsuba are deeply blackened
+	# Darker patinated iron core, real tsuba are deeply blackened
 	# steel, not the medium gray we had. Lower roughness on the rim
 	# below makes the polished gold edge stand out against this.
 	var tmat := StandardMaterial3D.new()
@@ -113,7 +113,7 @@ func _build() -> void:
 	tsuba.position = Vector3(0, TSUKA_LENGTH + TSUBA_THICKNESS * 0.5, 0)
 	add_child(tsuba)
 
-	# Polished rim — slightly larger cylinder behind the tsuba so we
+	# Polished rim, slightly larger cylinder behind the tsuba so we
 	# see a thin gold ring around the edge. Two-tone tsuba is what
 	# real katana have; one-tone reads as a hockey-puck guard.
 	var tsuba_rim := MeshInstance3D.new()

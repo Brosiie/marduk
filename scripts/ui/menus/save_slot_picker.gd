@@ -141,7 +141,7 @@ func _make_slot_row(slot_dict: Dictionary) -> Control:
 
 	if is_empty:
 		var empty_label := Label.new()
-		empty_label.text = "— Empty —"
+		empty_label.text = ", Empty ,"
 		empty_label.add_theme_color_override("font_color", Color(0.55, 0.50, 0.40))
 		info.add_child(empty_label)
 	else:
@@ -166,7 +166,7 @@ func _make_slot_row(slot_dict: Dictionary) -> Control:
 		info.add_child(sub_label)
 
 		var saved_label := Label.new()
-		saved_label.text = "Last saved: %s" % slot_dict.get("saved_at", "—")
+		saved_label.text = "Last saved: %s" % slot_dict.get("saved_at", ",")
 		saved_label.add_theme_font_size_override("font_size", 11)
 		saved_label.add_theme_color_override("font_color", Color(0.55, 0.50, 0.40))
 		info.add_child(saved_label)
@@ -220,7 +220,7 @@ func _on_load_pressed(slot: int, is_empty: bool) -> void:
 
 func _on_save_pressed(slot: int, is_empty: bool) -> void:
 	# Non-empty slots get a brief inline confirmation. Could promote to a
-	# proper modal later — for now the row's bg-tint shift signals overwrite.
+	# proper modal later, for now the row's bg-tint shift signals overwrite.
 	if not is_empty and not _is_confirming_overwrite(slot):
 		_mark_confirming_overwrite(slot)
 		return
@@ -232,7 +232,7 @@ func _on_save_pressed(slot: int, is_empty: bool) -> void:
 		_show_toast("Saved to slot %d." % (slot + 1))
 		_close(false)
 
-# Overwrite confirmation — the second click within 3s actually saves.
+# Overwrite confirmation, the second click within 3s actually saves.
 var _confirming_slot: int = -1
 var _confirming_at: float = 0.0
 

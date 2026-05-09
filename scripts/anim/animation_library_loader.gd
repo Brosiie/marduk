@@ -5,7 +5,7 @@ extends RefCounted
 signal slot_loaded(current: int, total: int, slot_name: String)
 signal apply_complete(bound: int, missing: int)
 
-# AnimationLibraryLoader — pulls Mixamo .fbx animation files off disk,
+# AnimationLibraryLoader, pulls Mixamo .fbx animation files off disk,
 # extracts their Animation resources, and merges them into a character's
 # AnimationPlayer under canonical slot names from AnimationRegistry.
 #
@@ -81,7 +81,7 @@ func apply(character_root: Node, role: String, role_id: StringName) -> void:
 	var shared_map: Dictionary = (registry.get_shared_slot_map() if registry else {})
 
 	# Process slots one at a time, yielding to the renderer between
-	# each. This is what unblocks the loading screen — the renderer
+	# each. This is what unblocks the loading screen, the renderer
 	# gets a frame after every slot, so it can paint the LoadingScreen
 	# overlay, the bg shader pulses, the tip text rotates, etc. while
 	# we crank through .glb loads in the background.
@@ -101,7 +101,7 @@ func apply(character_root: Node, role: String, role_id: StringName) -> void:
 		# 'usurper_footman/spear_thrust.glb' which Bond hasn't downloaded
 		# yet), fall back to the SHARED slot so we still bind something.
 		# Without this, the override silently REPLACES the shared anim
-		# and the slot ends up unbound — mobs spawn with no attack anim
+		# and the slot ends up unbound, mobs spawn with no attack anim
 		# and fall back to idle when striking.
 		if anim == null and shared_map.has(slot):
 			var shared_rel: String = shared_map[slot]
@@ -253,7 +253,7 @@ func _find_skeleton(node: Node) -> Skeleton3D:
 # Path-substring tokens that mark a slot as "should loop continuously".
 # Idle / walk / run / strafe / sprint anims play forever until the state
 # machine changes. Death / hit / attack / dodge / cast / jump are
-# one-shots — looping them makes the player snap out of death pose, the
+# one-shots, looping them makes the player snap out of death pose, the
 # mob stand back up after dying, and attack swings repeat infinitely
 # until manually stopped (a Bond-reported "ronin keeps swinging" bug).
 const _LOOPING_PATH_TOKENS := [
@@ -310,13 +310,13 @@ func _load_animation_from_fbx(path: String) -> Animation:
 		# walk/run/strafe .glbs ship with a position track on
 		# mixamorig_Hips translating the bone ~1.75m +Z over the
 		# loop. The CharacterBody3D ALREADY moves via velocity, so
-		# the anim's root motion compounds — the entire skeleton
+		# the anim's root motion compounds, the entire skeleton
 		# slides forward each cycle and snaps back at the loop
 		# boundary. Visually: the sword (BoneAttachment3D pinned to
 		# the right-hand bone INSIDE that drifting skeleton) detaches
 		# from the body and flies off mid-stride. THE bug Bond
 		# reported as "walking anim glitches the sword out, doesn't
-		# stay in hand". Strip every Hips position track — applied
+		# stay in hand". Strip every Hips position track, applied
 		# universally because even attack/death anims with a small
 		# residual position track would still poke the skeleton.
 		_strip_root_motion_position(anim, path)
@@ -326,7 +326,7 @@ func _load_animation_from_fbx(path: String) -> Animation:
 
 # Find any TYPE_POSITION_3D track that targets the Hips/RootNode bone
 # and convert all keyframes to a constant rest position so the
-# skeleton stays in-place. Leaves rotation tracks alone — those drive
+# skeleton stays in-place. Leaves rotation tracks alone, those drive
 # the actual visual walk cycle. Cheap: only walks track headers and
 # rewrites keyframes in place rather than rebuilding the Animation.
 func _strip_root_motion_position(anim: Animation, src_path: String = "") -> void:
@@ -348,7 +348,7 @@ func _strip_root_motion_position(anim: Animation, src_path: String = "") -> void
 		if not is_root_motion:
 			continue
 		# Use the FIRST keyframe's position as the rest pose so the
-		# Hips don't snap to (0,0,0) — that would put the character's
+		# Hips don't snap to (0,0,0), that would put the character's
 		# pelvis at the floor mid-loop. Mixamo Hips rest is typically
 		# y ≈ 1.0 (pelvis height) with x/z near 0.
 		var n_keys: int = anim.track_get_key_count(t)

@@ -17,7 +17,7 @@ const CLASS_OPENINGS := {
 	&"ronin":                "Your breath has a count. Most people don't notice that about themselves.",
 	&"ranger":               "I smell pine sap and bowstring oil on you. Not unpleasant.",
 	&"mage":                 "There's a hum around you. Mana, settling into a shape it likes.",
-	&"chaos_druid":          "The Wound has touched you. It's not malice — it's just what the Wound does to those who stand close.",
+	&"chaos_druid":          "The Wound has touched you. It's not malice, it's just what the Wound does to those who stand close.",
 	&"paladin_guardian":     "You came in the Crown's white. You've kept it cleaner than most.",
 	&"paladin_lightbringer": "Dawn-light follows you in. You probably don't see it. Most don't.",
 	&"demon":                "Welcome back. I knew you when you had a different name. I won't say it. That's between you and the gate.",
@@ -25,13 +25,13 @@ const CLASS_OPENINGS := {
 }
 
 # Heaven-Rule walk-back overrides the class-line for characters who have
-# already sacrificed the Demon. Only one line — they earned it.
+# already sacrificed the Demon. Only one line, they earned it.
 const WALKED_BACK_OPENING := "I knew you when you had a different name. You took it back. Most don't. Sit. Let me see what's left of you."
 
 const RACE_FLAVOR := {
-	&"anunnaki":         "Babilim's bones in your face — you carry them well.",
+	&"anunnaki":         "Babilim's bones in your face, you carry them well.",
 	&"ash_born":         "The steppes shaped you. The wind there shapes everyone.",
-	&"reed_walker":      "Salt in your hair. The Bay or the Wastes — I won't guess which.",
+	&"reed_walker":      "Salt in your hair. The Bay or the Wastes, I won't guess which.",
 	&"mountain_forged":  "Your hands have known a hammer. The forge marks on your knuckles never lie.",
 	&"wound_marked":     "You were born close to the Wound. It's not your fault. It rarely is.",
 }
@@ -128,7 +128,7 @@ func _marking_line(ca) -> String:
 		&"anunnaki":
 			match ca.cultural_marking:
 				1: return "The kohl around your eyes is steady. Court-bred steady."
-				2: return "I see the bindi at your brow. Whose temple? — never mind. A small mercy I let you keep."
+				2: return "I see the bindi at your brow. Whose temple?, never mind. A small mercy I let you keep."
 				3: return "Calligraphy on the forearm. Which poem? You don't have to say."
 		&"ash_born":
 			match ca.cultural_marking:
@@ -142,7 +142,7 @@ func _marking_line(ca) -> String:
 				3: return "Reed-fiber at the wrist. The braid is your grandmother's, or close enough."
 		&"mountain_forged":
 			match ca.cultural_marking:
-				1: return "The forge-burns on your forearms — geometric, Bone Mountains pattern. Trial earned, not faked."
+				1: return "The forge-burns on your forearms, geometric, Bone Mountains pattern. Trial earned, not faked."
 				2: return "Iron rings in your braid. The clan's count of them, I trust. Don't tell me which."
 				3: return "A pillar-stone amulet. Your line built the original pillars. The Crown took the credit. You remember anyway."
 		&"wound_marked":
@@ -178,7 +178,7 @@ func _weapon_line(player: Node) -> String:
 	var weap = inv.equipped_in(1)
 	if not weap or not ("display_name" in weap):
 		return ""
-	# Heaven detection — a special acknowledgement when the player carries it.
+	# Heaven detection, a special acknowledgement when the player carries it.
 	if "id" in weap and weap.id == &"heaven":
 		return "You carry Heaven. The katana chose you. There is no tradition older. There is no weight greater. I am not going to ask if you sleep."
 	return "You hold the %s. It will outlive most things." % weap.display_name
@@ -294,7 +294,7 @@ func _temporal_gifts_line(ca) -> String:
 	if ca.gift_dark_solstice_trail:
 		bits.append("dark-solstice born; the long shadow is yours and you should learn to walk in it")
 	if ca.gift_founder_mark_year > 0:
-		bits.append("you bear the founder's mark of year %d — there are not many of you left" % ca.gift_founder_mark_year)
+		bits.append("you bear the founder's mark of year %d, there are not many of you left" % ca.gift_founder_mark_year)
 	if bits.is_empty():
 		return ""
 	# Capitalize first letter of the joined string for prose flow.

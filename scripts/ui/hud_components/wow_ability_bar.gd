@@ -9,7 +9,7 @@ class_name WowAbilityBar
 #   - Cooldown swirl overlay (alpha fade)
 #   - Tooltip with name + cooldown + cost on hover
 #
-# The bar draws procedurally — no separate .tscn — so it can be added by
+# The bar draws procedurally, no separate .tscn, so it can be added by
 # the HUD on _ready and instantly start working.
 
 const SLOT_PX: Vector2 = Vector2(64, 64)  # was 48; 64 reads as Dragonflight, 48 as Vanilla
@@ -37,7 +37,7 @@ var _t: float = 0.0
 # Icon texture cache keyed by ability id. _paint_all runs at 10 Hz; each
 # call previously did 12 * (Image.create + 64*64 set_pixel + ImageTexture
 # .create_from_image) = 120 alloc/sec leaked to the GC. Cache flips that
-# to one rebuild per unique ability per session — kit changes maybe 5
+# to one rebuild per unique ability per session, kit changes maybe 5
 # times in a 30-min playthrough, so cache stays under 20 entries.
 var _icon_cache: Dictionary = {}
 
@@ -76,7 +76,7 @@ func _ready() -> void:
 func _make_slot(idx: int) -> Control:
 	var s := Panel.new()
 	s.custom_minimum_size = SLOT_PX
-	# OUTER frame: gold filigree look. We layer two stylebox panels —
+	# OUTER frame: gold filigree look. We layer two stylebox panels ,
 	# the outer is the gold border with shadow under it, the inner is
 	# the dark cell that holds the icon. Two panels read as 'beveled
 	# metal frame with depth' instead of 'flat colored rectangle'.
@@ -91,7 +91,7 @@ func _make_slot(idx: int) -> Control:
 	sb.border_width_bottom = 2
 	sb.set_corner_radius_all(6)
 	# Drop shadow behind the slot. Shadow_size 6 with offset (0,3) reads
-	# as 'lifted off the screen' — the previous flat panels looked
+	# as 'lifted off the screen', the previous flat panels looked
 	# pasted-on and cheap.
 	sb.shadow_color = Color(0, 0, 0, 0.65)
 	sb.shadow_size = 6
@@ -314,7 +314,7 @@ func _update_cooldowns() -> void:
 			cd.anchor_top = 0.0  # reset for next use
 
 # Procedural icon: 64x64 image rendered with multiple compositing
-# passes — vertical gradient body (lit from above), corner vignette,
+# passes, vertical gradient body (lit from above), corner vignette,
 # element glyph, top molten highlight, sparkles. The icon's outer
 # border is drawn by the slot Panel's StyleBoxFlat (gold frame +
 # shadow), so the image itself does NOT paint a 1px outer ring; the
@@ -330,7 +330,7 @@ func _build_ability_icon(k: Dictionary) -> Texture2D:
 		return _icon_cache[ability_id]
 	var img := Image.create(ICON_SIZE, ICON_SIZE, false, Image.FORMAT_RGBA8)
 	var bg: Color = _color_for_id(StringName(k.get("id", "")))
-	# Pass 1 — sky-to-stone vertical gradient. The top of the slot is
+	# Pass 1, sky-to-stone vertical gradient. The top of the slot is
 	# a brighter saturated version of the element color, the bottom
 	# fades to a darker desaturated rocky tone. This reads as 'molten
 	# metal disc set into stone' rather than 'flat colored square'.
@@ -343,7 +343,7 @@ func _build_ability_icon(k: Dictionary) -> Texture2D:
 		var row: Color = top_color.lerp(bot_color, t)
 		for x in ICON_SIZE:
 			img.set_pixel(x, y, row)
-	# Pass 2 — radial vignette darkens the corners so the eye is drawn
+	# Pass 2, radial vignette darkens the corners so the eye is drawn
 	# to the central glyph. Without this the icons read flat even with
 	# the gradient pass.
 	var center := Vector2(ICON_SIZE * 0.5, ICON_SIZE * 0.5)
@@ -355,12 +355,12 @@ func _build_ability_icon(k: Dictionary) -> Texture2D:
 				var fade: float = clamp((d - 0.7) / 0.5, 0.0, 0.85)
 				var px: Color = img.get_pixel(x, y)
 				img.set_pixel(x, y, px.darkened(fade * 0.55))
-	# Pass 3 — glyph. We paint at higher detail using the same
+	# Pass 3, glyph. We paint at higher detail using the same
 	# coordinate space; downstream nearest-filter scaling keeps it
 	# crisp at the 64px slot size.
 	var glyph_color: Color = bg.lightened(0.85).lerp(Color.WHITE, 0.35)
 	_draw_glyph(img, StringName(k.get("id", "")), glyph_color)
-	# Pass 4 — inner bevel highlights: bright top, mid-dark bottom.
+	# Pass 4, inner bevel highlights: bright top, mid-dark bottom.
 	# These run inside the gold-frame margin so the icon reads as 'lit
 	# from above' even after the slot StyleBoxFlat draws its border.
 	for x in ICON_SIZE:
@@ -369,7 +369,7 @@ func _build_ability_icon(k: Dictionary) -> Texture2D:
 	for y in ICON_SIZE:
 		img.set_pixel(1, y, bg.lightened(0.30))
 		img.set_pixel(ICON_SIZE - 2, y, bg.darkened(0.45))
-	# Pass 5 — top-edge molten highlight. Two-pixel band of bright
+	# Pass 5, top-edge molten highlight. Two-pixel band of bright
 	# bg-tinted color across the top, fading down. Adds a 'wet metal'
 	# read at the top edge that simulates the gloss WoW icons get
 	# from their gradient overlays.
@@ -377,7 +377,7 @@ func _build_ability_icon(k: Dictionary) -> Texture2D:
 	for x in ICON_SIZE:
 		img.set_pixel(x, 2, molten.lerp(top_color, 0.25))
 		img.set_pixel(x, 3, molten.lerp(top_color, 0.55))
-	# Pass 6 — corner sparkles for legendary/active abilities. Tiny
+	# Pass 6, corner sparkles for legendary/active abilities. Tiny
 	# 1px dots in the top-left and bottom-right that catch the eye
 	# without dominating. Hue pulled from bg so they read as part of
 	# the same set.
@@ -386,7 +386,7 @@ func _build_ability_icon(k: Dictionary) -> Texture2D:
 	img.set_pixel(5, 4, spark.lerp(top_color, 0.5))
 	img.set_pixel(4, 5, spark.lerp(top_color, 0.5))
 	# Note: outer border is now drawn by the slot Panel's StyleBoxFlat
-	# (gold frame with shadow) — we no longer paint a 1px border on
+	# (gold frame with shadow), we no longer paint a 1px border on
 	# the image itself, which was causing a double-border artifact.
 	var tex: Texture2D = ImageTexture.create_from_image(img)
 	if ability_id != "":
@@ -428,8 +428,8 @@ func _draw_glyph(img: Image, id: StringName, c: Color) -> void:
 func _glyph_sword(img: Image, c: Color) -> void:
 	# Katana-style diagonal blade with proper geometry: tip in upper-
 	# right, grip in lower-left, gold tsuba (crossguard), dark tsuka
-	# (handle). Three layers — outline, fill, highlight stripe along
-	# the edge — read as a real sword instead of a slash.
+	# (handle). Three layers, outline, fill, highlight stripe along
+	# the edge, read as a real sword instead of a slash.
 	var c_outline: Color = c.darkened(0.55)
 	var c_fill: Color = c
 	var c_highlight: Color = c.lightened(0.55)
@@ -500,7 +500,7 @@ func _glyph_lightning(img: Image, c: Color) -> void:
 		Vector2i(34, 28),  # bend right
 		Vector2i(18, 58),  # bottom point
 	]
-	# Outline pass — darker, 1px wider
+	# Outline pass, darker, 1px wider
 	for i in range(pts.size() - 1):
 		_draw_line(img, pts[i], pts[i + 1], c.darkened(0.55), 3)
 	# Body pass

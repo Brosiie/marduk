@@ -1,6 +1,6 @@
 extends Node
 
-# AutoSave — autoload that calls SaveSystem.save_slot(0, player) every
+# AutoSave, autoload that calls SaveSystem.save_slot(0, player) every
 # AUTO_SAVE_INTERVAL seconds while a player exists in the scene.
 #
 # Quiet by design: only logs to the combat log and console, never blocks
@@ -43,7 +43,7 @@ func _wire_event_hooks() -> void:
 	# Quest accept + complete already trigger save_to_save_flags +
 	# _request_autosave inside QuestRegistry. Listening here would
 	# double-save; skip.
-	# Player level-up — defer until player exists (player isn't in
+	# Player level-up, defer until player exists (player isn't in
 	# the tree at autoload-_ready time)
 	_attach_player_signals()
 
@@ -87,7 +87,7 @@ func _attempt_save() -> void:
 	var player := get_tree().get_first_node_in_group("player") if get_tree() else null
 	if player == null:
 		return
-	# Don't autosave during boss fights or while dead — those are bad
+	# Don't autosave during boss fights or while dead, those are bad
 	# moments to crystallize state.
 	if "locked" in player and player.locked:
 		return

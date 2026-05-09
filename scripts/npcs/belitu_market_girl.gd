@@ -10,21 +10,21 @@ class_name BelituMarketGirl
 
 const CLASS_GREETINGS := {
 	&"berserker":            "You look like you've cracked skulls. My brother's twelve. He went into the Cradle two days ago. Could you look?",
-	&"assassin":             "You move quiet. You'd find him faster than the patrols. They're not really looking — they say it's not safe, but I think they mean for them.",
+	&"assassin":             "You move quiet. You'd find him faster than the patrols. They're not really looking, they say it's not safe, but I think they mean for them.",
 	&"ronin":                "Sword-bearer. The Cradle's full of bandits. I think one of them took my brother. He's twelve. His name's Iddi.",
-	&"ranger":               "You track. Could you track a child? He's twelve. Reddish hair. He'd have walked toward the river — he likes the river.",
-	&"mage":                 "You can find things by spell, can't you? My brother walked into the Cradle. He's still alive — I'd know if he wasn't. I'd KNOW.",
+	&"ranger":               "You track. Could you track a child? He's twelve. Reddish hair. He'd have walked toward the river, he likes the river.",
+	&"mage":                 "You can find things by spell, can't you? My brother walked into the Cradle. He's still alive, I'd know if he wasn't. I'd KNOW.",
 	&"chaos_druid":          "You're Wound-Marked. People don't like you. I like you. My brother's been gone two days. The Cradle ate him. Bring him back.",
 	&"paladin_guardian":     "Crown's white. You'd be expected to. My brother's twelve. The Cradle. Two days. Please.",
 	&"paladin_lightbringer": "Sun-blessed. You hear it on people's voices when they pray. My brother prayed every night before bed. He's been gone two days. Find him for me.",
 	&"demon":                "I know what you are. I know I shouldn't. My brother's been gone two days and you're the first person who looked at me like a person, so. Please.",
 }
 
-const DEFAULT_GREETING := "Excuse me — I sell fish, and I have a question. My brother. Have you seen him?"
+const DEFAULT_GREETING := "Excuse me, I sell fish, and I have a question. My brother. Have you seen him?"
 
 const BELITU_QUEST_LADDER := [
-	&"q_belitu_brother",       # lvl 1 — find her missing brother
-	&"q_belitu_druid_friend",  # lvl 3 — slay Inquisition Burners, +Druids / -Inquisition
+	&"q_belitu_brother",       # lvl 1, find her missing brother
+	&"q_belitu_druid_friend",  # lvl 3, slay Inquisition Burners, +Druids / -Inquisition
 ]
 
 func _ready() -> void:
@@ -100,7 +100,7 @@ func _on_accept_quest(dialog_panel: Control) -> void:
 	_refresh_quest_offer()
 
 func _open_dialogue() -> void:
-	# Belitu runs the Singing Goat — opens the inn vendor (potions + drinks)
+	# Belitu runs the Singing Goat, opens the inn vendor (potions + drinks)
 	# rather than the quest dialog. Her quest offer toasts when active so
 	# players know to look for it.
 	_refresh_quest_offer()

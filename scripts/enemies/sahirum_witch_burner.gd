@@ -3,7 +3,7 @@ class_name SahirumWitchBurner
 
 # Sahirum the Witch-Burner.
 # Mini-boss at the end of Coven Glen. Druid's first real test.
-# An Inquisition-prime sent to clean the Wound's frontier — torch, prayer-
+# An Inquisition-prime sent to clean the Wound's frontier, torch, prayer-
 # scroll, and a long iron pole. He hunts Druids specifically. The Wound
 # pushes back through the Druid; Sahirum learned to expect that.
 #
@@ -46,7 +46,7 @@ func _build_patterns() -> Array[BossAttackPattern]:
 	var thrust := BossAttackPattern.new()
 	thrust.id = &"sahirum_thrust"
 	thrust.display_name = "Iron Thrust"
-	thrust.tell_description = "Sahirum sets his back foot — the pole comes straight."
+	thrust.tell_description = "Sahirum sets his back foot, the pole comes straight."
 	thrust.shape = BossAttackPattern.Shape.LINE
 	thrust.range = 4.5
 	thrust.radius = 0.9
@@ -64,12 +64,12 @@ func _build_patterns() -> Array[BossAttackPattern]:
 
 	# TORCH HURL: thrown ranged HOLY damage. Phase 1.
 	# A LINE pattern carrying a holy-tagged hitbox. Druids in Wound-
-	# corruption form take double damage from holy — flagged via
+	# corruption form take double damage from holy, flagged via
 	# the existing damage_type system.
 	var torch := BossAttackPattern.new()
 	torch.id = &"sahirum_torch"
 	torch.display_name = "Burning Torch"
-	torch.tell_description = "Sahirum unhooks his torch — incoming, ducks the line."
+	torch.tell_description = "Sahirum unhooks his torch, incoming, ducks the line."
 	torch.shape = BossAttackPattern.Shape.LINE
 	torch.range = 9.0
 	torch.radius = 0.9
@@ -90,7 +90,7 @@ func _build_patterns() -> Array[BossAttackPattern]:
 	var prayer_line := BossAttackPattern.new()
 	prayer_line.id = &"sahirum_prayer_line"
 	prayer_line.display_name = "Prayer-Line"
-	prayer_line.tell_description = "Sahirum chants and draws a line of holy fire across the ground — leap or run."
+	prayer_line.tell_description = "Sahirum chants and draws a line of holy fire across the ground, leap or run."
 	prayer_line.shape = BossAttackPattern.Shape.AOE_GROUND
 	prayer_line.range = 8.0
 	prayer_line.radius = 1.4
@@ -106,13 +106,13 @@ func _build_patterns() -> Array[BossAttackPattern]:
 	prayer_line.telegraph_color = Color(1.00, 0.85, 0.30, 0.70)
 	prayer_line.dodge_window = 0.55
 
-	# CRUSADER LEAP: phase 2 LEAP — Sahirum vaults onto the player. Slower
+	# CRUSADER LEAP: phase 2 LEAP, Sahirum vaults onto the player. Slower
 	# than other bosses' leaps (he's heavier in mail) but punishing on
 	# landing.
 	var leap := BossAttackPattern.new()
 	leap.id = &"sahirum_leap"
 	leap.display_name = "Crusader Leap"
-	leap.tell_description = "Sahirum gathers himself and JUMPS — heavy crash incoming, dodge AT the marker."
+	leap.tell_description = "Sahirum gathers himself and JUMPS, heavy crash incoming, dodge AT the marker."
 	leap.shape = BossAttackPattern.Shape.LEAP
 	leap.range = 9.0
 	leap.radius = 2.6
@@ -134,7 +134,7 @@ func _build_patterns() -> Array[BossAttackPattern]:
 	var detonation := BossAttackPattern.new()
 	detonation.id = &"sahirum_detonation"
 	detonation.display_name = "Final Prayer"
-	detonation.tell_description = "Sahirum kneels and prays — back away NOW. The light is total."
+	detonation.tell_description = "Sahirum kneels and prays, back away NOW. The light is total."
 	detonation.shape = BossAttackPattern.Shape.AOE_AROUND_BOSS
 	detonation.radius = 4.5
 	detonation.range = 4.5
@@ -160,7 +160,7 @@ func _die_custom() -> void:
 		arena.on_boss_defeated(boss_id)
 
 func _drop_inquisitor_mace() -> void:
-	# Sahirum carries a polearm but the loot is a one-handed bludgeon —
+	# Sahirum carries a polearm but the loot is a one-handed bludgeon ,
 	# his secondary, the one he used to break confessions out of suspects.
 	# Druid-restricted because the Druid is the one who took it from him.
 	var mace := Item.new()

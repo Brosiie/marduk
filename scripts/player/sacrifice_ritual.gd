@@ -11,7 +11,7 @@ class_name SacrificeRitual
 
 # Demon-only items become these inert "Inheritance Trinkets" after the sacrifice.
 # Their stats are zeroed but the lore lines persist (badges of what the Demon was).
-const INHERITANCE_TRINKET_PREFIX := "Inheritance Trinket — "
+const INHERITANCE_TRINKET_PREFIX := "Inheritance Trinket, "
 
 # Performs the full walk-back ritual on the given Player node.
 # Returns true on success, false if validation failed (and logs why).
@@ -33,7 +33,7 @@ static func walk_back(player: Node) -> bool:
 		push_warning("[SacrificeRitual] only Demon-class characters can walk back")
 		return false
 
-	# Resolve the pre-Lucifer class (default Ronin if unset — see § 18.9 edge cases)
+	# Resolve the pre-Lucifer class (default Ronin if unset, see § 18.9 edge cases)
 	var pre_class_id: StringName = ca.pre_lucifer_class_id
 	if pre_class_id == &"":
 		push_warning("[SacrificeRitual] pre_lucifer_class_id missing; defaulting to Ronin")
@@ -74,7 +74,7 @@ static func walk_back(player: Node) -> bool:
 	# === Step 3: Strip Demon visual overlay ===
 	ca.demon_overlay = null
 	ca.carries_sacrifice_scar = true
-	# Reapply appearance from scratch — removes horns, eye glow, veins, claws.
+	# Reapply appearance from scratch, removes horns, eye glow, veins, claws.
 	var appearance_registry: Node = player.get_node_or_null("/root/AppearanceRegistry")
 	if appearance_registry and appearance_registry.has_method("apply"):
 		appearance_registry.apply(player, ca)
@@ -89,7 +89,7 @@ static func walk_back(player: Node) -> bool:
 		_convert_demon_items_to_trinkets(player.inventory)
 
 	# === Step 6: Award both Mortal Returned title variants ===
-	# Player picks one to display — see TitleRegistry._register_sacrifice_titles.
+	# Player picks one to display, see TitleRegistry._register_sacrifice_titles.
 	var title_registry: Node = player.get_node_or_null("/root/TitleRegistry")
 	if title_registry and title_registry.has_method("award"):
 		title_registry.award(&"the_mortal_returned")
@@ -103,7 +103,7 @@ static func walk_back(player: Node) -> bool:
 	if player.has_signal("class_changed"):
 		player.emit_signal("class_changed", pre_class)
 
-	# === Step 9: Cinematic + audio (Tier 2 — placeholder hook) ===
+	# === Step 9: Cinematic + audio (Tier 2, placeholder hook) ===
 	_play_walk_back_cinematic(player)
 
 	# === Step 10: Auto-equip Heaven if the new class is Ronin ===
@@ -174,7 +174,7 @@ static func _attempt_auto_equip_heaven(player: Node) -> void:
 		player.inventory.equip(heaven_in_bag, -1, player.stats.class_def)
 
 # Internal: hook for the 8-second outbound gate-walk cinematic.
-# Tier 2 implementation — for now it just plays a juice flash + slowmo.
+# Tier 2 implementation, for now it just plays a juice flash + slowmo.
 static func _play_walk_back_cinematic(player: Node) -> void:
 	var juice: Node = player.get_node_or_null("/root/Juice")
 	if juice:
@@ -184,7 +184,7 @@ static func _play_walk_back_cinematic(player: Node) -> void:
 			juice.flash(Color(0.95, 0.92, 0.80), 0.8, 1.6)  # warm dawn-light flash
 		if juice.has_method("toast"):
 			juice.toast("THE GATE DOES NOT OPEN TWICE", Color(0.95, 0.92, 0.80), 3.0)
-	# Audio: layered cue — victory arpeggio (the player won) + lodestone
+	# Audio: layered cue, victory arpeggio (the player won) + lodestone
 	# (the gate-walk-out). The combo sells "this was a transformation, not
 	# a defeat." `&"sacrifice"` was a hypothetical cue name; using existing
 	# cues so the audio actually plays.

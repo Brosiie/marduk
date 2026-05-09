@@ -15,7 +15,7 @@ func _ready() -> void:
 	# the quest dictionary is built. Without this, every relaunch
 	# resets the player's quest log to empty even if they had an
 	# active quest mid-objective. Auto-accepted prologues will
-	# re-fire on top of restored state — that's fine because
+	# re-fire on top of restored state, that's fine because
 	# accept_quest no-ops if the quest is already active or completed.
 	call_deferred("_load_from_save_flags")
 
@@ -28,14 +28,14 @@ func _save_to_save_flags() -> void:
 	var sf: Node = get_node_or_null("/root/SaveFlags")
 	if sf == null or not sf.has_method("set_run"):
 		return
-	# Active quests: list of ids only — re-resolved from `quests` dict
+	# Active quests: list of ids only, re-resolved from `quests` dict
 	# at load time so we don't snapshot the (potentially huge) Quest
 	# resource into the save file.
 	var active_ids: Array = []
 	for id in _active.keys():
 		active_ids.append(String(id))
 	sf.set_run(_SAVEFLAG_ACTIVE, active_ids)
-	# Completed quests: same pattern — ids only.
+	# Completed quests: same pattern, ids only.
 	var completed_ids: Array = []
 	for id in _completed.keys():
 		completed_ids.append(String(id))
@@ -57,7 +57,7 @@ func _load_from_save_flags() -> void:
 	# (which crashes Godot 4 typed-variable assignment).
 	var active_raw: Variant = sf.get_run(_SAVEFLAG_ACTIVE, [])
 	if not (active_raw is Array):
-		return  # fresh save or corrupted payload — nothing to restore
+		return  # fresh save or corrupted payload, nothing to restore
 	var active_ids: Array = active_raw
 	var completed_raw: Variant = sf.get_run(_SAVEFLAG_COMPLETED, [])
 	var completed_ids: Array = completed_raw if completed_raw is Array else []
@@ -415,7 +415,7 @@ func complete_quest(id: StringName) -> bool:
 	quest_completed.emit(q)
 	_save_to_save_flags()
 	# Event-driven autosave so completion progress isn't lost on
-	# crash. Quest completions are MAJOR moments — the player is
+	# crash. Quest completions are MAJOR moments, the player is
 	# expecting their reward to be permanent.
 	_request_autosave()
 	# Toast for completion + brief slowmo to mark the moment
@@ -426,7 +426,7 @@ func complete_quest(id: StringName) -> bool:
 	return true
 
 # Fire-and-forget autosave to slot 0 (the autosave slot). Skips
-# silently if SaveSystem or Player isn't available — not every
+# silently if SaveSystem or Player isn't available, not every
 # context (e.g. main menu) has a player to snapshot.
 func _request_autosave() -> void:
 	var ss: Node = get_node_or_null("/root/SaveSystem")
@@ -553,7 +553,7 @@ func is_completed(id: StringName) -> bool:
 	return _completed.has(id)
 
 # ----------------------------------------------------------------
-# STARTER QUESTS (Ashurim NPCs) — bind directly to the 3 plaza NPCs
+# STARTER QUESTS (Ashurim NPCs), bind directly to the 3 plaza NPCs
 # (Storyteller, Iddinu, Belitu) so a fresh character gets immediate
 # objectives the moment they reach Ashurim.
 # ----------------------------------------------------------------
@@ -585,16 +585,16 @@ func _register_faction_starter_quests() -> void:
 	if quests.has(&"q_iddinu_supplies"):
 		quests[&"q_iddinu_supplies"].faction_rep_changes = {&"crown": 250, &"black_sail": -75}
 
-	# IDDINU — Crown loyalty harder line. Big +Crown, moderate -BlackSail.
+	# IDDINU, Crown loyalty harder line. Big +Crown, moderate -BlackSail.
 	var crown_q := _make(&"q_iddinu_crown_loyalty", "Caravan Toll",
-		"Iddinu's caravan was hit on the Reed Road. He wants the bandits dealt with — properly, by the Crown's measure of properly. Eight Ash-Step raiders, ten if you're feeling thorough.",
+		"Iddinu's caravan was hit on the Reed Road. He wants the bandits dealt with, properly, by the Crown's measure of properly. Eight Ash-Step raiders, ten if you're feeling thorough.",
 		&"iddinu", 3,
 		[{"description": "Slay 8 Ash-Step Raiders", "kind": "kill", "target_id": "raider_grunt", "required_count": 8}],
 		600, 150)
 	crown_q.faction_rep_changes = {&"crown": 500, &"black_sail": -200}
 
-	# IDDINU — Black Sail side-gig. Quartermaster's running cargo on the
-	# side; pirates pay too. +BlackSail, -Crown — forces a real choice.
+	# IDDINU, Black Sail side-gig. Quartermaster's running cargo on the
+	# side; pirates pay too. +BlackSail, -Crown, forces a real choice.
 	var bs_q := _make(&"q_iddinu_blacksail_sidegig", "Side Goods (No Questions)",
 		"Iddinu pulls you aside. The Crown audit's on him next week. He's got crates that need to vanish before the auditor arrives. The Black Sail will pay if they make it to the Bay. The Crown will not be pleased if you do this.",
 		&"iddinu", 4,
@@ -602,7 +602,7 @@ func _register_faction_starter_quests() -> void:
 		700, 250)
 	bs_q.faction_rep_changes = {&"black_sail": 400, &"crown": -300}
 
-	# BELITU — Druid sympathy. Belitu has cousins in the Wound; she sends
+	# BELITU, Druid sympathy. Belitu has cousins in the Wound; she sends
 	# the player to slow the Inquisition down. +Druids, -Inquisition.
 	var druid_q := _make(&"q_belitu_druid_friend", "Cousin Across the Wound",
 		"Belitu's cousin is in the Verdant Wound. She heard the Inquisition is coming through. She doesn't want her cousin to be there when they arrive. Slow the Inquisitors down. She'll pay what she has.",
@@ -611,7 +611,7 @@ func _register_faction_starter_quests() -> void:
 		550, 120)
 	druid_q.faction_rep_changes = {&"druids": 400, &"inquisition": -300}
 
-	# STORYTELLER — Six Breaths quest. Bound spirits left over from the
+	# STORYTELLER, Six Breaths quest. Bound spirits left over from the
 	# old binding-mage tradition. Releasing them is the temple's mercy.
 	var sb_q := _make(&"q_storyteller_six_breaths", "The Bound Things Sleep Badly",
 		"The Storyteller has been asked, quietly, to find someone willing to release the bound things in the Inkstone Tower's lower archives. The temple cannot order it. The temple does not forget those who try.",
@@ -620,7 +620,7 @@ func _register_faction_starter_quests() -> void:
 		600, 100)
 	sb_q.faction_rep_changes = {&"six_breaths": 400}
 
-	# STORYTELLER — Inquisition zealotry quest. The Storyteller doesn't
+	# STORYTELLER, Inquisition zealotry quest. The Storyteller doesn't
 	# love the Inquisition either, but the Wound is the Wound; she'll
 	# accept its containment as harm-reduction. Burns the player toward
 	# the Inquisition.

@@ -15,7 +15,7 @@ func _ready() -> void:
 	_register_profession_titles()
 	_register_meta_titles()
 
-# Single API for awarding a title to the active character. Idempotent —
+# Single API for awarding a title to the active character. Idempotent ,
 # re-awarding sets the SaveFlag again but only emits the unlock signal once.
 # Mirrors the pattern used by AchievementTracker._award.
 func award(title_id: StringName) -> bool:
@@ -140,13 +140,13 @@ func _register_sacrifice_titles() -> void:
 	_make(&"the_mortal_returned", "The Mortal Returned",
 		"Walk back through Lucifer's gate. Sacrifice the Demon form to reclaim mortality.",
 		Title.Format.FULL_REPLACE, Color(0.95, 0.92, 0.80),
-		"What walks back through Lucifer's gate is no longer mortal — but you walked back anyway. The gate does not open twice. The sword has decided you. It does not decide many.")
+		"What walks back through Lucifer's gate is no longer mortal, but you walked back anyway. The gate does not open twice. The sword has decided you. It does not decide many.")
 
 	# Display variant of the same earn. Player can pick either at the title-equip screen.
 	_make(&"twice_walker", "Twice-Walker",
 		"Sacrifice the Demon form via the Heaven Rule. Display variant of The Mortal Returned.",
 		Title.Format.SUFFIX, Color(0.85, 0.82, 0.65),
-		"You walked through the gate. You walked back. Two crossings of Lucifer's threshold — fewer have done it than have killed Tiamat.")
+		"You walked through the gate. You walked back. Two crossings of Lucifer's threshold, fewer have done it than have killed Tiamat.")
 
 # ----------------------------------------------------------------
 # HUMOR TITLES (the funny ones)

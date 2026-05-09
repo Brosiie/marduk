@@ -49,7 +49,7 @@ func _ready() -> void:
 	if not _active:
 		return
 	print("\n========================================")
-	print("[PlaytestBot] ACTIVE — scripted scenarios queued")
+	print("[PlaytestBot] ACTIVE, scripted scenarios queued")
 	print("========================================\n")
 	_start_time = _now()
 	# Wait for the scene + player to be ready before driving anything.
@@ -95,11 +95,11 @@ func _run() -> void:
 	# Phase 7: aggro a mob (find one, walk toward it)
 	await _scenario_mob_aggro()
 
-	# Phase 8: combat — damage a mob, observe hit_react anim, kill it
+	# Phase 8: combat, damage a mob, observe hit_react anim, kill it
 	# observe death anim. Verifies the new one-shot anim wiring.
 	await _scenario_mob_damage_and_death()
 
-	# Phase 9: boss fight — verify boss is alive, has multi-pattern AI,
+	# Phase 9: boss fight, verify boss is alive, has multi-pattern AI,
 	# eventually fires LEAP / CHARGE / SLAM / BURST patterns over a
 	# 12-second observation window. Bond's complaint was the boss
 	# "felt lifeless"; this asserts the boss DOES things.
@@ -213,7 +213,7 @@ func _scenario_walk_forward() -> void:
 		if drift < 0.6:
 			_pass("sword_tracks_hand", "sword offset drift mid-walk = %.2fm (in-hand)" % drift)
 		else:
-			_fail("sword_tracks_hand", "sword drifted %.2fm during walk — root motion leaking" % drift)
+			_fail("sword_tracks_hand", "sword drifted %.2fm during walk, root motion leaking" % drift)
 			# Diagnostic: dump the walk-anim position track so we see
 			# whether the strip actually persisted into the library.
 			_dump_walk_anim_position_track()
@@ -232,7 +232,7 @@ func _scenario_lock_on() -> void:
 		return
 	# Find the nearest enemy; teleport the player adjacent and aim the
 	# camera_rig at it so the FOV+range gates pass. The harness map is
-	# 80m half-extent — naive enemy spawns can land outside LOCK_RANGE
+	# 80m half-extent, naive enemy spawns can land outside LOCK_RANGE
 	# (22m) or behind the default camera facing, both of which look
 	# identical to a "broken lock-on" from outside.
 	var nearest: Node3D = null
@@ -343,7 +343,7 @@ func _scenario_mob_aggro() -> void:
 	var detect_r: float = float(mob.detect_radius) if "detect_radius" in mob else 8.0
 	var to_mob: Vector3 = (mob as Node3D).global_position - _player.global_position
 	to_mob.y = 0
-	# Park at 90% of detect_radius — close enough to trigger aggro,
+	# Park at 90% of detect_radius, close enough to trigger aggro,
 	# far enough that the mob doesn't immediately enter melee + start
 	# trading damage (which would taint the next scenario's mob HP).
 	var park_dist: float = max(3.0, detect_r * 0.9)
@@ -408,7 +408,7 @@ func _scenario_mob_damage_and_death() -> void:
 		_fail("hit_react", "mob has no AnimationPlayer")
 		return
 	var hp_before: float = float(mob.hp) if "hp" in mob else 0.0
-	# Apply 5% of max HP — small enough to never lethal-kill, big enough
+	# Apply 5% of max HP, small enough to never lethal-kill, big enough
 	# to register as a take_damage call
 	var dmg: float = max(1.0, float(mob.max_hp if "max_hp" in mob else 100) * 0.05)
 	mob.take_damage(dmg, _player)
@@ -418,7 +418,7 @@ func _scenario_mob_damage_and_death() -> void:
 			_pass("damage_applies", "hp %.1f -> %.1f after take_damage" % [hp_before, hp_after])
 		else:
 			_fail("damage_applies", "hp unchanged after take_damage (%.1f)" % hp_after)
-	# Sample the anim within 100ms — that's well inside the lock window
+	# Sample the anim within 100ms, that's well inside the lock window
 	await _wait(0.10)
 	var played: String = String(mob_ap.current_animation)
 	if played.find("hit_react") >= 0 or played.find("hit") >= 0:
@@ -441,7 +441,7 @@ func _scenario_mob_damage_and_death() -> void:
 
 # Boss-fight observation: spawn / locate the boss, walk into the arena
 # trigger if needed, then observe the boss's pattern selections over a
-# 12s window. Bond's complaint: boss felt lifeless — we now verify the
+# 12s window. Bond's complaint: boss felt lifeless, we now verify the
 # boss FIRES patterns (and ideally multiple distinct ones).
 func _scenario_boss_fight() -> void:
 	# Find the boss. sword_vow_ruins ships an EnforcerKazat anchored
@@ -450,7 +450,7 @@ func _scenario_boss_fight() -> void:
 	if bosses.is_empty():
 		_findings.append("(skip boss_fight: no boss in scene)")
 		return
-	# Pick a LIVE boss — earlier scenarios may have killed bosses[0] via
+	# Pick a LIVE boss, earlier scenarios may have killed bosses[0] via
 	# damage exchange. Walk the list so we always start the test with
 	# something the AI can drive.
 	var boss = null
@@ -488,7 +488,7 @@ func _scenario_boss_fight() -> void:
 			captured_patterns.append(p)
 	await _wait(0.3)
 	if not is_instance_valid(boss):
-		_fail("boss_alive", "boss freed during 0.3s setup wait — pre_hp=%.0f, pos=%s, detect_r=%.1f" % [boss_hp_pre, str(boss_pos), detect_r])
+		_fail("boss_alive", "boss freed during 0.3s setup wait, pre_hp=%.0f, pos=%s, detect_r=%.1f" % [boss_hp_pre, str(boss_pos), detect_r])
 		return
 	# Observe the boss's _current_pattern over 12 seconds. Any
 	# pattern firing is the bare minimum; we hope to see at least 2
@@ -521,10 +521,10 @@ func _scenario_boss_fight() -> void:
 		var diag: String = "state=%s target=%s" % [first_state_seen, first_target_seen]
 		if boss_died_at > 0.0:
 			diag += " (boss died at t+%.1fs)" % (boss_died_at - (deadline - 12.0))
-		_fail("boss_alive", "boss never fired a single pattern in 12s — feels lifeless [%s]" % diag)
+		_fail("boss_alive", "boss never fired a single pattern in 12s, feels lifeless [%s]" % diag)
 	elif seen_patterns.size() == 1:
 		var only_one: String = seen_patterns.keys()[0]
-		_findings.append("(boss_alive: only fired '%s' — could be variety bug)" % only_one)
+		_findings.append("(boss_alive: only fired '%s', could be variety bug)" % only_one)
 		_pass("boss_alive", "fired 1 pattern (%s) in 12s" % only_one)
 	else:
 		_pass("boss_alive", "fired %d distinct patterns in 12s: %s" % [
@@ -547,13 +547,13 @@ func _scenario_boss_fight() -> void:
 	elif has_leap or has_charge:
 		_fail("boss_movement", "boss has only one of LEAP/CHARGE")
 	else:
-		_fail("boss_movement", "boss has neither LEAP nor CHARGE — Bond's lifeless complaint")
+		_fail("boss_movement", "boss has neither LEAP nor CHARGE, Bond's lifeless complaint")
 
 # --------------------------------------------------------------
 # END-TO-END GAME-LOOP SCENARIOS
 # --------------------------------------------------------------
 #
-# These don't test individual actor behavior — they test that the
+# These don't test individual actor behavior, they test that the
 # SYSTEMS hang together so the game feels like a real game. Each
 # scenario exercises a complete loop (accept → progress → complete,
 # pickup → save → reload → restore, attune → save → reload → still
@@ -573,7 +573,7 @@ func _scenario_quest_progress_loop() -> void:
 		return
 	var active: Array = qr.get_active_quests()
 	if active.is_empty():
-		_fail("quest_active", "no active quests on spawn — auto-accept didn't fire")
+		_fail("quest_active", "no active quests on spawn, auto-accept didn't fire")
 		return
 	var first = active[0]
 	var quest_id: StringName = first.id if "id" in first else &""
@@ -582,7 +582,7 @@ func _scenario_quest_progress_loop() -> void:
 		return
 	# Read the FIRST kill objective's target_id from the active quest
 	# so the test fires credit against the right mob/boss. Hard-coding
-	# usurper_footman was wrong — Ronin's prologue tracks Kazat
+	# usurper_footman was wrong, Ronin's prologue tracks Kazat
 	# (usurper_enforcer), not the trash mobs.
 	var objectives: Array = first.get("objectives_data", []) if typeof(first) == TYPE_DICTIONARY else first.objectives_data
 	var target_id: StringName = &""
@@ -611,7 +611,7 @@ func _scenario_quest_progress_loop() -> void:
 	if count_after_val > count_before_val:
 		_pass("quest_progress", "kill credit advanced %s objective: %d -> %d" % [quest_id, count_before_val, count_after_val])
 	else:
-		_fail("quest_progress", "kill credit did not advance %s (still %d) — quest tracker won't move during play" % [quest_id, count_after_val])
+		_fail("quest_progress", "kill credit did not advance %s (still %d), quest tracker won't move during play" % [quest_id, count_after_val])
 
 # 2. XP gain → level up → attribute gain. Snapshot stats.level + a
 # primary attribute, dump in enough XP to level twice, verify both
@@ -640,7 +640,7 @@ func _scenario_xp_level_up_loop() -> void:
 
 # 3. Save-reload round-trip: pick a unique stat value, write to slot
 # 99, reset stat, load slot 99, verify the value came back. Doesn't
-# need a real game restart — exercises the SaveSystem path directly.
+# need a real game restart, exercises the SaveSystem path directly.
 func _scenario_save_load_round_trip() -> void:
 	var ss: Node = get_node_or_null("/root/SaveSystem")
 	if ss == null or not ss.has_method("save_slot") or not ss.has_method("load_slot"):
@@ -656,7 +656,7 @@ func _scenario_save_load_round_trip() -> void:
 	# Save to slot 99 (test slot, doesn't clobber autosave at 0)
 	var saved: bool = ss.save_slot(99, _player)
 	if not saved:
-		_fail("save_load", "save_slot returned false — SaveSystem couldn't write")
+		_fail("save_load", "save_slot returned false, SaveSystem couldn't write")
 		_player.stats.xp = orig_xp
 		return
 	# Mutate the stat
@@ -664,7 +664,7 @@ func _scenario_save_load_round_trip() -> void:
 	# Reload
 	var loaded: bool = ss.load_slot(99, _player)
 	if not loaded:
-		_fail("save_load", "load_slot returned false — file not found or parse failure")
+		_fail("save_load", "load_slot returned false, file not found or parse failure")
 		_player.stats.xp = orig_xp
 		return
 	# Assert
@@ -886,7 +886,7 @@ func _scenario_boss_defeated_blocks_arena() -> void:
 	if skipped:
 		_pass("boss_defeated_gate", "arena recognizes %s as already defeated" % arena_boss_id)
 	else:
-		_fail("boss_defeated_gate", "arena DOES NOT skip engagement for already-defeated %s — would re-trigger fight on reload" % arena_boss_id)
+		_fail("boss_defeated_gate", "arena DOES NOT skip engagement for already-defeated %s, would re-trigger fight on reload" % arena_boss_id)
 
 # 8. Faction kill rep: read Crown rep, set a baseline, fire the kill
 # bridge with a stand-in target carrying faction_rep_on_kill, verify
@@ -910,7 +910,7 @@ func _scenario_faction_kill_rep() -> void:
 	fake.set_meta("faction_rep_on_kill", {&"crown": -100, &"druids": 50})
 	# Plain `target.faction_rep_on_kill` works because GDScript's `in`
 	# operator + property access falls through to set_meta-stored values
-	# only when wrapped — we need a real property. Easiest: set on a
+	# only when wrapped, we need a real property. Easiest: set on a
 	# Resource-like wrapper. Skip the meta path and use a script.
 	fake.queue_free()
 	var script := GDScript.new()
@@ -1161,7 +1161,7 @@ func _scenario_mesh_integrity() -> void:
 		_fail("mesh_present", "player.mesh is null")
 		return
 	# Walk ALL Skeleton3Ds under the mesh, find the one with the
-	# largest bone count — that's the Mixamo body skeleton (~75 bones).
+	# largest bone count, that's the Mixamo body skeleton (~75 bones).
 	# A first-found pick can land on smaller skeletons attached to
 	# child meshes or props.
 	var skels: Array = mesh.find_children("*", "Skeleton3D", true, false)
@@ -1177,7 +1177,7 @@ func _scenario_mesh_integrity() -> void:
 	_pass("mesh_skeleton", "%d bones" % skel.get_bone_count())
 	# Check the BoneAttachment3D for the katana exists. Use mesh-wide
 	# search (not skel-scoped) so it doesn't matter which skeleton
-	# the attachment ended up under — only that it exists somewhere
+	# the attachment ended up under, only that it exists somewhere
 	# in the player's mesh tree.
 	var attach: BoneAttachment3D = null
 	for n in mesh.find_children("*", "BoneAttachment3D", true, false):
@@ -1210,7 +1210,7 @@ func _scenario_mesh_integrity() -> void:
 # Resolve the sword's global position relative to the player. Used by
 # the walk scenario to detect root-motion bleed (sword sliding off the
 # body during a walk loop). Returns Vector3.ZERO if anything in the
-# resolution chain is missing — caller treats ZERO as 'skip the check'.
+# resolution chain is missing, caller treats ZERO as 'skip the check'.
 func _read_sword_offset_to_player() -> Vector3:
 	if not is_instance_valid(_player):
 		return Vector3.ZERO

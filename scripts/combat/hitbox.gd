@@ -62,7 +62,7 @@ func _try_damage(target: Node) -> void:
 	# Players hold the combo state; mobs/bosses ignore.
 	if attacker and attacker.has_method("on_hit_landed"):
 		attacker.on_hit_landed()
-	# ELEMENT STATUS EFFECTS — fire abilities apply burn DoT, frost
+	# ELEMENT STATUS EFFECTS, fire abilities apply burn DoT, frost
 	# applies slow, lightning chains to nearby enemies. Each element
 	# becomes a verb in combat instead of just a damage-type tag.
 	# Skip for player-team hits on player (e.g. self-AOEs would
@@ -104,7 +104,7 @@ const ELEMENT_COLORS := {
 #   SHADOW    -> weakness (damage_dealt_mult 0.65, 4s)
 #   HOLY      -> mark (defender takes +25% from all sources, 3s)
 #
-# Other elements (PHYSICAL, ARCANE) are no-ops — those rely on raw
+# Other elements (PHYSICAL, ARCANE) are no-ops, those rely on raw
 # damage as their identity.
 func _apply_element_effect(target: Node, element: int, attacker: Node) -> void:
 	if target == null or not is_instance_valid(target):
@@ -145,7 +145,7 @@ func _apply_element_effect(target: Node, element: int, attacker: Node) -> void:
 			effect.duration = 3.0
 			effect.damage_taken_mult = 1.25
 		Ability.DamageType.LIGHTNING:
-			# Lightning is INSTANT chain — no DoT/buff. Find the
+			# Lightning is INSTANT chain, no DoT/buff. Find the
 			# nearest other enemy within 5m of the original target
 			# and deal 50% damage. No status effect resource needed.
 			_chain_lightning_jump(target, attacker)
@@ -155,7 +155,7 @@ func _apply_element_effect(target: Node, element: int, attacker: Node) -> void:
 
 # One-shot chain: pick the nearest OTHER enemy within 5m of the
 # original target and deal 50% damage to it. Used by FIRE/FROST?
-# No — only by LIGHTNING. Reads as 'electric arc jumps to second
+# No, only by LIGHTNING. Reads as 'electric arc jumps to second
 # foe'.
 func _chain_lightning_jump(original_target: Node, attacker: Node) -> void:
 	if original_target == null or not original_target is Node3D:

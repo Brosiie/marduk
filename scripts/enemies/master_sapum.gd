@@ -24,7 +24,7 @@ func _ready() -> void:
 
 	max_hp = 380.0
 	hp = max_hp
-	armor = 4.0      # light, fast — Assassin tier
+	armor = 4.0      # light, fast, Assassin tier
 	magic_resist = 6.0
 	move_speed = 4.2  # fastest mini-boss so far
 	detect_radius = 24.0
@@ -43,11 +43,11 @@ func _ready() -> void:
 
 func _build_patterns() -> Array[BossAttackPattern]:
 	# DUAL DAGGER STRIKE: short cone arc, fast windup. Phase 1 mainstay.
-	# Assassin-flavored — quick double-stab that opens with a feint.
+	# Assassin-flavored, quick double-stab that opens with a feint.
 	var dual := BossAttackPattern.new()
 	dual.id = &"sapum_dual"
 	dual.display_name = "Five-Stab"
-	dual.tell_description = "Sapum's hands blur — a double-strike feint and follow-through."
+	dual.tell_description = "Sapum's hands blur, a double-strike feint and follow-through."
 	dual.shape = BossAttackPattern.Shape.FORWARD_CONE
 	dual.range = 2.6
 	dual.radius = 1.4
@@ -64,13 +64,13 @@ func _build_patterns() -> Array[BossAttackPattern]:
 	dual.telegraph_color = Color(0.65, 0.95, 0.45, 0.55)
 	dual.dodge_window = 0.45
 
-	# KUNAI PAIR: two thrown daggers, line shape — long range pickoff.
+	# KUNAI PAIR: two thrown daggers, line shape, long range pickoff.
 	# Phase 1; the projectile spawn isn't bound to a real projectile node yet
 	# so it deals damage at range as if Sapum's reach extended.
 	var kunai := BossAttackPattern.new()
 	kunai.id = &"sapum_kunai"
 	kunai.display_name = "Twin Kunai"
-	kunai.tell_description = "Sapum draws two from his fan-belt — get sideways or expect to bleed."
+	kunai.tell_description = "Sapum draws two from his fan-belt, get sideways or expect to bleed."
 	kunai.shape = BossAttackPattern.Shape.LINE
 	kunai.range = 11.0
 	kunai.radius = 0.6
@@ -93,7 +93,7 @@ func _build_patterns() -> Array[BossAttackPattern]:
 	var cloud := BossAttackPattern.new()
 	cloud.id = &"sapum_venom_cloud"
 	cloud.display_name = "Venom Bloom"
-	cloud.tell_description = "Sapum hurls a green vial — the cloud lingers, do not stand in it."
+	cloud.tell_description = "Sapum hurls a green vial, the cloud lingers, do not stand in it."
 	cloud.shape = BossAttackPattern.Shape.AOE_GROUND
 	cloud.range = 7.0
 	cloud.radius = 2.4
@@ -111,12 +111,12 @@ func _build_patterns() -> Array[BossAttackPattern]:
 
 	# SHADOW STEP: short LEAP-style teleport-strike. Phase 2 distance closer.
 	# Sapum vanishes and reappears on the player's last position with a
-	# strike. Shorter range than Hassu's Pillar-Vault — this is a knife,
+	# strike. Shorter range than Hassu's Pillar-Vault, this is a knife,
 	# not a hammer.
 	var shadow_step := BossAttackPattern.new()
 	shadow_step.id = &"sapum_shadow_step"
 	shadow_step.display_name = "Shadow Step"
-	shadow_step.tell_description = "Sapum dissolves into smoke — he is appearing AT you. Dodge through, not back."
+	shadow_step.tell_description = "Sapum dissolves into smoke, he is appearing AT you. Dodge through, not back."
 	shadow_step.shape = BossAttackPattern.Shape.LEAP
 	shadow_step.range = 7.0
 	shadow_step.radius = 1.6
@@ -132,13 +132,13 @@ func _build_patterns() -> Array[BossAttackPattern]:
 	shadow_step.telegraph_color = Color(0.20, 0.30, 0.25, 0.70)
 	shadow_step.dodge_window = 0.45
 
-	# FLURRY: phase 2 capstone — Sapum spins through a full arc fast,
+	# FLURRY: phase 2 capstone, Sapum spins through a full arc fast,
 	# anti-camping radial. Five strikes in 0.6 seconds; sounds like
 	# his five mouths are speaking at once.
 	var flurry := BossAttackPattern.new()
 	flurry.id = &"sapum_flurry"
 	flurry.display_name = "Five-Mouth Chorus"
-	flurry.tell_description = "Sapum lowers all five blades and starts to spin — back away, do not block."
+	flurry.tell_description = "Sapum lowers all five blades and starts to spin, back away, do not block."
 	flurry.shape = BossAttackPattern.Shape.AOE_AROUND_BOSS
 	flurry.radius = 2.6
 	flurry.range = 2.6

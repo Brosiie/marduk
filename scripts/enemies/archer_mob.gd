@@ -21,7 +21,7 @@ class_name ArcherMob
 
 const RETREAT_SPEED_MULT := 0.85
 
-# Strafe state — sign (-1 / +1) flips every 1.5-2.6s so the archer
+# Strafe state, sign (-1 / +1) flips every 1.5-2.6s so the archer
 # weaves laterally while in the kite-fire band.
 var _strafe_dir_sign: float = 1.0
 var _strafe_timer: float = 0.0
@@ -36,7 +36,7 @@ func _has_line_of_sight() -> bool:
 	var from_pos: Vector3 = global_position + Vector3(0, 1.6, 0)
 	var to_pos: Vector3 = (target as Node3D).global_position + Vector3(0, 1.4, 0)
 	var query := PhysicsRayQueryParameters3D.create(from_pos, to_pos)
-	query.collision_mask = 1  # world geometry layer only — ignore actors
+	query.collision_mask = 1  # world geometry layer only, ignore actors
 	query.exclude = [get_rid()]
 	var hit := space.intersect_ray(query)
 	# Empty hit means no obstruction → LOS clear. A wall hit means
@@ -73,7 +73,7 @@ func _physics_process(delta: float) -> void:
 	else:
 		# In band: STRAFE laterally while shooting. Strafing makes
 		# archers a moving target (player can't just face-tank kite-
-		# focus) AND adds visual life — they're not sentries, they're
+		# focus) AND adds visual life, they're not sentries, they're
 		# active combatants. Pick a side once and persist for ~2s
 		# before flipping so the strafe reads as deliberate not
 		# random.
@@ -86,13 +86,13 @@ func _physics_process(delta: float) -> void:
 		velocity.z = perp.z * move_speed * 0.55
 		_attack_timer -= delta
 		if _attack_timer <= 0.0 and _has_line_of_sight():
-			# LOS gate — don't fire blindly through walls. Without
+			# LOS gate, don't fire blindly through walls. Without
 			# this, archers in the dojo would shoot the player from
 			# behind two walls, which is unfair AND breaks immersion.
 			_fire_arrow()
 			_attack_timer = attack_cooldown
 		elif _attack_timer <= 0.0:
-			# No LOS — short retry interval instead of full cooldown
+			# No LOS, short retry interval instead of full cooldown
 			# so we don't lose 3s of fire time waiting for a clean shot.
 			_attack_timer = 0.5
 	# Apply gravity

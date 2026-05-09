@@ -7,11 +7,11 @@ class_name StorytellerNPC
 # feel seen.
 
 const CLASS_GREETINGS := {
-	&"ronin":      "You carry Kazat's iron on your breath. The sword-vow is older than this ruin — but you already know that. Ashurim remembers those who bleed for it. Sit. Drink. We have much to discuss.",
-	&"berserker":  "Still breathing. Good. I've seen rage like yours end men before the enemy could. Ashurim doesn't care what fuels you — only that the fire doesn't burn the wrong things.",
-	&"assassin":   "You move like you're already gone. Smart. The city has eyes everywhere — it's how it survives. I won't ask where you've been. Only where you're going.",
+	&"ronin":      "You carry Kazat's iron on your breath. The sword-vow is older than this ruin, but you already know that. Ashurim remembers those who bleed for it. Sit. Drink. We have much to discuss.",
+	&"berserker":  "Still breathing. Good. I've seen rage like yours end men before the enemy could. Ashurim doesn't care what fuels you, only that the fire doesn't burn the wrong things.",
+	&"assassin":   "You move like you're already gone. Smart. The city has eyes everywhere, it's how it survives. I won't ask where you've been. Only where you're going.",
 	&"ranger":     "You tracked Kazat's patrol routes before the fight. I'm told you did it twice. The Wastes don't give that kind of patience; you brought it. Ashurim could use more of it.",
-	&"mage":       "Your weave is... unusual. Efficient. Most of the Academis boys waste half their mana on flair. You didn't. I don't know if that's discipline or something darker. Either way — welcome.",
+	&"mage":       "Your weave is... unusual. Efficient. Most of the Academis boys waste half their mana on flair. You didn't. I don't know if that's discipline or something darker. Either way, welcome.",
 	&"chaos_druid":"The green still clings to you. The city doesn't like what it can't name. I do. The Wound sent you here for a reason. Maybe you'll figure it out before Tiamat does.",
 	&"demon":      "You found your way here without burning the gate down. Either you've got more control than I expected, or you're very lucky. In Ashurim, the difference matters a great deal.",
 }
@@ -20,7 +20,7 @@ const DEFAULT_GREETING := "The city hasn't seen someone like you in a long time.
 
 # Heaven-Rule walk-back: characters who have sacrificed the Demon get this
 # opening from the Storyteller. Overrides the class-line.
-const WALKED_BACK_GREETING := "You came back. I've seen people make a lot of choices in this hall — that one I respect more than most. The sword has decided you. It doesn't decide many."
+const WALKED_BACK_GREETING := "You came back. I've seen people make a lot of choices in this hall, that one I respect more than most. The sword has decided you. It doesn't decide many."
 
 func _ready() -> void:
 	npc_id = &"storyteller"
@@ -47,12 +47,12 @@ func _ready() -> void:
 # the only one wired is to_babilim, gated on player level + not-already-
 # accepted/completed. Easy to extend.
 const STORYTELLER_QUEST_LADDER := [
-	&"q_storyteller_intro",              # lvl 1 — discover 3 lodestones
-	&"q_storyteller_six_breaths",        # lvl 4 — release bound spirits, +SixBreaths
-	&"q_storyteller_inquisition_choice", # lvl 4 — hunt Tiamat-spawn, +Inquisition / -Druids
-	&"to_babilim",                       # lvl 5 — main-story bridge
-	&"to_tiamat",                        # lvl 30 — Black Citadel access
-	&"the_fire_stair",                   # lvl 50+ — Lucifer secret
+	&"q_storyteller_intro",              # lvl 1, discover 3 lodestones
+	&"q_storyteller_six_breaths",        # lvl 4, release bound spirits, +SixBreaths
+	&"q_storyteller_inquisition_choice", # lvl 4, hunt Tiamat-spawn, +Inquisition / -Druids
+	&"to_babilim",                       # lvl 5, main-story bridge
+	&"to_tiamat",                        # lvl 30, Black Citadel access
+	&"the_fire_stair",                   # lvl 50+, Lucifer secret
 ]
 
 func _refresh_quest_offer() -> void:

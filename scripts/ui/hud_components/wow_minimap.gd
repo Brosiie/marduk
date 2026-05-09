@@ -11,8 +11,8 @@ class_name WowMinimap
 #   3. Inner dark recessed bg with a faint radial gradient
 #   4. Faint compass cross lines (N-S / E-W) at low alpha
 #   5. Compass cardinal labels (N E S W)
-#   6. Blips, sorted by importance — boss pulse last so it's on top
-#   7. Player arrow (not dot — direction matters)
+#   6. Blips, sorted by importance, boss pulse last so it's on top
+#   7. Player arrow (not dot, direction matters)
 #   8. View-range crisp inner ring (so blips at the edge feel 'out of range')
 #
 # Blip vocabulary:
@@ -69,7 +69,7 @@ func _draw() -> void:
 	draw_circle(center, MAP_RADIUS + 2, FRAME_GOLD.darkened(0.4))
 	draw_arc(center, MAP_RADIUS + 1.5, 0.0, TAU, 96, FRAME_GOLD, 3.0)
 	draw_arc(center, MAP_RADIUS + 0.5, 0.0, TAU, 96, FRAME_GOLD_BRIGHT, 1.0)
-	# Cardinal stud markers — small gold pips at N/E/S/W on the outer ring.
+	# Cardinal stud markers, small gold pips at N/E/S/W on the outer ring.
 	for i in 4:
 		var a: float = float(i) * TAU / 4.0 - PI * 0.5  # start at top
 		var pip: Vector2 = center + Vector2(cos(a), sin(a)) * (MAP_RADIUS + 1.5)
@@ -83,11 +83,11 @@ func _draw() -> void:
 		if rr > 0:
 			var alpha: float = 0.04 + float(ring) * 0.02
 			draw_arc(center, rr, 0.0, TAU, 64, Color(FRAME_GOLD.r, FRAME_GOLD.g, FRAME_GOLD.b, alpha), 1.5)
-	# 4. Faint compass cross lines (N-S / E-W) — readability aid
+	# 4. Faint compass cross lines (N-S / E-W), readability aid
 	var cross_color: Color = Color(FRAME_GOLD.r, FRAME_GOLD.g, FRAME_GOLD.b, 0.10)
 	draw_line(center - Vector2(0, MAP_RADIUS - 4), center + Vector2(0, MAP_RADIUS - 4), cross_color, 1.0)
 	draw_line(center - Vector2(MAP_RADIUS - 4, 0), center + Vector2(MAP_RADIUS - 4, 0), cross_color, 1.0)
-	# 5. Compass labels — 4 cardinals with outline so they read on
+	# 5. Compass labels, 4 cardinals with outline so they read on
 	# the dark bg AND any blips behind them.
 	var font: Font = ThemeDB.fallback_font
 	var label_color: Color = FRAME_GOLD_BRIGHT
@@ -114,7 +114,7 @@ func _draw() -> void:
 	var yaw: float = atan2(cam_fwd.x, cam_fwd.z)
 
 	# 6. Blips (drawn before the player arrow so the arrow stays on top).
-	# Order matters for visual stacking — least important first.
+	# Order matters for visual stacking, least important first.
 	_blip_group(center, player_pos, yaw, "item_pickup", Color(0.78, 0.30, 0.95), false, false)
 	_blip_group(center, player_pos, yaw, "warp_portal", Color(0.30, 0.95, 1.00), false, true)
 	_blip_group(center, player_pos, yaw, "lodestone",   Color(0.45, 0.65, 1.00), true, false)
@@ -123,7 +123,7 @@ func _draw() -> void:
 	# Boss last so its pulsing dot draws above any overlapping mob blip.
 	_blip_group(center, player_pos, yaw, "boss",        Color(1.00, 0.65, 0.10), false, false, true)
 
-	# 7. Player arrow — stays at center pointing UP (because the world
+	# 7. Player arrow, stays at center pointing UP (because the world
 	# rotates around the player).
 	_draw_player_arrow(center)
 
@@ -139,7 +139,7 @@ func _draw_player_arrow(center: Vector2) -> void:
 		tip + Vector2(0, 1), br + Vector2(1, 1), bl + Vector2(-1, 1)
 	]
 	draw_colored_polygon(shadow_pts, Color(0, 0, 0, 0.65))
-	# Body — ivory white, sharp
+	# Body, ivory white, sharp
 	draw_colored_polygon(pts, Color(1.0, 0.98, 0.92))
 	# Outline strokes
 	draw_polyline([tip, br, bl, tip], Color(0.20, 0.10, 0.08), 1.5)

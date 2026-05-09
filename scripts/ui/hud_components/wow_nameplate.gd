@@ -116,7 +116,7 @@ func _ready() -> void:
 	_hp_flash.material_override = _hp_flash_mat
 	_hp_flash.position = Vector3(0, 0, 0.002)
 	add_child(_hp_flash)
-	# Small numeric HP label below the bar — only shown for bosses
+	# Small numeric HP label below the bar, only shown for bosses
 	# (hostility=3) so regular mobs don't clutter the screen with
 	# numbers.
 	_hp_label = Label3D.new()
@@ -131,7 +131,7 @@ func _ready() -> void:
 	_hp_label.position = Vector3(0, -HP_BAR_HEIGHT * 0.7 - 0.04, 0)
 	_hp_label.visible = (hostility == 3)
 	add_child(_hp_label)
-	# Name label — hide entirely if we can't resolve a meaningful name
+	# Name label, hide entirely if we can't resolve a meaningful name
 	_name_label = Label3D.new()
 	var resolved_name := _read_actor_name()
 	_name_label.text = resolved_name
@@ -190,7 +190,7 @@ func _process(delta: float) -> void:
 	# Scale the fill quad on x-axis
 	_hp_fill.scale.x = max(0.001, _hp_pct)
 	_hp_fill.position.x = -((1.0 - _hp_pct) * (NP_WIDTH - 0.04) * 0.5)
-	# Color shifts to a hotter shade as HP drops below 30% — visual
+	# Color shifts to a hotter shade as HP drops below 30%, visual
 	# 'critical' cue without needing a separate sfx hookup.
 	# Edge-triggered: only update the material when we CROSS the 30%
 	# threshold. Steady-state frames skip the assignment so the

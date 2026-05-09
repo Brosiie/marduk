@@ -14,7 +14,7 @@ class_name GladeTerror
 
 func _ready() -> void:
 	boss_id = &"glade_terror"
-	# A Tiamat-spawn — every faction has reason to want it dead.
+	# A Tiamat-spawn, every faction has reason to want it dead.
 	# Crown + Druids both notice.
 	faction_rep_on_kill = {&"crown": 75, &"druids": 75, &"inquisition": 50}
 	display_name = "The Glade Terror"
@@ -26,7 +26,7 @@ func _ready() -> void:
 	hp = max_hp
 	armor = 5.0
 	magic_resist = 5.0
-	move_speed = 4.5  # very fast — Tiamat-spawn predator
+	move_speed = 4.5  # very fast, Tiamat-spawn predator
 	detect_radius = 26.0
 	attack_range = 3.0
 	attack_cooldown = 0.0
@@ -47,7 +47,7 @@ func _build_patterns() -> Array[BossAttackPattern]:
 	var swipe := BossAttackPattern.new()
 	swipe.id = &"terror_swipe"
 	swipe.display_name = "Antler-Slash"
-	swipe.tell_description = "The Terror lowers its head — the antler arc is coming."
+	swipe.tell_description = "The Terror lowers its head, the antler arc is coming."
 	swipe.shape = BossAttackPattern.Shape.FORWARD_CONE
 	swipe.range = 3.0
 	swipe.radius = 2.0
@@ -69,7 +69,7 @@ func _build_patterns() -> Array[BossAttackPattern]:
 	var pounce := BossAttackPattern.new()
 	pounce.id = &"terror_pounce"
 	pounce.display_name = "Pounce"
-	pounce.tell_description = "The Terror coils — it is leaping. Sidestep."
+	pounce.tell_description = "The Terror coils, it is leaping. Sidestep."
 	pounce.shape = BossAttackPattern.Shape.LINE
 	pounce.range = 8.0
 	pounce.radius = 1.4
@@ -90,7 +90,7 @@ func _build_patterns() -> Array[BossAttackPattern]:
 	var gore := BossAttackPattern.new()
 	gore.id = &"terror_gore"
 	gore.display_name = "Antler-Gore"
-	gore.tell_description = "The Terror lowers its head and ROARS — the charge is committed."
+	gore.tell_description = "The Terror lowers its head and ROARS, the charge is committed."
 	gore.shape = BossAttackPattern.Shape.CHARGE
 	gore.range = 10.0
 	gore.radius = 1.4
@@ -112,7 +112,7 @@ func _build_patterns() -> Array[BossAttackPattern]:
 	var roar := BossAttackPattern.new()
 	roar.id = &"terror_roar"
 	roar.display_name = "Hunting-Roar"
-	roar.tell_description = "The Terror plants and roars — the air pushes you back. Hold ground or move."
+	roar.tell_description = "The Terror plants and roars, the air pushes you back. Hold ground or move."
 	roar.shape = BossAttackPattern.Shape.AOE_AROUND_BOSS
 	roar.radius = 4.0
 	roar.range = 4.0
@@ -133,7 +133,7 @@ func _build_patterns() -> Array[BossAttackPattern]:
 	var leap := BossAttackPattern.new()
 	leap.id = &"terror_death_from_above"
 	leap.display_name = "Death-From-Above"
-	leap.tell_description = "The Terror vanishes UP — it is on a branch. Watch the marker."
+	leap.tell_description = "The Terror vanishes UP, it is on a branch. Watch the marker."
 	leap.shape = BossAttackPattern.Shape.LEAP
 	leap.range = 12.0
 	leap.radius = 3.0

@@ -1,6 +1,6 @@
 extends Node
 
-# LootGenerator — autoload that builds a LootTable for any Mob on demand.
+# LootGenerator, autoload that builds a LootTable for any Mob on demand.
 # Lets us avoid hand-authoring a unique loot_table for every mob in the
 # game. The generator picks items from ItemRegistry filtered by:
 #

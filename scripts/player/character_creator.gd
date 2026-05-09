@@ -10,7 +10,7 @@ class_name CharacterCreator
 # Conditional: a CreatorQuestion with requires_tags is skipped unless those
 # biographical tags are already on the appearance.
 #
-# UI is intentionally minimal — see scenes/menus/character_creator.tscn.
+# UI is intentionally minimal, see scenes/menus/character_creator.tscn.
 # All visual flair (Storyteller portrait, ambient music, character preview)
 # is overlaid by the parent scene; this controller owns flow + state.
 
@@ -155,7 +155,7 @@ func _apply_text_input(q: CreatorQuestion, value: String) -> void:
 	# Currently only character_name is supported. Extend by adding fields here.
 	match q.text_input_target:
 		&"character_name":
-			# CharacterAppearance doesn't carry a name field by default — the name
+			# CharacterAppearance doesn't carry a name field by default, the name
 			# lives on Player. Stash it on a side dict so the spawn flow picks it up.
 			_pending_text_inputs[&"character_name"] = value
 		_:
@@ -185,7 +185,7 @@ func _apply_choice(choice: CreatorChoice) -> void:
 	if choice.sets_cultural_marking >= 0: _appearance.cultural_marking = choice.sets_cultural_marking
 	if choice.sets_jewelry_set >= 0:      _appearance.jewelry_set = choice.sets_jewelry_set
 	if choice.sets_glow_eyes >= 0:        _appearance.glow_eyes = (choice.sets_glow_eyes == 1)
-	# Stat lean is additive — multiple soft-shaping questions can stack.
+	# Stat lean is additive, multiple soft-shaping questions can stack.
 	# Stored on the appearance as biographical_tags for now; a Phase 2 pass
 	# can apply them to PlayerStats at character spawn.
 	for tag in choice.biographical_tags:
@@ -213,7 +213,7 @@ func _index_of_question(id: StringName) -> int:
 	return -1
 
 func _finish() -> void:
-	# Validation pass — surface obvious errors (gender mismatch with beard, etc).
+	# Validation pass, surface obvious errors (gender mismatch with beard, etc).
 	var errs: Array = _appearance.validate()
 	if not errs.is_empty():
 		push_warning("[CharacterCreator] appearance validation: %s" % errs)

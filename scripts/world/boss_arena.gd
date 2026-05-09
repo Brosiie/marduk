@@ -64,7 +64,7 @@ func _is_boss_already_defeated() -> bool:
 	var sf: Node = get_node_or_null("/root/SaveFlags")
 	if sf == null:
 		return false
-	# Canonical API — flag key is "<boss_id>_defeated" via set_run
+	# Canonical API, flag key is "<boss_id>_defeated" via set_run
 	# (per SaveFlags.mark_boss_defeated). Run flags persist across
 	# save/load within a single prestige cycle, which is exactly the
 	# scope we want: kill once, stays dead until next prestige.
@@ -247,7 +247,7 @@ func release_after_wipe() -> void:
 	# IMPORTANT: do NOT reset the boss's HP. Bond's rule: boss only resets on
 	# boss death. Returning players resume where the fight left off.
 
-# Wired into Player.died — when the player dies, drop the cage so they can
+# Wired into Player.died, when the player dies, drop the cage so they can
 # fast-travel out, but keep the engagement gate disarmed so the arena
 # re-fires on next entry.
 func on_player_died() -> void:

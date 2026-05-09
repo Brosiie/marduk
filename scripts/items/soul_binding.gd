@@ -5,7 +5,7 @@ class_name SoulBinding
 # fuse to the character: cannot be dropped, cannot be lost, scale with player
 # level (auto item_level = player.level), and visually never unequip from
 # their slot (the bound katana hilt protrudes from the bare forearm bone
-# when "sheathed" — the binding is part of the body now).
+# when "sheathed", the binding is part of the body now).
 #
 # Binding cost: 5 same-slot items sacrificed at the altar in Ashurim. The
 # sacrificed items are consumed; their lore-text is inscribed on the binding
@@ -13,11 +13,11 @@ class_name SoulBinding
 #
 # See CHARACTER_DESIGN.md § 8.5.4.
 
-# Bound weapon — the soul-bound mainhand. Item.id reference.
+# Bound weapon, the soul-bound mainhand. Item.id reference.
 @export var weapon_item_id: StringName = &""
 @export var weapon_bound_at_unix: int = 0
 
-# Bound armor — the soul-bound chest piece (Tier 1 supports CHEST only;
+# Bound armor, the soul-bound chest piece (Tier 1 supports CHEST only;
 # Tier 2 expands to per-slot bindings).
 @export var armor_item_id: StringName = &""
 @export var armor_bound_at_unix: int = 0
@@ -35,7 +35,7 @@ func has_armor_binding() -> bool:
 	return armor_item_id != &""
 
 func sacrifice_count_for(slot: int) -> int:
-	# Slot.WEAPON_MAIN = 1, Slot.CHEST = 4 — matches Item.Slot enum
+	# Slot.WEAPON_MAIN = 1, Slot.CHEST = 4, matches Item.Slot enum
 	if slot == 1:
 		return weapon_sacrifice_ledger.size()
 	if slot == 4:

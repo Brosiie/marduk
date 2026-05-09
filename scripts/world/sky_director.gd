@@ -1,6 +1,6 @@
 extends Node
 
-# SkyDirector — autoload that drives the active scene's WorldEnvironment
+# SkyDirector, autoload that drives the active scene's WorldEnvironment
 # + DirectionalLight from WorldClock.time_of_day so the sun rises, peaks,
 # sets, and the sky/fog colors interpolate smoothly. Makes the whole
 # world feel alive without per-scene wiring.
@@ -60,7 +60,7 @@ func _ready() -> void:
 	call_deferred("_rescan")
 
 func _on_tree_changed() -> void:
-	# Debounce — multi-fire on scene changes; consolidate to next frame.
+	# Debounce, multi-fire on scene changes; consolidate to next frame.
 	call_deferred("_rescan")
 
 func _rescan() -> void:

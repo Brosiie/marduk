@@ -76,7 +76,7 @@ func _nat(asset: String, pos: Vector3, rot_y_deg: float = 0.0, scale: float = 1.
 	inst.rotation.y = deg_to_rad(rot_y_deg)
 	inst.scale = Vector3.ONE * scale
 	# Grass / flowers / mushrooms / bushes / banners / small bamboo all
-	# match as decor — player walks through. Trees, stumps, cliffs,
+	# match as decor, player walks through. Trees, stumps, cliffs,
 	# bridges, tall bamboo grove, campfires all get collision.
 	if _is_decor(asset):
 		_strip_colliders(inst)
@@ -95,7 +95,7 @@ func _cherry_blossom(pos: Vector3, rot_y_deg: float = 0.0, scale: float = 1.0) -
 	var script: GDScript = load(_CHERRY_BLOSSOM_SCRIPT)
 	if script == null:
 		# Fall back to the old tinted-Kenney path if the script's
-		# missing for any reason — never break zone composition.
+		# missing for any reason, never break zone composition.
 		return _sakura("tree_default_fall.glb", pos, rot_y_deg, scale)
 	var tree := Node3D.new()
 	tree.set_script(script)
@@ -155,7 +155,7 @@ func _get_wind_shader() -> Shader:
 func _apply_wind_tint(node: Node, color: Color, amplitude: float = 0.15, anchor: float = 0.0) -> void:
 	var shader: Shader = _get_wind_shader()
 	if shader == null:
-		# Fall back to plain tint if shader is missing — never crash a zone
+		# Fall back to plain tint if shader is missing, never crash a zone
 		_tint_tree(node, color)
 		return
 	_apply_wind_recursive(node, shader, color, amplitude, anchor)
@@ -220,7 +220,7 @@ func _spawn_koi_pond(center: Vector3, size_xz: Vector2) -> Node3D:
 	probe.global_position = global_position + center + Vector3(0, 1, 0)
 	return pond
 
-# Stone lantern (toro) — built from a tall narrow column piece + a tinted
+# Stone lantern (toro), built from a tall narrow column piece + a tinted
 # torch on top so it reads as a paper lantern atop a stone pedestal. No
 # dedicated Kenney piece; this composition is the closest read.
 func _lantern(pos: Vector3, lit: bool = true) -> Node3D:
@@ -230,7 +230,7 @@ func _lantern(pos: Vector3, lit: bool = true) -> Node3D:
 	_torch(pos + Vector3(0, 1.2, 0), lit)
 	return pedestal
 
-# Torii gate — two tall posts + horizontal beam at top. Built from
+# Torii gate, two tall posts + horizontal beam at top. Built from
 # Kenney column pieces stacked vertically. Width is the player-passable
 # opening between the posts.
 func _torii(center: Vector3, width: float = 4.0) -> void:
@@ -246,7 +246,7 @@ func _torii(center: Vector3, width: float = 4.0) -> void:
 	for i in range(-1, 2):
 		var beam := _spawn("floor_tile_large.gltf.glb", center + Vector3(float(i) * 1.5, 4.0, 0), 0.0, 0.5)
 		if beam:
-			# Vermilion red — torii signature color
+			# Vermilion red, torii signature color
 			_tint_tree(beam, Color(0.78, 0.18, 0.15, 1.0))
 
 # Walk the prop subtree and disable every CollisionShape3D / StaticBody3D.
@@ -279,7 +279,7 @@ const DECOR_PATTERNS := [
 	"mushroom",     # mushroom decor
 	"plant_bush",   # all bush variants
 	"crops_bamboo", # small bamboo crops; tall perimeter bamboo is also matched but it's fine
-	"flag",         # banners, pennants — cloth shouldn't block player
+	"flag",         # banners, pennants, cloth shouldn't block player
 	"rubble_small", # tiny debris
 	"sword_shield_broken",  # half-buried sword in path (stepping on it is fine)
 ]
@@ -437,7 +437,7 @@ func _spawn(asset: String, pos: Vector3, rot_y_deg: float = 0.0, scale: float = 
 # 'this place feels like THIS' from sound alone. Procedural via
 # AudioBus.play_cue so no .ogg pipeline needed.
 #
-# Layered on top of MusicDirector pad — the music is the harmonic
+# Layered on top of MusicDirector pad, the music is the harmonic
 # bed, the ambient cues are the texture markers.
 func _install_zone_ambient_audio(zone_id: StringName) -> void:
 	var palette: Array = []  # [{cue, min_interval_s, max_interval_s, pitch_min, pitch_max, volume_db}, ...]
@@ -470,7 +470,7 @@ func _install_zone_ambient_audio(zone_id: StringName) -> void:
 				{"cue": &"holy_cast", "min_s": 30.0, "max_s": 50.0, "pitch_min": 0.50, "pitch_max": 0.65, "volume_db": -20.0},   # choir hum (holy arpeggio low)
 			]
 		_:
-			return  # unknown zone — silent (music director still plays)
+			return  # unknown zone, silent (music director still plays)
 	# Build a per-cue Timer that fires at random intervals. Timers
 	# parented to self so they auto-free with the zone scene.
 	for entry in palette:
@@ -508,7 +508,7 @@ func _torch(pos: Vector3, lit: bool = true) -> void:
 		light.position = Vector3(0, 1.5, 0)
 
 # ----------------------------------------------------------------
-# SWORD-VOW RUINS — open-air burned courtyard, throne at north.
+# SWORD-VOW RUINS, open-air burned courtyard, throne at north.
 # Re-tuned 2026-05-06: Bond's playtest feedback was "just random walls".
 # This pass kills the wall-spam corridor look. The arena now reads as an
 # OPEN ruin: scattered rubble, broken columns, low foliage suggested by
@@ -519,7 +519,7 @@ func _torch(pos: Vector3, lit: bool = true) -> void:
 # When a real Quaternius nature pack lands, swap rubble/columns for grass
 # tufts and tree stumps; swap walls for ruined-arch stone fragments.
 func _build_sword_vow_ruins() -> void:
-	# JAPANESE SAKURA GROVE & DOJO — extended journey layout. Bond's
+	# JAPANESE SAKURA GROVE & DOJO, extended journey layout. Bond's
 	# follow-up spec: bigger map, walking journey, building we ENTER
 	# to fight the boss, real procedural cherry blossoms (not tinted
 	# Kenney trees), beautiful.
@@ -602,7 +602,7 @@ func _build_sword_vow_ruins() -> void:
 			continue
 		_cherry_blossom(Vector3(tx, 0, tz), randf() * 360.0, randf_range(0.85, 1.35))
 
-	# --- MID-PATH inner sanctum torii — second gate halfway, marking
+	# --- MID-PATH inner sanctum torii, second gate halfway, marking
 	# the journey's act break. Bond's 'feel like a journey' note. ---
 	_torii(Vector3(0, 0, 4), 4.5)
 	# Lanterns flanking the second torii
@@ -622,7 +622,7 @@ func _build_sword_vow_ruins() -> void:
 		_nat(["crops_bambooStageA.glb", "crops_bambooStageB.glb"].pick_random(), Vector3(bx, 0, bz), randf() * 360.0, randf_range(2.5, 3.8))
 
 	# --- Inner-arena cherry blossom scatter for foreground depth ---
-	# Procedural trees only inside the play area — the perimeter
+	# Procedural trees only inside the play area, the perimeter
 	# already has the procedural grove.
 	for _i in range(12):
 		var ix: float = randf_range(-size / 2 + 6, size / 2 - 6)
@@ -654,7 +654,7 @@ func _build_sword_vow_ruins() -> void:
 		var dojo := Node3D.new()
 		dojo.name = "Dojo"
 		dojo.set_script(dojo_script)
-		# Custom dimensions for a roomy boss arena interior — 18m wide
+		# Custom dimensions for a roomy boss arena interior, 18m wide
 		# x 20m deep gives plenty of dodging room for Iron Charge.
 		dojo.set("dojo_size", Vector2(18.0, 20.0))
 		dojo.set("entrance_width", 5.0)
@@ -683,7 +683,7 @@ func _build_sword_vow_ruins() -> void:
 	if wl:
 		# Fewer birds, slower (peaceful temple grounds)
 		wl.spawn_bird_flock(self, 3, Vector3(0, 16, 0), size * 0.6)
-		# Cherry petals raining over the entire courtyard — the signature
+		# Cherry petals raining over the entire courtyard, the signature
 		# Japanese touch. Volume sized to cover the play area.
 		wl.spawn_petal_fall(self, Vector3(0, 12, 0), Vector3(size, 1, size), Color(1.0, 0.65, 0.78, 0.95))
 		# Wisp of smoke from the campfire (warm spawn read)
@@ -697,7 +697,7 @@ func _build_sword_vow_ruins() -> void:
 	_install_zone_ambient_audio(&"sword_vow_ruins")
 
 # ----------------------------------------------------------------
-# ASH-STEP CAMP — Berserker intro. Raider camp on the burned steppe.
+# ASH-STEP CAMP, Berserker intro. Raider camp on the burned steppe.
 # Layout: spawn at south through wooden palisade gate, walk past
 # weapon racks + bonfires + tents, climb a low ridge to the boss
 # arena (raider warlord on a ash-soaked dais).
@@ -726,7 +726,7 @@ func _build_ash_step_camp() -> void:
 		elif pick < 0.95:
 			_nat(["cliff_blockHalf_stone.glb"].pick_random(), Vector3(ox, 0, oz), randf() * 360.0, randf_range(0.5, 1.0))
 
-	# Palisade gate at the south entrance — two tall posts + crossbeam
+	# Palisade gate at the south entrance, two tall posts + crossbeam
 	var gate_z: float = size / 2 - 4
 	for sx in [-3.0, 3.0]:
 		_spawn("barrier_column.gltf.glb", Vector3(sx, 0, gate_z), 0.0, 1.6)
@@ -750,7 +750,7 @@ func _build_ash_step_camp() -> void:
 		if abs(px) < 4: continue
 		_spawn("sword_shield_broken.gltf.glb", Vector3(px, 0, pz), randf() * 360.0)
 
-	# Boss dais at the north — raised platform of dark stone
+	# Boss dais at the north, raised platform of dark stone
 	for tier in range(3):
 		var t_w: int = 5 - tier
 		var t_y: float = 0.40 * float(tier + 1)
@@ -759,7 +759,7 @@ func _build_ash_step_camp() -> void:
 	# Twin torches flanking the boss dais
 	_torch(Vector3(-5, 1.2, -size / 2 + 4), true)
 	_torch(Vector3(5, 1.2, -size / 2 + 4), true)
-	# Two dead trees behind the dais — burned, twisted silhouettes
+	# Two dead trees behind the dais, burned, twisted silhouettes
 	for sx in [-7.0, 7.0]:
 		var dt := _nat("tree_blocks_fall.glb", Vector3(sx, 0, -size / 2 + 6), randf() * 360.0, 2.5)
 		if dt:
@@ -778,27 +778,27 @@ func _build_ash_step_camp() -> void:
 	_install_zone_ambient_audio(&"ash_step_camp")
 
 # ----------------------------------------------------------------
-# WHISPER SHRINE — underground corridor, columns, dim
+# WHISPER SHRINE, underground corridor, columns, dim
 # ----------------------------------------------------------------
 func _build_whisper_shrine() -> void:
-	# Assassin intro — underground shrine corridor descending into a
+	# Assassin intro, underground shrine corridor descending into a
 	# circular ritual chamber. Bond's "feel like a journey" pattern
 	# applied: long approach corridor, dimming torches, then the
 	# chamber opens up at the boss anchor.
 	var tile_size := 4.0
-	# Long corridor floor — narrower than the courtyard zones, 7
+	# Long corridor floor, narrower than the courtyard zones, 7
 	# tiles wide. Mossy stone tiles alternate for the woven-stone read.
 	for x in range(-3, 4):
 		for z in range(-int(size / tile_size), int(size / tile_size) + 1):
 			_spawn("floor_dirt_small_A.gltf.glb" if (x + z) % 2 == 0 else "floor_dirt_small_B.gltf.glb",
 				Vector3(x * tile_size, 0, z * tile_size))
 
-	# Walls forming a long corridor — both sides
+	# Walls forming a long corridor, both sides
 	for z in range(-int(size / 2), int(size / 2), 4):
 		_spawn("wall_arched.gltf.glb", Vector3(-12, 0, z), 0.0)
 		_spawn("wall_arched.gltf.glb", Vector3(12, 0, z), 180.0)
 
-	# Columns down the middle — every 6m (was 8m, denser for shrine
+	# Columns down the middle, every 6m (was 8m, denser for shrine
 	# claustrophobia)
 	for z_step in range(-int(size / 2) + 4, int(size / 2), 6):
 		_spawn("pillar_decorated.gltf.glb", Vector3(0, 0, z_step))
@@ -808,7 +808,7 @@ func _build_whisper_shrine() -> void:
 		_torch(Vector3(-10, 0, z_step), true)
 		_torch(Vector3(10, 0, z_step), true)
 
-	# Ritual chamber at the north end — circular dais of stone tiles
+	# Ritual chamber at the north end, circular dais of stone tiles
 	# at the boss anchor. 6m radius platform with a central ritual
 	# circle marker.
 	var dais_z: float = -size / 2 + 6
@@ -820,11 +820,11 @@ func _build_whisper_shrine() -> void:
 			var dx: float = cos(ang) * ring_radius
 			var dz: float = sin(ang) * ring_radius
 			_spawn("floor_dirt_small_A.gltf.glb", Vector3(dx, 0.05, dais_z + dz))
-	# Central altar — pillar in the middle
+	# Central altar, pillar in the middle
 	_spawn("pillar.gltf.glb", Vector3(0, 0, dais_z))
 	# Four ritual torches at the chamber's compass points (purple-ish
 	# tinted via _tint_tree if torch supports it; otherwise just
-	# default warm orange — the dimness already reads as 'shrine')
+	# default warm orange, the dimness already reads as 'shrine')
 	for ang_deg in [0, 90, 180, 270]:
 		var rang: float = deg_to_rad(float(ang_deg))
 		_torch(Vector3(cos(rang) * 5.0, 0, dais_z + sin(rang) * 5.0), true)
@@ -846,7 +846,7 @@ func _build_whisper_shrine() -> void:
 	_install_zone_ambient_audio(&"whisper_shrine")
 
 # ----------------------------------------------------------------
-# GREENHEART GLADE — Ranger intro forest clearing, dense canopy
+# GREENHEART GLADE, Ranger intro forest clearing, dense canopy
 # ----------------------------------------------------------------
 func _build_greenheart_glade() -> void:
 	# Forest floor: dirt + dense grass + flowers + mushrooms
@@ -880,7 +880,7 @@ func _build_greenheart_glade() -> void:
 		var angle: float = i * TAU / 6.0
 		var r: float = 4.0
 		_nat("plant_bush.glb", Vector3(cos(angle) * r, 0, sin(angle) * r), randf() * 360.0, 1.2)
-	# Center campfire stones — Greenheart hunter's bivouac
+	# Center campfire stones, Greenheart hunter's bivouac
 	_nat("campfire_stones.glb", Vector3(0, 0, 0))
 	# Mushroom rings scattered (forest atmosphere)
 	for _i in range(8):
@@ -891,7 +891,7 @@ func _build_greenheart_glade() -> void:
 		_nat(m_pick, Vector3(ox, 0, oz), randf() * 360.0)
 
 # ----------------------------------------------------------------
-# INKSTONE TOWER — interior of magical tower, columns, dim
+# INKSTONE TOWER, interior of magical tower, columns, dim
 # ----------------------------------------------------------------
 func _build_inkstone_tower() -> void:
 	# Circular floor pattern
@@ -917,7 +917,7 @@ func _build_inkstone_tower() -> void:
 		_torch(Vector3(cos(angle) * radius, 0, sin(angle) * radius), true)
 
 # ----------------------------------------------------------------
-# COVEN GLEN — Druid intro: standing stone circle in misty marsh
+# COVEN GLEN, Druid intro: standing stone circle in misty marsh
 # ----------------------------------------------------------------
 func _build_coven_glen() -> void:
 	var tile_size := 4.0
@@ -989,7 +989,7 @@ func _build_coven_glen() -> void:
 	_install_zone_ambient_audio(&"coven_glen")
 
 # ----------------------------------------------------------------
-# SUNSWORN CHAPEL — interior chapel courtyard
+# SUNSWORN CHAPEL, interior chapel courtyard
 # ----------------------------------------------------------------
 func _build_sunsworn_chapel() -> void:
 	# PALADIN INTRO: Medieval castle chapel. Bond's spec moved the heavy
@@ -1003,14 +1003,14 @@ func _build_sunsworn_chapel() -> void:
 	for x in range(-grid, grid + 1):
 		for z in range(-grid, grid + 1):
 			_spawn("floor_tile_large.gltf.glb", Vector3(x * tile_size, 0, z * tile_size))
-	# Outer chapel walls (Kenney castle wall pieces) — encloses the chapel
+	# Outer chapel walls (Kenney castle wall pieces), encloses the chapel
 	for x_step in range(-int(size / 2) + 4, int(size / 2) - 3, 4):
 		_cas("wall.glb", Vector3(x_step, 0, -size / 2 + 1))
 		_cas("wall.glb", Vector3(x_step, 0, size / 2 - 1))
 	for z_step in range(-int(size / 2) + 4, int(size / 2) - 3, 4):
 		_cas("wall.glb", Vector3(-size / 2 + 1, 0, z_step), 90.0)
 		_cas("wall.glb", Vector3(size / 2 - 1, 0, z_step), 90.0)
-	# Square watch towers at the four corners — paladin guard posts
+	# Square watch towers at the four corners, paladin guard posts
 	for corner in [Vector3(-size / 2 + 2, 0, -size / 2 + 2), Vector3(size / 2 - 2, 0, -size / 2 + 2), Vector3(-size / 2 + 2, 0, size / 2 - 2), Vector3(size / 2 - 2, 0, size / 2 - 2)]:
 		_cas("tower-square-base-color.glb", corner)
 		_cas("tower-square-mid.glb", corner + Vector3(0, 4, 0))
@@ -1063,7 +1063,7 @@ func _build_sunsworn_chapel() -> void:
 		wl.spawn_intro_motes(self, Vector3(0, 1.5, -size / 2 + 4), 5.0, Color(1.0, 0.95, 0.75, 1.0))
 
 # ----------------------------------------------------------------
-# PYRE ASCENT — Demon intro, basalt spiral stair
+# PYRE ASCENT, Demon intro, basalt spiral stair
 # ----------------------------------------------------------------
 func _build_pyre_ascent() -> void:
 	# Spiral stair simulated as ascending tile rows
@@ -1082,7 +1082,7 @@ func _build_pyre_ascent() -> void:
 		_torch(Vector3(cos(angle) * radius, height, sin(angle) * radius), true)
 
 # ----------------------------------------------------------------
-# THE CRADLE — Sumerian temple ground, stepped ziggurat dais north,
+# THE CRADLE, Sumerian temple ground, stepped ziggurat dais north,
 # weathered pillars, prayer offerings on plinths
 # ----------------------------------------------------------------
 func _build_the_cradle() -> void:
@@ -1092,7 +1092,7 @@ func _build_the_cradle() -> void:
 		for z in range(-grid, grid + 1):
 			var asset := "floor_dirt_small_A.gltf.glb" if (x + z) % 2 == 0 else "floor_dirt_small_C.gltf.glb"
 			_spawn(asset, Vector3(x * tile, 0, z * tile))
-	# Stepped ziggurat dais at the north end (boss spawn) — three rising tiers
+	# Stepped ziggurat dais at the north end (boss spawn), three rising tiers
 	for tier in range(3):
 		var w: int = 6 - tier * 2
 		var y: float = 0.4 * float(tier + 1)
@@ -1114,7 +1114,7 @@ func _build_the_cradle() -> void:
 	_torch(Vector3(4, 0, size / 2 - 2), true)
 
 # ----------------------------------------------------------------
-# THE REED WASTES — marshy plain, plank pathways, broken huts
+# THE REED WASTES, marshy plain, plank pathways, broken huts
 # ----------------------------------------------------------------
 func _build_the_reed_wastes() -> void:
 	var tile := 4.0
@@ -1144,7 +1144,7 @@ func _build_the_reed_wastes() -> void:
 		_spawn("barrier_column.gltf.glb", Vector3(x, 0, z), randf() * 360.0)
 
 # ----------------------------------------------------------------
-# LAPIS BAY — coastal docks, stacked crates, weathered piers
+# LAPIS BAY, coastal docks, stacked crates, weathered piers
 # ----------------------------------------------------------------
 func _build_lapis_bay() -> void:
 	# Coastal dock: sandy beach south, wooden pier north, crates/barrels
@@ -1184,7 +1184,7 @@ func _build_lapis_bay() -> void:
 	# Bridge sections (kenney has stone+wood variants)
 	_nat("bridge_wood.glb", Vector3(0, 0, size / 2 - 2), 90.0)
 	_nat("bridge_stone.glb", Vector3(0, 0, 0), 90.0)
-	# Stacked crates and barrels — cargo
+	# Stacked crates and barrels, cargo
 	for offset in [-10, -6, 6, 10]:
 		_spawn("crates_stacked.gltf.glb", Vector3(offset, 0, 4))
 		_spawn("barrel_large.gltf.glb", Vector3(offset + 1, 0, 6))
@@ -1204,7 +1204,7 @@ func _build_lapis_bay() -> void:
 	_nat("campfire_stones.glb", Vector3(0, 0, -size / 2 + 6))
 
 # ----------------------------------------------------------------
-# BONE MOUNTAINS — rocky pass, scattered bones, narrow path
+# BONE MOUNTAINS, rocky pass, scattered bones, narrow path
 # ----------------------------------------------------------------
 func _build_bone_mountains() -> void:
 	# Rocky pass strewn with bones (rubble) and cliff blocks. Lore: ribs
@@ -1217,7 +1217,7 @@ func _build_bone_mountains() -> void:
 			if randf() < 0.4:
 				asset = "floor_tile_large_rocks.gltf.glb"
 			_spawn(asset, Vector3(x * tile, 0, z * tile), randf() * 360.0)
-	# Cliff walls flanking the spine — kenney cliff blocks at varied heights
+	# Cliff walls flanking the spine, kenney cliff blocks at varied heights
 	for z_step in range(-int(size / 2) + 4, int(size / 2), 4):
 		# Stagger left wall
 		var lh: float = 0.0 if (z_step / 4) % 2 == 0 else 1.5
@@ -1247,7 +1247,7 @@ func _build_bone_mountains() -> void:
 		_nat("grass.glb", Vector3(ox, 0, oz), randf() * 360.0, 0.8)
 
 # ----------------------------------------------------------------
-# VERDANT WOUND — corrupted forest, tilted ruins, weeds in stone
+# VERDANT WOUND, corrupted forest, tilted ruins, weeds in stone
 # ----------------------------------------------------------------
 func _build_verdant_wound() -> void:
 	# Corrupted forest: dark trees, twisted growth, broken ruins
@@ -1296,7 +1296,7 @@ func _build_verdant_wound() -> void:
 		_nat(["mushroom_red.glb", "mushroom_redGroup.glb", "mushroom_redTall.glb"].pick_random(), Vector3(ox, 0, oz), randf() * 360.0)
 
 # ----------------------------------------------------------------
-# EMBER STEPPES — wind-blown plain with scattered fire pits
+# EMBER STEPPES, wind-blown plain with scattered fire pits
 # ----------------------------------------------------------------
 func _build_ember_steppes() -> void:
 	var tile := 4.0
@@ -1316,7 +1316,7 @@ func _build_ember_steppes() -> void:
 	_spawn("banner_red.gltf.glb", Vector3(6, 0.2, -size / 2 + 4))
 
 # ----------------------------------------------------------------
-# MIST VALE — fogged grove, stones in mist, mossy logs
+# MIST VALE, fogged grove, stones in mist, mossy logs
 # ----------------------------------------------------------------
 func _build_mist_vale() -> void:
 	# Foggy druid grove: scattered standing stones, mossy logs, dense
@@ -1331,7 +1331,7 @@ func _build_mist_vale() -> void:
 			# Light coverage of ground (more dirt visible than greenheart)
 			if randf() < 0.35:
 				_nat(["grass.glb", "grass_leafs.glb"].pick_random(), Vector3(x * tile + randf_range(-1.5, 1.5), 0, z * tile + randf_range(-1.5, 1.5)), randf() * 360.0)
-	# Tree perimeter — autumn fall variants for that misty-grove look
+	# Tree perimeter, autumn fall variants for that misty-grove look
 	for i in range(24):
 		var angle: float = i * TAU / 24.0
 		var r: float = size / 2
@@ -1363,7 +1363,7 @@ func _build_mist_vale() -> void:
 		_nat("plant_bush.glb", Vector3(ox, 0, oz), randf() * 360.0, randf_range(0.7, 1.1))
 
 # ----------------------------------------------------------------
-# SHRIEKING HIGHLANDS — windy cliffs, runestones, abandoned shrine
+# SHRIEKING HIGHLANDS, windy cliffs, runestones, abandoned shrine
 # ----------------------------------------------------------------
 func _build_shrieking_highlands() -> void:
 	var tile := 4.0
@@ -1390,7 +1390,7 @@ func _build_shrieking_highlands() -> void:
 		_spawn("wall.gltf.glb", Vector3(size / 2 - 2, 0, z_step), -90.0)
 
 # ----------------------------------------------------------------
-# SUNDERED COAST — broken cliffs, fallen pillars, shipwreck pieces
+# SUNDERED COAST, broken cliffs, fallen pillars, shipwreck pieces
 # ----------------------------------------------------------------
 func _build_sundered_coast() -> void:
 	var tile := 4.0
@@ -1417,7 +1417,7 @@ func _build_sundered_coast() -> void:
 	_torch(Vector3(0, 0.4, -size / 2 + 4), true)
 
 # ----------------------------------------------------------------
-# BLACK CITADEL — interior fortress, throne, banners
+# BLACK CITADEL, interior fortress, throne, banners
 # ----------------------------------------------------------------
 func _build_black_citadel() -> void:
 	# DARK FORTRESS: Kenney castle towers + walls scaled up for
@@ -1447,7 +1447,7 @@ func _build_black_citadel() -> void:
 	_cas("wall-narrow-gate.glb", Vector3(0, 0, size / 2 - 1))
 	_cas("metal-gate.glb", Vector3(0, 0, size / 2 - 1))
 	_cas("bridge-draw.glb", Vector3(0, 0, size / 2 + 4))
-	# Long throne hall down the spine — interior walls
+	# Long throne hall down the spine, interior walls
 	for z_step in range(-int(size / 2) + 4, int(size / 2) - 4, 4):
 		_spawn("wall.gltf.glb", Vector3(-12, 0, z_step), 90.0)
 		_spawn("wall.gltf.glb", Vector3(12, 0, z_step), -90.0)
@@ -1472,7 +1472,7 @@ func _build_black_citadel() -> void:
 	_cas("siege-ram-demolished.glb", Vector3(0, 0, 16), 90.0)
 	_cas("rocks-large.glb", Vector3(-10, 0, 4))
 	_cas("rocks-small.glb", Vector3(7, 0, 0))
-	# Dim torches — oppressive lighting
+	# Dim torches, oppressive lighting
 	for z_step in [-16, -8, 0, 8, 16]:
 		_torch(Vector3(-11, 0, z_step), true)
 		_torch(Vector3(11, 0, z_step), true)
@@ -1491,7 +1491,7 @@ func _build_black_citadel() -> void:
 		wl_bc.spawn_intro_motes(self, Vector3(0, 1.2, -size / 2 + 4), 5.0, Color(0.85, 0.15, 0.20, 1.0))
 
 # ----------------------------------------------------------------
-# ASHURIM — convergence town hub, market stalls, NPCs dispense quests
+# ASHURIM, convergence town hub, market stalls, NPCs dispense quests
 # ----------------------------------------------------------------
 func _build_ashurim() -> void:
 	# CONVERGENCE TOWN: walled medieval city with central plaza, market
@@ -1586,7 +1586,7 @@ func _build_ashurim() -> void:
 		wl_ash.spawn_intro_motes(self, Vector3(0, 1.0, 0), 3.0, Color(1.0, 0.78, 0.4, 1.0))
 
 # ----------------------------------------------------------------
-# BABILIM — capital city, grand chapel layout
+# BABILIM, capital city, grand chapel layout
 # ----------------------------------------------------------------
 func _build_babilim() -> void:
 	# CAPITAL CITY: Iron Crown's seat. Grand chapel down the spine,
@@ -1648,7 +1648,7 @@ func _build_babilim() -> void:
 	_spawn("candle_triple.gltf.glb", Vector3(2, 1.3, -size / 2 + 4))
 	_spawn("column.gltf.glb", Vector3(-4, 0.4, -size / 2 + 4))
 	_spawn("column.gltf.glb", Vector3(4, 0.4, -size / 2 + 4))
-	# Pews — stone benches indicated by barrier columns
+	# Pews, stone benches indicated by barrier columns
 	for z_step in [-8, -4, 0, 4, 8]:
 		_spawn("barrier_column.gltf.glb", Vector3(-5, 0, z_step), 0.0)
 		_spawn("barrier_column.gltf.glb", Vector3(5, 0, z_step), 180.0)

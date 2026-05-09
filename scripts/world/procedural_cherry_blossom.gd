@@ -2,25 +2,25 @@ extends Node3D
 class_name ProceduralCherryBlossom
 
 # A proper procedural cherry blossom (sakura) tree built from primitive
-# meshes. Replaces the tinted Kenney "tree_default_fall.glb" hack —
+# meshes. Replaces the tinted Kenney "tree_default_fall.glb" hack ,
 # those are GREEN trees with a pink modulate slapped on top, which
 # reads as "leafy tree photographed through a rose filter" rather
 # than actual sakura.
 #
 # Composition (bottom-up):
-#   1. Trunk — tapered cylinder, dark warm brown bark
-#   2. Major branches — 3-5 smaller tapered cylinders sprouting from
+#   1. Trunk, tapered cylinder, dark warm brown bark
+#   2. Major branches, 3-5 smaller tapered cylinders sprouting from
 #      the trunk top at angled orientations, each with sub-twigs
-#   3. Foliage clusters — 2-3 layered alpha-blended pink spheres at
+#   3. Foliage clusters, 2-3 layered alpha-blended pink spheres at
 #      branch tips. Layered tones (saturated core + pale halo + bright
 #      highlight cap) for the depth that single-mesh trees lack
-#   4. Petal scatter — small pink quads at the canopy base, randomized
+#   4. Petal scatter, small pink quads at the canopy base, randomized
 #      drift positions so the tree looks like it's actively shedding
 #
 # Build cost is moderate (1 trunk + 4 branches + 12 foliage spheres +
 # 20 petal quads = ~37 nodes per tree). With 56 trees in the grove
 # that's ~2k nodes, but each is a fast PrimitiveMesh + StandardMaterial
-# so render cost is low. Trees are static — built once, never updated.
+# so render cost is low. Trees are static, built once, never updated.
 
 # Trunk dimensions
 const TRUNK_HEIGHT: float = 4.5
@@ -39,7 +39,7 @@ const FOLIAGE_PRIMARY_R: float = 1.2
 const FOLIAGE_HALO_R: float = 1.5
 const FOLIAGE_HIGHLIGHT_R: float = 0.7
 
-# Sakura color palette — saturated core, pale halo, bright cap
+# Sakura color palette, saturated core, pale halo, bright cap
 const COLOR_CORE: Color = Color(1.00, 0.55, 0.72, 1.0)
 const COLOR_HALO: Color = Color(1.00, 0.78, 0.86, 0.85)
 const COLOR_HIGHLIGHT: Color = Color(1.00, 0.92, 0.96, 0.90)
@@ -97,14 +97,14 @@ func _build() -> void:
 		branch.basis = _basis_from_y(dir)
 		add_child(branch)
 
-		# 3. Foliage cluster at the branch tip — three layered spheres
+		# 3. Foliage cluster at the branch tip, three layered spheres
 		var tip: Vector3 = branch_origin + dir * bm.height
 		_spawn_foliage_cluster(tip, rng)
 
 	# 4. Foliage cap at the top center for canopy fullness
 	_spawn_foliage_cluster(Vector3(0, TRUNK_HEIGHT + 0.4, 0), rng, 1.15)
 
-	# 5. Falling petals — small alpha quads under the canopy.
+	# 5. Falling petals, small alpha quads under the canopy.
 	# These are static; for animated petal-fall use WorldLife.spawn_petal_fall
 	# at the zone level, which the composer already calls.
 	for _i in range(rng.randi_range(8, 14)):
@@ -127,7 +127,7 @@ func _build() -> void:
 # Spawn a 3-sphere blossom cluster at `tip`. Saturated core (1.2r),
 # pale halo (1.5r), bright highlight cap (0.7r).
 func _spawn_foliage_cluster(tip: Vector3, rng: RandomNumberGenerator, scale_mul: float = 1.0) -> void:
-	# Core — saturated pink, opaque
+	# Core, saturated pink, opaque
 	var core := MeshInstance3D.new()
 	var core_mesh := SphereMesh.new()
 	core_mesh.radius = FOLIAGE_PRIMARY_R * scale_mul
@@ -143,7 +143,7 @@ func _spawn_foliage_cluster(tip: Vector3, rng: RandomNumberGenerator, scale_mul:
 	core.position = tip + Vector3(rng.randf_range(-0.1, 0.1), 0, rng.randf_range(-0.1, 0.1))
 	add_child(core)
 
-	# Halo — pale, larger, semi-transparent
+	# Halo, pale, larger, semi-transparent
 	var halo := MeshInstance3D.new()
 	var halo_mesh := SphereMesh.new()
 	halo_mesh.radius = FOLIAGE_HALO_R * scale_mul
@@ -159,7 +159,7 @@ func _spawn_foliage_cluster(tip: Vector3, rng: RandomNumberGenerator, scale_mul:
 	halo.position = tip + Vector3(rng.randf_range(-0.2, 0.2), rng.randf_range(-0.1, 0.2), rng.randf_range(-0.2, 0.2))
 	add_child(halo)
 
-	# Highlight cap — small bright sphere offset toward the lit side
+	# Highlight cap, small bright sphere offset toward the lit side
 	var hi := MeshInstance3D.new()
 	var hi_mesh := SphereMesh.new()
 	hi_mesh.radius = FOLIAGE_HIGHLIGHT_R * scale_mul

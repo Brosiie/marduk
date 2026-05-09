@@ -107,7 +107,7 @@ func _process(delta: float) -> void:
 	# roof. Smooth blend (3s) so transitions don't feel jerky.
 	_update_interior_blend(delta)
 	var goal_distance: float = lerp(distance, INTERIOR_DISTANCE, _interior_blend)
-	# Hook the locked boss's windup signals lazily — we can't connect
+	# Hook the locked boss's windup signals lazily, we can't connect
 	# in _ready because the boss may not exist yet.
 	_attach_boss_windup_signals()
 	# During boss windup, tighten the spring further. Multiplicative

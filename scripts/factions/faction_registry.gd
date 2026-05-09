@@ -8,7 +8,7 @@ extends Node
 # class_name removed: this script is registered as the FactionRegistry
 # autoload in project.godot.
 
-# Explicit preload — bypasses the global class_name cache so a stale
+# Explicit preload, bypasses the global class_name cache so a stale
 # .godot/global_script_class_cache.cfg can't take this autoload offline.
 # Without this, a missed cache rebuild left every Faction-typed signature
 # unresolved and the whole registry failed to instantiate.
@@ -17,7 +17,7 @@ const FactionRes := preload("res://scripts/factions/faction.gd")
 signal rep_changed(faction_id: StringName, new_value: int, old_value: int)
 signal tier_changed(faction_id: StringName, new_tier: String, old_tier: String)
 
-# WoW-standard tiers — players already know the shape
+# WoW-standard tiers, players already know the shape
 const TIER_BREAKPOINTS := [
 	{"min": -42000, "max": -6000,  "name": "Hated"},
 	{"min": -6000,  "max": -3000,  "name": "Hostile"},
@@ -32,7 +32,7 @@ const TIER_BREAKPOINTS := [
 const REP_MIN := -42000
 const REP_MAX := 42000
 
-# Color per tier — drives the rep-bar fill in the UI
+# Color per tier, drives the rep-bar fill in the UI
 const TIER_COLORS := {
 	"Hated":      Color(0.85, 0.20, 0.18),
 	"Hostile":    Color(0.85, 0.40, 0.22),
@@ -117,7 +117,7 @@ func tier_for(rep: int) -> String:
 	for entry in TIER_BREAKPOINTS:
 		if rep >= int(entry["min"]) and rep < int(entry["max"]):
 			return String(entry["name"])
-	# Above Exalted cap — still Exalted
+	# Above Exalted cap, still Exalted
 	return "Exalted" if rep >= int(TIER_BREAKPOINTS[-1]["min"]) else "Hated"
 
 func tier_color_for(rep: int) -> Color:

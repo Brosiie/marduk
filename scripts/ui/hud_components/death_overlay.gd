@@ -49,7 +49,7 @@ func _build_ui() -> void:
 	_root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_root.mouse_filter = Control.MOUSE_FILTER_STOP  # block interaction during death
 	add_child(_root)
-	# Background — deep crimson radial gradient via shader
+	# Background, deep crimson radial gradient via shader
 	_bg = ColorRect.new()
 	_bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_bg.color = Color(0.04, 0.02, 0.03, 1.0)
@@ -61,7 +61,7 @@ uniform vec4 inner : source_color = vec4(0.18, 0.04, 0.04, 0.92);
 uniform vec4 outer : source_color = vec4(0.02, 0.00, 0.00, 1.0);
 void fragment() {
 	float d = distance(SCREEN_UV, vec2(0.5));
-	// Slow pulse so the screen breathes — not static
+	// Slow pulse so the screen breathes, not static
 	float pulse = 0.55 + 0.04 * sin(TIME * 1.0);
 	COLOR = mix(inner, outer, smoothstep(0.0, pulse, d));
 }

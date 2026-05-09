@@ -34,7 +34,7 @@ func _player_has_unspent_points() -> bool:
 	return int(pts) > 0
 
 func _open_dialogue() -> void:
-	# Skip the default greeting panel — open the skills tab directly.
+	# Skip the default greeting panel, open the skills tab directly.
 	var hud = get_tree().get_first_node_in_group("hud")
 	if hud == null:
 		return

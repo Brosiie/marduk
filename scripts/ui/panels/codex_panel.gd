@@ -4,7 +4,7 @@ extends Control
 # layout. Left: category buttons with unlocked / total counts. Right:
 # scrollable card list for the selected category.
 #
-# Locked entries render as "? — locked" with the entry's unlock_hint
+# Locked entries render as "?, locked" with the entry's unlock_hint
 # dimmed grey; unlocked entries show the display_name in gold and the
 # full body text below. The panel auto-refreshes when CodexRegistry
 # emits entry_unlocked, so attuning a lodestone or first-pickup-of-an-
@@ -125,7 +125,7 @@ func _entry_card(entry: Dictionary) -> Control:
 		name_lbl.text = String(entry.get("display_name", String(id)))
 		name_lbl.modulate = Color(1.0, 0.85, 0.55)
 	else:
-		name_lbl.text = "? — undiscovered"
+		name_lbl.text = "?, undiscovered"
 		name_lbl.modulate = Color(0.45, 0.45, 0.55)
 	v.add_child(name_lbl)
 	# Body: the lore prose if unlocked, otherwise the unlock hint

@@ -97,7 +97,7 @@ func thumbnail_path(slot: int) -> String:
 	return THUMBNAIL_FMT % slot
 
 # Captures the current viewport, downscales to THUMBNAIL_SIZE, writes PNG.
-# All failure modes (missing viewport, unwritable user://) are silent —
+# All failure modes (missing viewport, unwritable user://) are silent ,
 # thumbnails are nice-to-have, not required.
 func _save_thumbnail(slot: int) -> void:
 	var viewport: Viewport = get_viewport()
@@ -147,9 +147,9 @@ func load_slot(slot: int, player) -> bool:
 	player.stats.hp = float(cfg.get_value("stats", "hp", player.stats.max_hp))
 	player.stats.mana = float(cfg.get_value("stats", "mana", player.stats.max_mana))
 	player.resource_value = float(cfg.get_value("stats", "resource_value", 0.0))
-	# Inventory restore — re-instantiate items by id via ItemRegistry,
+	# Inventory restore, re-instantiate items by id via ItemRegistry,
 	# add to bag, restore equipped slots. Without this, loading a save
-	# silently drops the player's loot — the biggest 'feels broken'
+	# silently drops the player's loot, the biggest 'feels broken'
 	# bug Bond would notice on first relaunch.
 	if player.has_method("get_inventory"):
 		var inv: Inventory = player.get_inventory()

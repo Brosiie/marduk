@@ -42,7 +42,7 @@ static func spawn(target: Node3D, amount: float, is_crit: bool = false, element:
 	if target == null or not is_instance_valid(target):
 		return null
 	var floater := DamageFloater.new()
-	# Damage tiers — three sizes based on raw damage and crit flag so
+	# Damage tiers, three sizes based on raw damage and crit flag so
 	# small chip damage doesn't dominate the screen and big hits
 	# really LAND. Tiers mirror Diablo / PoE conventions.
 	#   tier 0 (chip):      under 15 damage         -> 18pt, no prefix
@@ -78,7 +78,7 @@ static func spawn(target: Node3D, amount: float, is_crit: bool = false, element:
 			floater.modulate = floater.modulate.lerp(class_tint, 0.65)
 		else:
 			floater.modulate = floater.modulate.lerp(Color(1.0, 0.92, 0.50), 0.7)
-	# Tier 2+ gets a faint shadow offset for extra punch — text shadow
+	# Tier 2+ gets a faint shadow offset for extra punch, text shadow
 	# doubles as a subtle motion-blur read when the number rises.
 	if tier >= 2:
 		floater.shaded = true

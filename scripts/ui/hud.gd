@@ -51,7 +51,7 @@ func _ready() -> void:
 	# Bond's "cluttered" complaint had a concrete cause: hud.tscn ships
 	# the legacy AbilitySlotBar at the bottom-center AND _ready below
 	# adds the polished WowAbilityBar at the same anchor. Both rendered
-	# overlapping. Hide the legacy one — WowAbilityBar supersedes it.
+	# overlapping. Hide the legacy one, WowAbilityBar supersedes it.
 	# Kept in the tree (not queue_free'd) so any code that references
 	# it via NodePath still resolves.
 	var legacy_ability_bar: Control = $Root.get_node_or_null("AbilitySlotBar") as Control
@@ -76,7 +76,7 @@ func _ready() -> void:
 		menu_panel.set_script(menu_script)
 		menu_panel.name = "MenuPanel"
 		add_child(menu_panel)
-	# Boss bar — built procedurally so we don't need a separate .tscn.
+	# Boss bar, built procedurally so we don't need a separate .tscn.
 	boss_bar = _build_boss_bar()
 	$Root.add_child(boss_bar)
 	# WoW-style ability bar (bottom center)
@@ -128,7 +128,7 @@ func _ready() -> void:
 		cl.set_script(cl_script)
 		cl.name = "CombatLog"
 		$Root.add_child(cl)
-	# Bottom-right action bar — visible buttons for the menu tabs so new
+	# Bottom-right action bar, visible buttons for the menu tabs so new
 	# players can find inventory / settings / friends without memorizing
 	# hotkeys.
 	var ab2_script: GDScript = load("res://scripts/ui/hud_components/action_bar.gd")
@@ -340,7 +340,7 @@ func _apply_bar_style(bar: ProgressBar, mid: Color, light: Color, dark: Color) -
 	bar.add_theme_stylebox_override("fill", sb_fg)
 	# Hide the default percentage text; we'll attach our own value label
 	bar.show_percentage = false
-	# Animated shine overlay — a thin bright strip that scrolls
+	# Animated shine overlay, a thin bright strip that scrolls
 	# left-to-right across the fill via a TIME-driven shader. Reads as
 	# the bar BREATHING; without it the bars are static rectangles.
 	# WoW retail HP/Mana orbs have an analogous gloss sweep.
@@ -429,7 +429,7 @@ func _pulse_bar_flash(bar: ProgressBar) -> void:
 
 # Round portrait/class crest in the top-left, anchoring the HP/Mana/XP
 # stack. Without it the bars float in the upper-left corner with no
-# visual anchor — Bond called this "cluttered". The portrait is a 70px
+# visual anchor, Bond called this "cluttered". The portrait is a 70px
 # disc with a class-themed glyph and a gold filigree ring; the bars
 # slide right by 78px so they read as rooted to it instead of orphans.
 # Thin gold posture bar layered just below the HP bar. Mirror of the
@@ -450,14 +450,14 @@ func _install_player_posture_bar() -> void:
 	posture.value = 0.0
 	posture.custom_minimum_size = Vector2(0, 5)
 	# Anchor across the HP bar's bottom edge (so it appears as a thin
-	# gold strip under the HP fill — readable at a glance).
+	# gold strip under the HP fill, readable at a glance).
 	posture.anchor_left = 0.0
 	posture.anchor_top = 1.0
 	posture.anchor_right = 1.0
 	posture.anchor_bottom = 1.0
 	posture.offset_top = 1
 	posture.offset_bottom = 6
-	# Use the same polished bar styling as the rest of the HUD —
+	# Use the same polished bar styling as the rest of the HUD ,
 	# starts gold and shifts red via _on_player_posture as it fills.
 	_apply_bar_style(posture, Color(1.0, 0.78, 0.32), Color(1.0, 0.92, 0.55), Color(0.45, 0.32, 0.10))
 	posture.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -518,7 +518,7 @@ func _install_class_portrait() -> void:
 	ring_sb.shadow_offset = Vector2(0, 4)
 	ring.add_theme_stylebox_override("panel", ring_sb)
 	portrait.add_child(ring)
-	# Inner element-tinted disc — the class color shows through here
+	# Inner element-tinted disc, the class color shows through here
 	var disc := Panel.new()
 	disc.anchor_left = 0.0
 	disc.anchor_top = 0.0
@@ -535,7 +535,7 @@ func _install_class_portrait() -> void:
 	disc_sb.set_corner_radius_all(30)
 	disc.add_theme_stylebox_override("panel", disc_sb)
 	portrait.add_child(disc)
-	# Class glyph at center — uses the same procedural icon system as
+	# Class glyph at center, uses the same procedural icon system as
 	# the ability bar so the portrait reads as 'part of the same set'.
 	var glyph := TextureRect.new()
 	glyph.texture = _class_glyph_texture()
@@ -573,7 +573,7 @@ func _class_portrait_color() -> Color:
 		&"paladin_lightbringer": return Color(0.95, 0.92, 0.65, 1)  # silver light
 	return Color(0.85, 0.75, 0.50, 1)
 
-# Procedural class crest texture — small 64x64 image with the class's
+# Procedural class crest texture, small 64x64 image with the class's
 # canonical glyph (sword for ronin, flame for berserker, etc.).
 # Painted once, cached as a static var so HUD recreation is free.
 static var _crest_cache: Dictionary = {}
@@ -769,7 +769,7 @@ func _on_combo_changed(stacks: int, max_stacks: int) -> void:
 	else:
 		col = Color(1.0, 0.55, 0.20).lerp(Color(1.0, 0.20, 0.20), (t - 0.66) / 0.34)
 	col.a = 1.0
-	# Tier prefix changes the read at high stacks — "INSANE" /
+	# Tier prefix changes the read at high stacks, "INSANE" /
 	# "GODLIKE" call out the moment, not just numbers
 	var tier_label: String = "COMBO"
 	if stacks >= int(max_stacks * 0.85):
@@ -1008,7 +1008,7 @@ func _build_boss_bar() -> Control:
 	hp.name = "HP"
 	hp.custom_minimum_size = Vector2(700, 26)
 	hp.show_percentage = false
-	# Bare modulate ditched — apply the same StyleBoxFlat treatment the
+	# Bare modulate ditched, apply the same StyleBoxFlat treatment the
 	# player bars get so the boss HP gets a polished inset frame +
 	# bevel, not just a tinted ProgressBar.
 	_apply_bar_style(hp, Color(0.92, 0.18, 0.20), Color(1.0, 0.50, 0.45), Color(0.45, 0.05, 0.07))
@@ -1016,7 +1016,7 @@ func _build_boss_bar() -> Control:
 	_attach_value_label(hp, "%d / %d", "boss_hp")
 	v.add_child(hp)
 
-	# Posture meter — sits ABOVE the cast row but below HP. Thin gold
+	# Posture meter, sits ABOVE the cast row but below HP. Thin gold
 	# bar that fills as the player lands hits; full = boss staggered,
 	# vulnerable to a finisher. Sekiro/Bloodborne convention.
 	var posture := ProgressBar.new()
@@ -1025,12 +1025,12 @@ func _build_boss_bar() -> Control:
 	posture.show_percentage = false
 	posture.max_value = 100.0
 	posture.value = 0.0
-	# Gold-on-black styling distinct from the red HP fill — players
+	# Gold-on-black styling distinct from the red HP fill, players
 	# read 'this is a different mechanic' at a glance.
 	_apply_bar_style(posture, Color(1.00, 0.78, 0.32), Color(1.00, 0.92, 0.55), Color(0.45, 0.32, 0.10))
 	v.add_child(posture)
 
-	# Cast bar — shown only while boss is winding up an attack. Reads
+	# Cast bar, shown only while boss is winding up an attack. Reads
 	# the boss's _current_pattern and _pattern_state in _process.
 	# Without this the player has to guess from ground decals what's
 	# coming. With it: 'IRON CHARGE' under a draining bar = clear
@@ -1062,7 +1062,7 @@ func _build_boss_bar() -> Control:
 	cast_bar.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
 	cast_bar.offset_top = -8
 	cast_bar.offset_bottom = 0
-	# Reuse the polished bar style for visual coherence — orange fill
+	# Reuse the polished bar style for visual coherence, orange fill
 	# so the cast bar reads as 'incoming danger' regardless of the
 	# attack's element.
 	_apply_bar_style(cast_bar, Color(1.0, 0.55, 0.18), Color(1.0, 0.78, 0.40), Color(0.50, 0.20, 0.06))

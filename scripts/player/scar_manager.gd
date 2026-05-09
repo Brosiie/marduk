@@ -14,7 +14,7 @@ const BOSS_SCAR_HEAL_RATE: float = 0.0001  # ~3hr real-time, cap at 0.30
 
 const SCAR_LOCATIONS := [&"chest", &"back", &"arm_left", &"arm_right", &"shoulder_left", &"shoulder_right", &"thigh_left", &"thigh_right", &"forearm_left", &"forearm_right"]
 
-# Local body-anchor offsets (relative to the player's MeshRoot). Tier 1 — Tier 2 will
+# Local body-anchor offsets (relative to the player's MeshRoot). Tier 1, Tier 2 will
 # bind to actual skeleton bones via attachment nodes.
 const ANCHOR_OFFSETS := {
 	&"chest":          Vector3( 0.00, 1.20,  0.18),
@@ -142,7 +142,7 @@ func _spawn_scar_visual(scar: CombatScar) -> void:
 	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
 	if scar.is_boss_scar:
-		# Boss scars get faint emission along the wound — mark of legend
+		# Boss scars get faint emission along the wound, mark of legend
 		mat.emission_enabled = true
 		mat.emission = color
 		mat.emission_energy_multiplier = 0.4

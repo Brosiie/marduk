@@ -1,7 +1,7 @@
 extends "res://scripts/npcs/npc.gd"
 class_name BindingAltar
 
-# The Binding Altar in Ashurim. Not a person — a stone slab carved with the
+# The Binding Altar in Ashurim. Not a person, a stone slab carved with the
 # old soul-binding glyphs. Player interacts (V) to open the SoulBindingPanel
 # which shows their inventory, lets them pick a weapon + 5 sacrifices to
 # bind, or pick a chest piece + 5 sacrifices.

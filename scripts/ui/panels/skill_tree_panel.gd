@@ -1,7 +1,7 @@
 extends CanvasLayer
 class_name SkillTreePanel
 
-# Preload-shadowed alias — bypasses the global class_name cache. When
+# Preload-shadowed alias, bypasses the global class_name cache. When
 # .godot/global_script_class_cache.cfg is stale, the bare class_name
 # 'SkillTreeLines' fails to resolve and this whole panel goes offline
 # silently. Preload is order-independent and outlives editor refreshes.
@@ -28,12 +28,12 @@ const GRID_OFFSET := Vector2(120, 110)
 const TIER_LABEL_WIDTH := 48
 
 # Node visual state colors
-const COLOR_MAXED      := Color(1.00, 0.85, 0.35, 1.0)   # gold — fully invested
-const COLOR_AVAILABLE  := Color(0.95, 0.92, 0.80, 1.0)   # cream — can purchase
-const COLOR_PARTIAL    := Color(0.85, 0.70, 0.30, 1.0)   # amber — partial investment
-const COLOR_LOCKED     := Color(0.30, 0.28, 0.25, 1.0)   # dim grey — prereq unmet
-const COLOR_PREREQ_MISS:= Color(0.55, 0.30, 0.30, 1.0)   # dim red — gated by level
-const COLOR_CAPSTONE   := Color(1.00, 0.45, 0.20, 1.0)   # ember — tier-7 capstones
+const COLOR_MAXED      := Color(1.00, 0.85, 0.35, 1.0)   # gold, fully invested
+const COLOR_AVAILABLE  := Color(0.95, 0.92, 0.80, 1.0)   # cream, can purchase
+const COLOR_PARTIAL    := Color(0.85, 0.70, 0.30, 1.0)   # amber, partial investment
+const COLOR_LOCKED     := Color(0.30, 0.28, 0.25, 1.0)   # dim grey, prereq unmet
+const COLOR_PREREQ_MISS:= Color(0.55, 0.30, 0.30, 1.0)   # dim red, gated by level
+const COLOR_CAPSTONE   := Color(1.00, 0.45, 0.20, 1.0)   # ember, tier-7 capstones
 
 const BRANCH_LABEL_COLOR := Color(0.85, 0.80, 0.60, 0.95)
 const TIER_LABEL_COLOR   := Color(0.65, 0.58, 0.45, 0.85)
@@ -74,85 +74,85 @@ const BRANCH_LABELS := {
 # saturation. Colors mirror the lore-element of each branch.
 const BRANCH_COLORS := {
 	&"berserker": [
-		Color(0.85, 0.30, 0.20),  # War — blood red
-		Color(0.65, 0.10, 0.15),  # Blood — arterial
-		Color(0.95, 0.45, 0.25),  # Fury — ember
-		Color(0.75, 0.20, 0.45),  # Berserk — magenta
-		Color(0.55, 0.45, 0.35),  # Sunder — bone
-		Color(0.55, 0.65, 0.55),  # Endurance — moss
-		Color(0.95, 0.70, 0.30),  # Roar — gold
+		Color(0.85, 0.30, 0.20),  # War, blood red
+		Color(0.65, 0.10, 0.15),  # Blood, arterial
+		Color(0.95, 0.45, 0.25),  # Fury, ember
+		Color(0.75, 0.20, 0.45),  # Berserk, magenta
+		Color(0.55, 0.45, 0.35),  # Sunder, bone
+		Color(0.55, 0.65, 0.55),  # Endurance, moss
+		Color(0.95, 0.70, 0.30),  # Roar, gold
 	],
 	&"assassin": [
-		Color(0.45, 0.40, 0.55),  # Shadow — dim violet
-		Color(0.45, 0.85, 0.40),  # Venom — green
-		Color(0.85, 0.30, 0.40),  # Crimson — red
-		Color(0.75, 0.75, 0.85),  # Dagger — silver
-		Color(0.55, 0.85, 0.95),  # Agility — sky
-		Color(0.95, 0.45, 0.20),  # Lethality — orange
-		Color(0.30, 0.30, 0.45),  # Espionage — navy
+		Color(0.45, 0.40, 0.55),  # Shadow, dim violet
+		Color(0.45, 0.85, 0.40),  # Venom, green
+		Color(0.85, 0.30, 0.40),  # Crimson, red
+		Color(0.75, 0.75, 0.85),  # Dagger, silver
+		Color(0.55, 0.85, 0.95),  # Agility, sky
+		Color(0.95, 0.45, 0.20),  # Lethality, orange
+		Color(0.30, 0.30, 0.45),  # Espionage, navy
 	],
 	&"ronin": [
-		Color(0.35, 0.65, 1.00),  # Water — cobalt
-		Color(0.95, 0.45, 0.20),  # Flame — ember
-		Color(0.65, 0.55, 0.75),  # Mist — pale violet
-		Color(0.95, 0.95, 0.40),  # Thunder — yellow
-		Color(0.65, 0.55, 0.45),  # Stone — earth
-		Color(0.85, 0.95, 0.85),  # Wind — pale celadon
-		Color(1.00, 0.85, 0.30),  # Sun — gold
+		Color(0.35, 0.65, 1.00),  # Water, cobalt
+		Color(0.95, 0.45, 0.20),  # Flame, ember
+		Color(0.65, 0.55, 0.75),  # Mist, pale violet
+		Color(0.95, 0.95, 0.40),  # Thunder, yellow
+		Color(0.65, 0.55, 0.45),  # Stone, earth
+		Color(0.85, 0.95, 0.85),  # Wind, pale celadon
+		Color(1.00, 0.85, 0.30),  # Sun, gold
 	],
 	&"ranger": [
-		Color(0.85, 0.75, 0.45),  # Marksman — wheat
-		Color(0.65, 0.85, 0.45),  # Beast — leaf
-		Color(0.55, 0.45, 0.30),  # Traps — wood
-		Color(0.45, 0.65, 0.55),  # Survival — sage
-		Color(0.55, 0.55, 0.55),  # Tracking — slate
-		Color(0.30, 0.30, 0.30),  # Ambush — charcoal
-		Color(0.55, 0.85, 1.00),  # Storm — pale lightning
+		Color(0.85, 0.75, 0.45),  # Marksman, wheat
+		Color(0.65, 0.85, 0.45),  # Beast, leaf
+		Color(0.55, 0.45, 0.30),  # Traps, wood
+		Color(0.45, 0.65, 0.55),  # Survival, sage
+		Color(0.55, 0.55, 0.55),  # Tracking, slate
+		Color(0.30, 0.30, 0.30),  # Ambush, charcoal
+		Color(0.55, 0.85, 1.00),  # Storm, pale lightning
 	],
 	&"mage": [
 		Color(1.00, 0.45, 0.20),  # Fire
 		Color(0.65, 0.85, 1.00),  # Frost
-		Color(0.85, 0.85, 1.00),  # Lightning — pale electric
-		Color(0.55, 0.40, 0.95),  # Arcane — violet
-		Color(1.00, 0.85, 0.45),  # Holy — gold
-		Color(0.55, 0.20, 0.65),  # Shadow — purple
-		Color(0.30, 0.10, 0.40),  # Void — deep
+		Color(0.85, 0.85, 1.00),  # Lightning, pale electric
+		Color(0.55, 0.40, 0.95),  # Arcane, violet
+		Color(1.00, 0.85, 0.45),  # Holy, gold
+		Color(0.55, 0.20, 0.65),  # Shadow, purple
+		Color(0.30, 0.10, 0.40),  # Void, deep
 	],
 	&"chaos_druid": [
-		Color(0.55, 0.85, 0.45),  # Wild — green
-		Color(0.45, 0.65, 0.35),  # Grove — forest
-		Color(0.85, 0.45, 0.95),  # Chaos — violet-pink
-		Color(0.65, 0.55, 0.30),  # Thorn — brown
-		Color(0.85, 0.65, 0.30),  # Beast — fawn
-		Color(0.45, 0.85, 0.85),  # Elemental — teal
-		Color(0.45, 0.20, 0.55),  # Tiamat — wound-violet
+		Color(0.55, 0.85, 0.45),  # Wild, green
+		Color(0.45, 0.65, 0.35),  # Grove, forest
+		Color(0.85, 0.45, 0.95),  # Chaos, violet-pink
+		Color(0.65, 0.55, 0.30),  # Thorn, brown
+		Color(0.85, 0.65, 0.30),  # Beast, fawn
+		Color(0.45, 0.85, 0.85),  # Elemental, teal
+		Color(0.45, 0.20, 0.55),  # Tiamat, wound-violet
 	],
 	&"demon": [
-		Color(0.55, 0.30, 0.65),  # Legion — necrotic violet
-		Color(0.85, 0.30, 0.30),  # Hunger — blood
-		Color(0.45, 0.20, 0.55),  # Damnation — purple
-		Color(0.20, 0.20, 0.30),  # Abyss — void
-		Color(0.30, 0.30, 0.55),  # Nightborn — midnight
-		Color(0.95, 0.45, 0.20),  # Infernal — fire
-		Color(0.85, 0.30, 0.20),  # Wrath — red
+		Color(0.55, 0.30, 0.65),  # Legion, necrotic violet
+		Color(0.85, 0.30, 0.30),  # Hunger, blood
+		Color(0.45, 0.20, 0.55),  # Damnation, purple
+		Color(0.20, 0.20, 0.30),  # Abyss, void
+		Color(0.30, 0.30, 0.55),  # Nightborn, midnight
+		Color(0.95, 0.45, 0.20),  # Infernal, fire
+		Color(0.85, 0.30, 0.20),  # Wrath, red
 	],
 	&"paladin_guardian": [
-		Color(0.95, 0.95, 0.85),  # Aegis — bone-white
-		Color(0.85, 0.30, 0.20),  # Wrath — crimson
-		Color(0.55, 0.85, 0.95),  # Ward — pale blue
-		Color(0.95, 0.85, 0.45),  # Vow — gold
-		Color(0.65, 0.65, 0.65),  # Tenacity — steel
-		Color(1.00, 0.85, 0.30),  # Vindication — sun-gold
-		Color(0.95, 0.95, 0.95),  # Banner — pure white
+		Color(0.95, 0.95, 0.85),  # Aegis, bone-white
+		Color(0.85, 0.30, 0.20),  # Wrath, crimson
+		Color(0.55, 0.85, 0.95),  # Ward, pale blue
+		Color(0.95, 0.85, 0.45),  # Vow, gold
+		Color(0.65, 0.65, 0.65),  # Tenacity, steel
+		Color(1.00, 0.85, 0.30),  # Vindication, sun-gold
+		Color(0.95, 0.95, 0.95),  # Banner, pure white
 	],
 	&"paladin_lightbringer": [
-		Color(0.85, 0.85, 0.85),  # Mercy — pale grey-white
-		Color(1.00, 0.95, 0.55),  # Light — pale gold
-		Color(0.85, 0.85, 0.65),  # Salt — sea-bone
-		Color(0.95, 0.65, 0.65),  # Devotion — dawn-pink
-		Color(0.95, 0.85, 0.55),  # Compassion — warm cream
-		Color(1.00, 0.55, 0.30),  # Wrath of Dawn — sunrise
-		Color(1.00, 0.95, 0.85),  # Grace — pale dawn
+		Color(0.85, 0.85, 0.85),  # Mercy, pale grey-white
+		Color(1.00, 0.95, 0.55),  # Light, pale gold
+		Color(0.85, 0.85, 0.65),  # Salt, sea-bone
+		Color(0.95, 0.65, 0.65),  # Devotion, dawn-pink
+		Color(0.95, 0.85, 0.55),  # Compassion, warm cream
+		Color(1.00, 0.55, 0.30),  # Wrath of Dawn, sunrise
+		Color(1.00, 0.95, 0.85),  # Grace, pale dawn
 	],
 }
 
@@ -170,7 +170,7 @@ const DEFAULT_BRANCH_COLORS := [
 #   - motif:        large Unicode character displayed bottom-right as a watermark
 #   - title_suffix: appended to the class display name in the header (lore flair)
 #
-# Procedural for now — Tier 2 polish swaps in real parchment/starfield/ember
+# Procedural for now, Tier 2 polish swaps in real parchment/starfield/ember
 # textures by adding a `background_texture: Texture2D` field here.
 const CLASS_THEMES := {
 	&"berserker": {
@@ -178,63 +178,63 @@ const CLASS_THEMES := {
 		"border_color": Color(0.65, 0.20, 0.15, 0.95),
 		"accent_color": Color(0.95, 0.45, 0.20),
 		"motif":        "⚔",
-		"title_suffix": " — War Without Rest",
+		"title_suffix": ", War Without Rest",
 	},
 	&"assassin": {
 		"dim_color":    Color(0.04, 0.05, 0.06, 0.94),   # midnight + venom
 		"border_color": Color(0.30, 0.50, 0.30, 0.85),
 		"accent_color": Color(0.55, 0.85, 0.45),
 		"motif":        "✶",
-		"title_suffix": " — Whispered Edge",
+		"title_suffix": ", Whispered Edge",
 	},
 	&"ronin": {
 		"dim_color":    Color(0.05, 0.08, 0.14, 0.92),   # cobalt night, parchment-warm border
 		"border_color": Color(0.95, 0.85, 0.55, 0.95),
 		"accent_color": Color(0.35, 0.65, 1.00),
 		"motif":        "刃",
-		"title_suffix": " — Seven Breaths",
+		"title_suffix": ", Seven Breaths",
 	},
 	&"ranger": {
 		"dim_color":    Color(0.04, 0.08, 0.05, 0.92),   # forest dark
 		"border_color": Color(0.55, 0.80, 0.45, 0.85),
 		"accent_color": Color(0.85, 0.95, 0.55),
 		"motif":        "➳",
-		"title_suffix": " — Eyes of the Glade",
+		"title_suffix": ", Eyes of the Glade",
 	},
 	&"mage": {
 		"dim_color":    Color(0.04, 0.04, 0.10, 0.93),   # arcane starfield
 		"border_color": Color(0.55, 0.40, 0.95, 0.95),
 		"accent_color": Color(0.85, 0.85, 1.00),
 		"motif":        "✦",
-		"title_suffix": " — The Inkstone Holds",
+		"title_suffix": ", The Inkstone Holds",
 	},
 	&"chaos_druid": {
 		"dim_color":    Color(0.05, 0.07, 0.05, 0.92),   # bog dark + woad accents
 		"border_color": Color(0.55, 0.30, 0.65, 0.85),
 		"accent_color": Color(0.65, 0.85, 0.45),
 		"motif":        "♆",
-		"title_suffix": " — The Wound Speaks",
+		"title_suffix": ", The Wound Speaks",
 	},
 	&"demon": {
 		"dim_color":    Color(0.06, 0.02, 0.02, 0.95),   # ember-black
 		"border_color": Color(0.85, 0.20, 0.10, 0.95),
 		"accent_color": Color(0.95, 0.45, 0.20),
 		"motif":        "♅",
-		"title_suffix": " — Blood Pays the Toll",
+		"title_suffix": ", Blood Pays the Toll",
 	},
 	&"paladin_guardian": {
 		"dim_color":    Color(0.08, 0.07, 0.06, 0.92),   # marble-warm
 		"border_color": Color(1.00, 0.85, 0.45, 0.95),
 		"accent_color": Color(0.95, 0.95, 0.85),
 		"motif":        "✠",
-		"title_suffix": " — The Wall That Stands",
+		"title_suffix": ", The Wall That Stands",
 	},
 	&"paladin_lightbringer": {
 		"dim_color":    Color(0.08, 0.07, 0.07, 0.92),   # dawn warm
 		"border_color": Color(1.00, 0.65, 0.55, 0.95),
 		"accent_color": Color(1.00, 0.95, 0.85),
 		"motif":        "☼",
-		"title_suffix": " — Dawn-Bringer",
+		"title_suffix": ", Dawn-Bringer",
 	},
 }
 
@@ -508,7 +508,7 @@ func _style_node_button(btn: Button, n: SkillNode) -> void:
 	else:
 		border_color = state_color.lerp(branch_color, 0.35)
 	border_color.a = alpha
-	# Tier-7 capstones: ember override regardless of state — these are LOUD.
+	# Tier-7 capstones: ember override regardless of state, these are LOUD.
 	if int(n.grid_position.y) >= 7:
 		border_color = branch_color.lerp(COLOR_CAPSTONE, 0.45)
 		border_color.a = max(alpha, 0.85)
@@ -528,12 +528,12 @@ func _style_node_button(btn: Button, n: SkillNode) -> void:
 	btn.add_theme_stylebox_override("pressed", style)
 	btn.add_theme_color_override("font_color", state_color)
 	btn.add_theme_color_override("font_hover_color", Color.WHITE)
-	# Rank pips on multi-rank nodes — append "(r/max)"
+	# Rank pips on multi-rank nodes, append "(r/max)"
 	if n.max_ranks > 1:
 		btn.text = "%s\n%d/%d" % [_short_label(n), rank, n.max_ranks]
 
 # ---------------------------------------------------------------
-# Tooltip panel — shows on click, anchored bottom-right of the panel.
+# Tooltip panel, shows on click, anchored bottom-right of the panel.
 # ---------------------------------------------------------------
 func _build_tooltip() -> void:
 	var theme: Dictionary = _theme_for_class()
@@ -639,7 +639,7 @@ func _render_tooltip_for(node_id: StringName) -> void:
 			_tooltip_action_btn.disabled = true
 		else:
 			var verb: String = "Upgrade" if rank > 0 else "Unlock"
-			_tooltip_action_btn.text = "%s  (–%d sp)" % [verb, n.cost]
+			_tooltip_action_btn.text = "%s  (-%d sp)" % [verb, n.cost]
 			_tooltip_action_btn.disabled = false
 
 func _on_tooltip_action() -> void:
@@ -655,7 +655,7 @@ func _on_tooltip_action() -> void:
 func _refresh_after_purchase() -> void:
 	if _points_label and stats:
 		_points_label.text = "%d unspent" % stats.unspent_skill_points
-	# Restyle every node — purchasing one can newly-enable downstream ones
+	# Restyle every node, purchasing one can newly-enable downstream ones
 	for nid in _node_buttons.keys():
 		var btn: Button = _node_buttons[nid]
 		var n := tree.get_node_by_id(nid)

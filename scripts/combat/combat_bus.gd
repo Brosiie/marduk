@@ -21,7 +21,7 @@ func emit_hit(target: Node, result: DamageCalc.Result, ability: Ability) -> void
 	# Spawn damage floater immediately so every hit gets a number.
 	if target is Node3D:
 		var element: StringName = _element_name(ability.damage_type if ability else 0)
-		# Class tint on crits — only resolve when crit so the lookup
+		# Class tint on crits, only resolve when crit so the lookup
 		# doesn't run on every hit.
 		var class_tint: Color = _resolve_class_tint() if result.crit else Color(0,0,0,0)
 		DamageFloater.spawn(target as Node3D, result.damage, result.crit, element, class_tint)

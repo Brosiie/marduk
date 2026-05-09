@@ -34,7 +34,7 @@ func _ready() -> void:
 	anchor_top = 1.0
 	anchor_right = 1.0
 	anchor_bottom = 1.0
-	# Resolve the MenuPanel — sibling under the HUD CanvasLayer.
+	# Resolve the MenuPanel, sibling under the HUD CanvasLayer.
 	var hud := _find_hud()
 	if hud:
 		_menu_panel = hud.menu_panel if "menu_panel" in hud else hud.get_node_or_null("MenuPanel")

@@ -72,7 +72,7 @@ enum Region {
 func recommended_label() -> String:
 	if min_level == max_level:
 		return "Lv %d" % min_level
-	return "Lv %d–%d" % [min_level, max_level]
+	return "Lv %d-%d" % [min_level, max_level]
 
 func is_under_leveled(player_level: int) -> bool:
 	return player_level < min_level

@@ -2,7 +2,7 @@ extends BossBase
 class_name BeletiSiegeMaster
 
 # Beleti the Siege-Master.
-# Mini-boss at the end of Sun-Sworn Chapel. Both Paladin classes face him —
+# Mini-boss at the end of Sun-Sworn Chapel. Both Paladin classes face him ,
 # Guardian and Lightbringer share the chapel intro. He brought a battering
 # ram + four kinsmen + a torch to the chapel. The kinsmen are dead; the
 # torch is on the chapel doors; he's about to kick them in. You arrive in
@@ -25,7 +25,7 @@ func _ready() -> void:
 
 	max_hp = 480.0   # heaviest mini-boss; he wears full plate
 	hp = max_hp
-	armor = 12.0     # heavy plate — Paladin's first lesson in armor pen
+	armor = 12.0     # heavy plate, Paladin's first lesson in armor pen
 	magic_resist = 6.0
 	move_speed = 2.8 # slowest mini-boss; weight of the armor
 	detect_radius = 20.0
@@ -48,7 +48,7 @@ func _build_patterns() -> Array[BossAttackPattern]:
 	var cleave := BossAttackPattern.new()
 	cleave.id = &"beleti_cleave"
 	cleave.display_name = "Hammer Arc"
-	cleave.tell_description = "Beleti winds back the warhammer — wide arc, time the dodge."
+	cleave.tell_description = "Beleti winds back the warhammer, wide arc, time the dodge."
 	cleave.shape = BossAttackPattern.Shape.FORWARD_CONE
 	cleave.range = 3.6
 	cleave.radius = 2.8
@@ -65,12 +65,12 @@ func _build_patterns() -> Array[BossAttackPattern]:
 	cleave.telegraph_color = Color(0.85, 0.30, 0.20, 0.55)
 	cleave.dodge_window = 0.55
 
-	# SHIELD BASH: short fast LINE — Beleti slams forward with the shield.
+	# SHIELD BASH: short fast LINE, Beleti slams forward with the shield.
 	# Phase 1 distance-controller; if he's getting kited he reels you in.
 	var bash := BossAttackPattern.new()
 	bash.id = &"beleti_shield_bash"
 	bash.display_name = "Shield Bash"
-	bash.tell_description = "Beleti drops his shoulder behind the shield — incoming bash."
+	bash.tell_description = "Beleti drops his shoulder behind the shield, incoming bash."
 	bash.shape = BossAttackPattern.Shape.LINE
 	bash.range = 4.5
 	bash.radius = 1.0
@@ -86,12 +86,12 @@ func _build_patterns() -> Array[BossAttackPattern]:
 	bash.telegraph_color = Color(0.85, 0.85, 0.55, 0.55)
 	bash.dodge_window = 0.45
 
-	# SIEGE CHARGE: phase 2 CHARGE shape. The Siege-Master earns his name —
+	# SIEGE CHARGE: phase 2 CHARGE shape. The Siege-Master earns his name ,
 	# physically sprints across the arena with the shield leading.
 	var charge := BossAttackPattern.new()
 	charge.id = &"beleti_charge"
 	charge.display_name = "Siege Charge"
-	charge.tell_description = "Beleti lowers the shield and runs — sidestep, do not back-pedal."
+	charge.tell_description = "Beleti lowers the shield and runs, sidestep, do not back-pedal."
 	charge.shape = BossAttackPattern.Shape.CHARGE
 	charge.range = 9.0
 	charge.radius = 1.4
@@ -112,7 +112,7 @@ func _build_patterns() -> Array[BossAttackPattern]:
 	var slam := BossAttackPattern.new()
 	slam.id = &"beleti_breach_slam"
 	slam.display_name = "Breach-Slam"
-	slam.tell_description = "Beleti gathers all his weight — the slam is heavy. Dodge AT the marker."
+	slam.tell_description = "Beleti gathers all his weight, the slam is heavy. Dodge AT the marker."
 	slam.shape = BossAttackPattern.Shape.LEAP
 	slam.range = 8.0
 	slam.radius = 2.6
@@ -134,7 +134,7 @@ func _build_patterns() -> Array[BossAttackPattern]:
 	var roar := BossAttackPattern.new()
 	roar.id = &"beleti_roar"
 	roar.display_name = "Warrior's Roar"
-	roar.tell_description = "Beleti plants his feet and roars — back away NOW."
+	roar.tell_description = "Beleti plants his feet and roars, back away NOW."
 	roar.shape = BossAttackPattern.Shape.AOE_AROUND_BOSS
 	roar.radius = 3.5
 	roar.range = 3.5

@@ -35,7 +35,7 @@ func _ready() -> void:
 	offset_right = offset_left + PANEL_WIDTH
 	offset_bottom = offset_top + PANEL_HEIGHT
 
-	# Frame: dark slate with gold filigree edge — same language as the
+	# Frame: dark slate with gold filigree edge, same language as the
 	# rest of the HUD. Old version was a transparent black rect that
 	# read as 'developer overlay' rather than 'UI element'.
 	var sb := StyleBoxFlat.new()
@@ -156,7 +156,7 @@ func log_loot(item_name: String, rarity: int) -> void:
 	log_event("+ %s" % item_name, color)
 
 func log_level_up(new_level: int) -> void:
-	log_event("Level up — %d" % new_level, Color(0.95, 0.85, 0.30))
+	log_event("Level up, %d" % new_level, Color(0.95, 0.85, 0.30))
 
 # --- Signal handlers ---
 

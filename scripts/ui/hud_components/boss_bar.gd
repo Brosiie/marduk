@@ -17,7 +17,7 @@ const FRAME_PADDING: int = 8
 @onready var _posture_bar: ProgressBar = $Frame/V/Posture if has_node("Frame/V/Posture") else null
 
 var _boss: Node = null
-# Cast bar children — looked up lazily because they're only built when
+# Cast bar children, looked up lazily because they're only built when
 # hud.gd._build_boss_bar runs (not in older HUD scenes that pre-date
 # the cast bar feature).
 var _cast_row: Control = null
@@ -109,7 +109,7 @@ func _update_cast_bar() -> void:
 	_cast_row.visible = true
 	var pat_id: StringName = cur_pat.id if "id" in cur_pat else &""
 	if pat_id != _last_cast_id:
-		# New attack winding up — set the label, snap the bar full, and
+		# New attack winding up, set the label, snap the bar full, and
 		# briefly flash the row alpha for the player to notice.
 		_last_cast_id = pat_id
 		if _cast_label:
@@ -120,13 +120,13 @@ func _update_cast_bar() -> void:
 		var tw := create_tween()
 		tw.tween_property(_cast_row, "modulate:a", 1.0, 0.15)
 	# Drain the cast bar from 1.0 to 0.0 as the windup expires. Ratio
-	# is "remaining / total" so the bar EMPTIES — empty == strike lands.
+	# is "remaining / total" so the bar EMPTIES, empty == strike lands.
 	if _cast_bar:
 		var now: float = Time.get_ticks_msec() / 1000.0
 		var total: float = max(0.001, float(cur_pat.windup_seconds) if "windup_seconds" in cur_pat else 1.0)
 		var remaining: float = max(0.0, pat_until - now)
 		_cast_bar.value = clamp(remaining / total, 0.0, 1.0)
-		# Color shifts to redder hot as the cast nears completion —
+		# Color shifts to redder hot as the cast nears completion ,
 		# urgency cue. Below 30% remaining = imminent strike.
 		var sb: StyleBoxFlat = _cast_bar.get_theme_stylebox("fill") as StyleBoxFlat
 		if sb:

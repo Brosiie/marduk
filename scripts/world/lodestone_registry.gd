@@ -1,6 +1,6 @@
 extends Node
 
-# LodestoneRegistry — autoload that tracks which lodestones the player has
+# LodestoneRegistry, autoload that tracks which lodestones the player has
 # discovered. Soulslike fast-travel: only stones you've found are valid
 # warp destinations on the World Map. Persisted via SaveFlags so progress
 # survives session boundaries.

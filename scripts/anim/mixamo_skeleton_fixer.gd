@@ -1,7 +1,7 @@
 class_name MixamoSkeletonFixer
 extends RefCounted
 
-# MixamoSkeletonFixer — runtime fixer that makes Mixamo .fbx characters
+# MixamoSkeletonFixer, runtime fixer that makes Mixamo .fbx characters
 # render correctly without requiring the manual Advanced Import Settings
 # retarget pass.
 #

@@ -10,7 +10,7 @@ class_name EnforcerKazat
 
 func _ready() -> void:
 	boss_id = &"enforcer_kazat"
-	# Kazat served the Crown — killing him gives the rebel/druid factions
+	# Kazat served the Crown, killing him gives the rebel/druid factions
 	# a small win. Crown notices.
 	faction_rep_on_kill = {&"crown": -100, &"druids": 50}
 	display_name = "Enforcer Kazat the Iron-Faced"
@@ -43,14 +43,14 @@ func _build_patterns() -> Array[BossAttackPattern]:
 	var sweep := BossAttackPattern.new()
 	sweep.id = &"kazat_sweep"
 	sweep.display_name = "Iron Sweep"
-	sweep.tell_description = "Kazat raises his greatsword to shoulder height — dodge back."
+	sweep.tell_description = "Kazat raises his greatsword to shoulder height, dodge back."
 	sweep.shape = BossAttackPattern.Shape.FORWARD_CONE
 	sweep.range = 3.0
 	sweep.radius = 2.2
 	sweep.arc_degrees = 120.0
 	sweep.windup_seconds = 1.5
 	sweep.execute_seconds = 0.30
-	sweep.recovery_seconds = 1.3  # long recovery — punish him hard
+	sweep.recovery_seconds = 1.3  # long recovery, punish him hard
 	sweep.cooldown = 5.0
 	sweep.base_damage = 28.0
 	sweep.damage_type = 0  # PHYSICAL
@@ -64,7 +64,7 @@ func _build_patterns() -> Array[BossAttackPattern]:
 	var sweep_fast := BossAttackPattern.new()
 	sweep_fast.id = &"kazat_sweep_fast"
 	sweep_fast.display_name = "Iron Sweep (Enraged)"
-	sweep_fast.tell_description = "Kazat sweeps without hesitation — you have less time."
+	sweep_fast.tell_description = "Kazat sweeps without hesitation, you have less time."
 	sweep_fast.shape = BossAttackPattern.Shape.FORWARD_CONE
 	sweep_fast.range = 3.0
 	sweep_fast.radius = 2.2
@@ -88,7 +88,7 @@ func _build_patterns() -> Array[BossAttackPattern]:
 	var lunge := BossAttackPattern.new()
 	lunge.id = &"kazat_lunge"
 	lunge.display_name = "Iron Step"
-	lunge.tell_description = "Kazat dips his blade — short stab forward."
+	lunge.tell_description = "Kazat dips his blade, short stab forward."
 	lunge.shape = BossAttackPattern.Shape.LINE
 	lunge.range = 4.0
 	lunge.radius = 0.8
@@ -106,12 +106,12 @@ func _build_patterns() -> Array[BossAttackPattern]:
 
 	# CHARGE: Kazat sprints in a straight line for 9m. The hitbox
 	# travels with the boss during execute_seconds (1.0s = 9m/s).
-	# Player must SIDESTEP — back-pedaling means getting run over for
+	# Player must SIDESTEP, back-pedaling means getting run over for
 	# the full duration.
 	var charge := BossAttackPattern.new()
 	charge.id = &"kazat_charge"
 	charge.display_name = "Iron Charge"
-	charge.tell_description = "Kazat lowers his shoulder and roars — get out of the line."
+	charge.tell_description = "Kazat lowers his shoulder and roars, get out of the line."
 	charge.shape = BossAttackPattern.Shape.CHARGE
 	charge.range = 9.0
 	charge.radius = 1.2
@@ -128,12 +128,12 @@ func _build_patterns() -> Array[BossAttackPattern]:
 	charge.dodge_window = 0.55
 
 	# LEAP: Kazat crouches, jumps in an arc to player's last position,
-	# lands with a shockwave AOE. Saves itself for phase 2 — desperation
+	# lands with a shockwave AOE. Saves itself for phase 2, desperation
 	# distance-closer.
 	var leap := BossAttackPattern.new()
 	leap.id = &"kazat_leap"
 	leap.display_name = "Iron Crash"
-	leap.tell_description = "Kazat crouches deep — he is leaping at you. Dodge AT the marker, not through it."
+	leap.tell_description = "Kazat crouches deep, he is leaping at you. Dodge AT the marker, not through it."
 	leap.shape = BossAttackPattern.Shape.LEAP
 	leap.range = 12.0
 	leap.radius = 3.5
@@ -150,12 +150,12 @@ func _build_patterns() -> Array[BossAttackPattern]:
 	leap.dodge_window = 0.55
 
 	# OVERHEAD SLAM: tracking AOE_GROUND at player's feet. Different
-	# read from the cone sweep — this one CHASES, so the player must
+	# read from the cone sweep, this one CHASES, so the player must
 	# MOVE rather than just dodge sideways.
 	var slam := BossAttackPattern.new()
 	slam.id = &"kazat_slam"
 	slam.display_name = "Skybreak"
-	slam.tell_description = "Kazat lifts the greatsword high — the marker chases your feet, keep moving."
+	slam.tell_description = "Kazat lifts the greatsword high, the marker chases your feet, keep moving."
 	slam.shape = BossAttackPattern.Shape.AOE_GROUND
 	slam.range = 8.0
 	slam.radius = 2.0
@@ -177,7 +177,7 @@ func _build_patterns() -> Array[BossAttackPattern]:
 	var burst := BossAttackPattern.new()
 	burst.id = &"kazat_burst"
 	burst.display_name = "Iron Roar"
-	burst.tell_description = "Kazat plants his feet — back away before the burst lands."
+	burst.tell_description = "Kazat plants his feet, back away before the burst lands."
 	burst.shape = BossAttackPattern.Shape.AOE_AROUND_BOSS
 	burst.radius = 3.0
 	burst.range = 3.0

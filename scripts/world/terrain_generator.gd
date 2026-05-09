@@ -110,7 +110,7 @@ func rebuild() -> void:
 	var array_mesh := ArrayMesh.new()
 	array_mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arr)
 	mesh = array_mesh
-	# Material — vertex-colored with rough non-shiny look
+	# Material, vertex-colored with rough non-shiny look
 	var mat := StandardMaterial3D.new()
 	mat.vertex_color_use_as_albedo = true
 	mat.roughness = 0.95
