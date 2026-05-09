@@ -641,29 +641,145 @@ func _mount() -> void:
 	_mounted = true
 	_base_move_speed = move_speed
 	move_speed *= 1.0 + MOUNT_SPEED_BONUS
-	# Cheap visual: blue glow disc under player + small horse stand-in mesh
-	_mount_visual = MeshInstance3D.new()
-	var mesh := BoxMesh.new()
-	mesh.size = Vector3(0.8, 0.6, 1.6)
-	(_mount_visual as MeshInstance3D).mesh = mesh
-	var mat := StandardMaterial3D.new()
-	mat.albedo_color = Color(0.35, 0.20, 0.10)
-	mat.roughness = 0.7
-	(_mount_visual as MeshInstance3D).material_override = mat
-	_mount_visual.position = Vector3(0, 0.4, 0)
+	# Procedural mount silhouette: body + neck + head + 4 legs + tail.
+	# Class-themed via _mount_color_for_class so a Demon's mount glows
+	# ember-red (flame steed), Druid gets brown (bear), default is
+	# horse-brown. Lifts the player visually so they sit ABOVE the
+	# mount instead of clipping into it.
+	_mount_visual = _build_mount_visual(_mount_color_for_class())
 	add_child(_mount_visual)
+	# Lift the player mesh + camera so they sit above the mount instead of
+	# inside it. Reverted on dismount.
+	if mesh:
+		mesh.position.y += MOUNT_RIDER_HEIGHT
 	var ab = get_node_or_null("/root/AudioBus")
 	if ab and ab.has_method("play_cue"):
 		ab.play_cue(&"warp", global_position, -8.0, 0.7)
+	var juice = get_node_or_null("/root/Juice")
+	if juice and juice.has_method("toast"):
+		juice.toast("Mounted  +%d%% speed" % int(MOUNT_SPEED_BONUS * 100), Color(0.85, 0.65, 0.30), 1.6)
+
+const MOUNT_RIDER_HEIGHT: float = 0.7
+
+# Per-class mount tint. Demon gets fire-red (flame steed), Druid brown
+# (bear-stand-in), Paladin gold (warhorse), default mid-brown.
+func _mount_color_for_class() -> Color:
+	if not stats or not stats.class_def:
+		return Color(0.45, 0.30, 0.15)
+	match stats.class_def.class_id:
+		&"demon":                return Color(0.85, 0.30, 0.15)
+		&"chaos_druid":          return Color(0.55, 0.40, 0.20)
+		&"paladin_guardian":     return Color(0.85, 0.65, 0.30)
+		&"paladin_lightbringer": return Color(0.95, 0.85, 0.55)
+		&"berserker":            return Color(0.40, 0.20, 0.15)  # boar tint
+		&"mage":                 return Color(0.45, 0.30, 0.55)  # arcane stallion
+		&"assassin":             return Color(0.20, 0.20, 0.22)  # black horse
+		&"ronin":                return Color(0.50, 0.40, 0.30)
+		&"ranger":               return Color(0.45, 0.55, 0.30)  # sage green
+	return Color(0.45, 0.30, 0.15)
+
+# Build the procedural mount mesh as a Node3D with body / neck / head /
+# legs / tail children. Read at-a-glance as "you're on a horse" without
+# needing a real .glb mesh.
+func _build_mount_visual(tint: Color) -> Node3D:
+	var root := Node3D.new()
+	root.name = "MountVisual"
+	# Position the mount ROOT slightly behind the player so the rider
+	# (player mesh) sits over the saddle rather than the head.
+	root.position = Vector3(0, 0.4, 0)
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = tint
+	mat.roughness = 0.7
+	# Demon mount: emissive so it READS as flame steed even in shadow
+	if stats and stats.class_def and stats.class_def.class_id == &"demon":
+		mat.emission_enabled = true
+		mat.emission = tint
+		mat.emission_energy_multiplier = 0.8
+	# Body (long capsule along Z axis)
+	var body := MeshInstance3D.new()
+	var body_mesh := CapsuleMesh.new()
+	body_mesh.radius = 0.35
+	body_mesh.height = 1.5
+	body.mesh = body_mesh
+	body.material_override = mat
+	body.rotation = Vector3(PI / 2.0, 0, 0)  # lay capsule on its side
+	body.position = Vector3(0, 0, 0)
+	root.add_child(body)
+	# Neck (small cylinder forward + up)
+	var neck := MeshInstance3D.new()
+	var neck_mesh := CylinderMesh.new()
+	neck_mesh.top_radius = 0.15
+	neck_mesh.bottom_radius = 0.20
+	neck_mesh.height = 0.55
+	neck.mesh = neck_mesh
+	neck.material_override = mat
+	neck.position = Vector3(0, 0.30, -0.65)  # forward + up
+	neck.rotation = Vector3(deg_to_rad(-30), 0, 0)
+	root.add_child(neck)
+	# Head (small box at end of neck)
+	var head := MeshInstance3D.new()
+	var head_mesh := BoxMesh.new()
+	head_mesh.size = Vector3(0.30, 0.28, 0.40)
+	head.mesh = head_mesh
+	head.material_override = mat
+	head.position = Vector3(0, 0.55, -0.95)
+	root.add_child(head)
+	# Tail (small cylinder back + slightly down)
+	var tail := MeshInstance3D.new()
+	var tail_mesh := CylinderMesh.new()
+	tail_mesh.top_radius = 0.04
+	tail_mesh.bottom_radius = 0.10
+	tail_mesh.height = 0.45
+	tail.mesh = tail_mesh
+	tail.material_override = mat
+	tail.position = Vector3(0, 0.10, 0.80)
+	tail.rotation = Vector3(deg_to_rad(110), 0, 0)
+	root.add_child(tail)
+	# 4 Legs (cylinders down from each corner of body)
+	var leg_positions := [
+		Vector3(0.22, -0.40, -0.45),  # front left
+		Vector3(-0.22, -0.40, -0.45), # front right
+		Vector3(0.22, -0.40, 0.45),   # back left
+		Vector3(-0.22, -0.40, 0.45),  # back right
+	]
+	for pos in leg_positions:
+		var leg := MeshInstance3D.new()
+		var leg_mesh := CylinderMesh.new()
+		leg_mesh.top_radius = 0.08
+		leg_mesh.bottom_radius = 0.10
+		leg_mesh.height = 0.85
+		leg.mesh = leg_mesh
+		leg.material_override = mat
+		leg.position = pos
+		root.add_child(leg)
+	return root
 
 func _dismount() -> void:
 	if not _mounted:
 		return
 	_mounted = false
 	move_speed = _base_move_speed if _base_move_speed > 0.0 else move_speed
+	# Drop the rider back down to mesh baseline.
+	if mesh:
+		mesh.position.y -= MOUNT_RIDER_HEIGHT
 	if _mount_visual and is_instance_valid(_mount_visual):
 		_mount_visual.queue_free()
 	_mount_visual = null
+
+# Combat-driven dismount. Called from take_damage when the player
+# takes a hit while mounted, so combat reads as "knocked off the
+# horse." Couples mount system to combat without making the mount
+# script know about damage internals.
+func _force_dismount_on_damage() -> void:
+	if not _mounted:
+		return
+	_dismount()
+	var juice = get_node_or_null("/root/Juice")
+	if juice:
+		if juice.has_method("toast"):
+			juice.toast("Dismounted!", Color(0.85, 0.45, 0.30), 1.4)
+		if juice.has_method("shake"):
+			juice.shake(0.4, 0.25)
 
 # Pet: G key. Summons a follower mob that auto-attacks the player's last
 # attack target. Despawns on a second G press or on player death.
@@ -3151,6 +3267,12 @@ func take_damage(amount: float, source: Node = null) -> void:
 	# Remember who hit us last so the death replay can pan to them
 	if source and is_instance_valid(source):
 		_last_damage_source = source
+	# Knocked off the horse: any unblocked, undodged hit while mounted
+	# instantly drops the mount. Reads as a real combat consequence
+	# (ARPG convention) and prevents using mount as an immortal-Speed
+	# exploit while taking poke damage.
+	if _mounted:
+		_force_dismount_on_damage()
 	# BLOCK / PARRY resolution. Tap-time within 0.15s of block-start
 	# = parry (zero damage, riposte buff, +60 attacker posture).
 	# Hold-through = block (65% soaked, stamina drained).

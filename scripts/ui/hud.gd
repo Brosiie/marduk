@@ -130,6 +130,15 @@ func _ready() -> void:
 		cb.set_script(cb_script)
 		cb.name = "CompassBar"
 		$Root.add_child(cb)
+	# Controls cheat-sheet overlay (F1 toggles). Reads bindings live
+	# from InputMap so it stays accurate when key-rebind UI ships.
+	var ch_script: GDScript = load("res://scripts/ui/panels/controls_help_panel.gd")
+	if ch_script:
+		var ch := CanvasLayer.new()
+		ch.set_script(ch_script)
+		ch.name = "ControlsHelpPanel"
+		ch.layer = 75  # above HUD root, below pause modal
+		add_child(ch)
 	# Player ability cast bar (bottom-center, above the WowAbilityBar)
 	var pcb_script: GDScript = load("res://scripts/ui/hud_components/player_cast_bar.gd")
 	if pcb_script:

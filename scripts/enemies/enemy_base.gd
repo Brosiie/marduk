@@ -65,6 +65,12 @@ func _ready() -> void:
 	if fixer_script and fixer_script.has_method("fix"):
 		fixer_script.fix(self)
 	_load_marduk_animation_library()
+	# Procedural breath / sway: tiny scale+bob+yaw oscillation on the
+	# mesh root so the silhouette LOOKS alive even before any anim
+	# binds. Self-disables when the AnimationPlayer is playing a real
+	# anim, so it never fights bound animations. Deferred to the next
+	# frame so the loader has a chance to attach _anim_player_ref first.
+	call_deferred("_install_procedural_breath")
 
 # Tags this enemy with its faction group(s) on spawn so the player's
 # CombatBus.kill_registered bridge can apply rep deltas via the
@@ -722,6 +728,26 @@ func _spawn_pickups(items: Array[Item]) -> void:
 
 func get_attr(_a: StringName) -> float:
 	return 0.0
+
+# Attach a ProceduralBreath child to the mesh root if no anim is
+# currently playing. The breath script self-disables when an anim
+# starts, so this is a "fail-safe" rather than a default behavior.
+# Hides the worst case: a freshly-spawned mob whose marduk lib bind
+# failed AND whose embedded glb has no idle anim, which previously
+# produced a frozen T-pose for the mob's entire life.
+func _install_procedural_breath() -> void:
+	var breath_script: GDScript = load("res://scripts/anim/procedural_breath.gd")
+	if breath_script == null:
+		return
+	# Find the renderable mesh root: prefer a "MobMesh" child (set by
+	# Spawner._swap_mesh_for_mob), else use self.
+	var mesh_root: Node3D = get_node_or_null("MobMesh") as Node3D
+	if mesh_root == null:
+		# EnemyBase is a CharacterBody3D, the breath would shake the
+		# whole physics body. Skip if no dedicated mesh root is found.
+		return
+	if breath_script.has_method("attach_to"):
+		breath_script.attach_to(mesh_root, _anim_player_ref)
 
 # Walks every active quest right after a kill and spawns a
 # QuestProgressFloater for each objective that incremented. Reads live

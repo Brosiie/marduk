@@ -200,7 +200,8 @@ func _register_sanctum_mother() -> void:
 			"text": "Yes. There is one. They walk the Mother-Tree paths every morning, the way I taught them. They came twelve years ago. They are very good. I have not turned them out because I want you to be the one who finds them. The trees will tell you which one. The trees do not lie about this.",
 			"choices": [
 				{"label": "I will find them.", "next_id": "", "ends_dialogue": true,
-				 "starts_quest_id": "druid_traitor_grove"},
+				 "starts_quest_id": "druid_traitor_grove",
+				 "faction_rep_changes": {"druids": 250, "inquisition": -100}},
 				{"label": "Back.", "next_id": "intro"}
 			]
 		}
@@ -268,7 +269,8 @@ func _register_general_sin_mushezib() -> void:
 			"text": "Reed Wastes. A demon called Mu-Ash, Throat of the Wastes. Crown wants it dead. Brigand camps thinning under its presence; the Crown does not love brigands but they are at least Crown citizens. Tomb's a city; Mu-Ash is what the city forgot to be.",
 			"choices": [
 				{"label": "I'll do it.", "next_id": "intro",
-				 "starts_quest_id": "reed_failure"},
+				 "starts_quest_id": "reed_failure",
+				 "faction_rep_changes": {"crown": 250}},
 				{"label": "Tell me more first.", "next_id": "wastes"}
 			]
 		},
@@ -291,9 +293,12 @@ func _register_black_sail_first() -> void:
 			"speaker": "Black-Sail the First",
 			"text": "You climbed onto my keep. You are either an idiot or someone the Crown sent. The Crown does not pay this well. So which.",
 			"choices": [
-				{"label": "An idiot.", "next_id": "idiot"},
-				{"label": "Crown contract.", "next_id": "contract"},
-				{"label": "Negotiating.", "next_id": "negotiate"}
+				{"label": "An idiot.", "next_id": "idiot",
+				 "faction_rep_changes": {"black_sail": -200}},
+				{"label": "Crown contract.", "next_id": "contract",
+				 "faction_rep_changes": {"crown": 350, "black_sail": -500}},
+				{"label": "Negotiating.", "next_id": "negotiate",
+				 "faction_rep_changes": {"black_sail": -100}}
 			]
 		},
 		{
@@ -327,9 +332,12 @@ func _register_sahirum_witch_burner() -> void:
 			"speaker": "Sahirum the Witch-Burner",
 			"text": "You are alive. Interesting. I burned your mother. You may not remember her. The Inquisition's records do.",
 			"choices": [
-				{"label": "I remember her.", "next_id": "remember"},
-				{"label": "I will end you.", "next_id": "end"},
-				{"label": "Why did you burn her?", "next_id": "why"}
+				{"label": "I remember her.", "next_id": "remember",
+				 "faction_rep_changes": {"inquisition": -400, "druids": 200}},
+				{"label": "I will end you.", "next_id": "end",
+				 "faction_rep_changes": {"inquisition": -800, "druids": 350}},
+				{"label": "Why did you burn her?", "next_id": "why",
+				 "faction_rep_changes": {"inquisition": -200}}
 			]
 		},
 		{
@@ -394,8 +402,11 @@ func _register_lucifer() -> void:
 			"text": "Welcome. Sit, please. The stair is warm but the bench is cool. There is no rush. I would like to offer you something.",
 			"choices": [
 				{"label": "I'm listening.", "next_id": "listen"},
-				{"label": "I refuse before you finish.", "next_id": "refuse_early"},
-				{"label": "Insult him before he speaks.", "next_id": "insult", "sets_run_flag": "insulted_lucifer"}
+				{"label": "I refuse before you finish.", "next_id": "refuse_early",
+				 "faction_rep_changes": {"crown": 500, "inquisition": 300}},
+				{"label": "Insult him before he speaks.", "next_id": "insult",
+				 "sets_run_flag": "insulted_lucifer",
+				 "faction_rep_changes": {"crown": 250, "six_breaths": 100}}
 			]
 		},
 		{
@@ -412,7 +423,8 @@ func _register_lucifer() -> void:
 			"speaker": "Lucifer",
 			"text": "The world ends with the cycle. Without Marduk's edict, Tiamat reasserts. The salt sea returns. Babilim drowns. The Ash-Step clans drown. Belitu drowns; the Storyteller does not, but she goes silent for ten thousand years out of grief, and grief, you understand, is contagious. The catch is the world. I am offering you the cycle's end. The world ends with it. I do not lie. I am simply not selling what you thought I was selling.",
 			"choices": [
-				{"label": "Refuse.", "next_id": "refuse_late"}
+				{"label": "Refuse.", "next_id": "refuse_late",
+				 "faction_rep_changes": {"crown": 1000, "inquisition": 500, "six_breaths": 500, "druids": 250}}
 			]
 		},
 		{

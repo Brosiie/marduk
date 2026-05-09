@@ -25,6 +25,19 @@ class_name NPC
 @export var wander_pause_max: float = 5.5
 @export var wander_arrive_dist: float = 0.6   # how close to target counts as "arrived"
 
+# Day/night schedule: when night falls, the NPC walks to night_position
+# and idles there until dawn (then walks back to spawn). Empty Vector3
+# means "stay home and just stop wandering" (legacy behavior). Use this
+# for vendors who go to the tavern to drink, market girls who go home
+# to bed, blacksmiths who close up shop and head to the inn.
+#
+# The position is in WORLD space, set in the scene editor as a sibling
+# Marker3D and copied here. Or set in code on _ready for procedural NPCs.
+@export var night_position: Vector3 = Vector3.ZERO
+# Same speed as wander, slightly slower so the commute reads as
+# "tired walking home" not "panicked sprint."
+@export var schedule_walk_speed: float = 1.1
+
 # Wander state
 enum WanderState { PAUSING, WALKING }
 var _home: Vector3 = Vector3.ZERO
@@ -126,6 +139,11 @@ func _ready() -> void:
 	_refresh_quest_marker()
 
 	_load_idle_animation()
+	# Procedural breath/sway so static NPCs at vendor stalls don't read
+	# as frozen statues when their idle anim hasn't bound yet. Self-
+	# disables when a real anim plays. Deferred so the idle loader
+	# wins on its first frame.
+	call_deferred("_install_procedural_breath")
 
 	# Wander setup: lock in home position so wander_target picks stay nearby
 	# even after being moved by other systems.
@@ -142,10 +160,30 @@ func _physics_process(_delta: float) -> void:
 		velocity = Vector3.ZERO
 		_play_anim_for_state(WanderState.PAUSING)
 		return
-	# Day/night schedule: at night villagers stop wandering and stand
-	# still (placeholder for going to bed). Resumes at dawn. Driven by
-	# the WorldClock autoload's is_night helper.
-	if _is_night_now():
+	# Day/night schedule. Three branches:
+	#   1. Night + has night_position + not there yet -> walk toward it
+	#   2. Day + not at home + has been to night_position -> walk back home
+	#   3. Otherwise fall through to wander or idle
+	# A brief "arrived" window where we're within wander_arrive_dist of the
+	# scheduled destination just plays idle so the NPC doesn't shuffle.
+	if _is_night_now() and night_position != Vector3.ZERO:
+		var dist_to_night: float = global_position.distance_to(night_position)
+		if dist_to_night > wander_arrive_dist:
+			_walk_toward(night_position, schedule_walk_speed)
+			return
+		# At night spot -> idle
+		velocity = Vector3.ZERO
+		_play_anim_for_state(WanderState.PAUSING)
+		move_and_slide()
+		return
+	elif not _is_night_now() and night_position != Vector3.ZERO:
+		# Daytime: if we're not back home (within wander_radius), walk back.
+		var dist_to_home: float = global_position.distance_to(_home)
+		if dist_to_home > wander_radius * 1.2:
+			_walk_toward(_home, schedule_walk_speed)
+			return
+	elif _is_night_now():
+		# No night_position set, legacy behavior: stop and idle.
 		velocity = Vector3.ZERO
 		_play_anim_for_state(WanderState.PAUSING)
 		move_and_slide()
@@ -170,6 +208,33 @@ func _physics_process(_delta: float) -> void:
 			# Face the direction of travel (yaw only)
 			rotation.y = atan2(velocity.x, velocity.z)
 			move_and_slide()
+
+func _install_procedural_breath() -> void:
+	var breath_script: GDScript = load("res://scripts/anim/procedural_breath.gd")
+	if breath_script == null:
+		return
+	var mesh_root: Node3D = get_node_or_null("MeshRoot") as Node3D
+	if mesh_root == null:
+		return
+	var ap: AnimationPlayer = _find_anim_player(self)
+	if breath_script.has_method("attach_to"):
+		breath_script.attach_to(mesh_root, ap)
+
+# Walk directly toward a world point at `speed`. Used by the schedule
+# system to move between home + night_position. Handles facing, walk
+# anim, and one move_and_slide step. The schedule branches in
+# _physics_process call this every frame until they arrive.
+func _walk_toward(target: Vector3, speed: float) -> void:
+	var to_target: Vector3 = target - global_position
+	to_target.y = 0.0
+	if to_target.length_squared() < 0.001:
+		velocity = Vector3.ZERO
+		move_and_slide()
+		return
+	velocity = to_target.normalized() * speed
+	rotation.y = atan2(velocity.x, velocity.z)
+	_play_anim_for_state(WanderState.WALKING)
+	move_and_slide()
 
 func _pick_new_wander_target() -> void:
 	# Pick a random point within wander_radius of home. Repeat up to a few
