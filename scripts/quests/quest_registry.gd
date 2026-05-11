@@ -658,5 +658,31 @@ func _register_faction_starter_quests() -> void:
 		600, 130)
 	inq_q.faction_rep_changes = {&"inquisition": 350, &"druids": -150}
 
+	# SANCTUM-MOTHER, low-level Wound tending. Cull the corruption's
+	# physical avatars at the Glen's edge. Lower-tier than the
+	# Inquisition's burn-everything approach; smaller individual reward
+	# but the player is actually REDUCING Wound creep (Druid-positive
+	# quests subtract from WoundRegistry on completion).
+	var sm_q1 := _make(&"q_sanctum_tending_glen", "Tending the Glen",
+		"The Sanctum-Mother needs the Glen's edge cleaner before the new moon. Reed creepers are pushing the boundary. Cull eight. Bring nothing back; the Glen takes its own offerings.",
+		&"sanctum_mother", 5,
+		[{"description": "Cull 8 Reed Creepers at the Glen's edge", "kind": "kill", "target_id": "reed_creeper", "required_count": 8}],
+		700, 160)
+	sm_q1.faction_rep_changes = {&"druids": 350, &"inquisition": -120}
+
+	# SANCTUM-MOTHER, harder, gated on Friendly-with-Druids. The
+	# Sanctum-Mother asks the player to find and end an Inquisition
+	# Burner who has been salting wells inside the Wound. Bigger creep
+	# reduction, bigger rep delta. min_faction_rep gate enforces that
+	# the player has actually been TENDING the Druids before she
+	# trusts them with this one.
+	var sm_q2 := _make(&"q_sanctum_burner_at_the_edge", "Bury the Burner at the Edge",
+		"A Witch-Burner has been salting our wells from the Inquisition side of the boundary. The vines refuse to grow near the salt. End him quietly. The Sanctum will see you cared for after.",
+		&"sanctum_mother", 10,
+		[{"description": "Slay the Witch-Burner at the Wound boundary", "kind": "kill", "target_id": "witch_burner_elite", "required_count": 1}],
+		1400, 380)
+	sm_q2.faction_rep_changes = {&"druids": 700, &"inquisition": -400}
+	sm_q2.min_faction_rep = {&"druids": 3000}  # Friendly with Druids required
+
 func _register_starter_quests() -> void:
 	_register_starter_quests_v2()

@@ -26,7 +26,8 @@ static func pick_contextual_greeting(
 		default_greeting: String,
 		dread_greetings: Dictionary = {},
 		glyph_greetings: Dictionary = {},
-		walked_back_greeting: String = ""
+		walked_back_greeting: String = "",
+		wound_dread_greetings: Dictionary = {}
 	) -> String:
 	# Layer 1: walked-back override
 	if walked_back_greeting != "" and _player_walked_back(player):
@@ -41,7 +42,17 @@ static func pick_contextual_greeting(
 		if glyph_match != "":
 			return glyph_match
 
-	# Layer 3: Tiamat awareness dread. Tables key by tier name
+	# Layer 3a: Wound creep dread. Druid-faction characters who SEE
+	# the corruption directly (Sanctum-Mother and her wards) read
+	# this tier BEFORE Tiamat awareness, because the Wound is in
+	# their hands literally. Keyed by WoundRegistry tier:
+	# SEEPING / BLEEDING / UNCONTAINED / CONSUMING.
+	if not wound_dread_greetings.is_empty():
+		var wound_match: String = _wound_dread_line(wound_dread_greetings)
+		if wound_match != "":
+			return wound_match
+
+	# Layer 3b: Tiamat awareness dread. Tables key by tier name
 	# (STIRRING / WAKING / WAKING_2 / AWAKE). NPCs typically only
 	# author the WAKING+ dread variants; STIRRING uses the class line.
 	if not dread_greetings.is_empty():
@@ -128,4 +139,20 @@ static func _dread_line(dread_greetings: Dictionary) -> String:
 	# above (typo / unsupported tier), still try a direct lookup
 	if dread_greetings.has(tier):
 		return String(dread_greetings[tier])
+	return ""
+
+static func _wound_dread_line(wound_dread_greetings: Dictionary) -> String:
+	# Mirrors _dread_line but reads WoundRegistry.current_tier. Same
+	# priority-from-highest pattern so a CONSUMING-tier table beats a
+	# SEEPING line when both are authored.
+	var wr: Node = Engine.get_main_loop().root.get_node_or_null("/root/WoundRegistry") if Engine.get_main_loop() else null
+	if wr == null or not wr.has_method("current_tier"):
+		return ""
+	var tier: String = String(wr.current_tier())
+	const _WOUND_ORDER := ["CONSUMING", "UNCONTAINED", "BLEEDING", "SEEPING"]
+	for candidate_tier in _WOUND_ORDER:
+		if tier == candidate_tier and wound_dread_greetings.has(candidate_tier):
+			return String(wound_dread_greetings[candidate_tier])
+	if wound_dread_greetings.has(tier):
+		return String(wound_dread_greetings[tier])
 	return ""

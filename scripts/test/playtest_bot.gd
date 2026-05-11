@@ -133,6 +133,7 @@ func _run() -> void:
 	await _scenario_npc_contextual_greeting()
 	await _scenario_tiamat_vision_overlay()
 	await _scenario_wound_creep_tiers()
+	await _scenario_wound_dread_greeting()
 
 	_finish()
 
@@ -1367,6 +1368,79 @@ func _scenario_wound_creep_tiers() -> void:
 	else:
 		_fail("wound_creep_tiers", "failures=%s up=%d druid=%d inq=%d" %
 			[", ".join(failures), saw_up, after_druid, after_inq])
+
+# 18. Wound dread greeting: NPCLines now supports a wound_dread_greetings
+# layer that reads WoundRegistry.current_tier. Verify it picks the
+# wound-tier line over the class line when creep is in the SEEPING+
+# range, and that priority within the chain is correct (wound dread
+# fires BEFORE Tiamat dread for NPCs that author both).
+func _scenario_wound_dread_greeting() -> void:
+	var wr: Node = get_node_or_null("/root/WoundRegistry")
+	var tr: Node = get_node_or_null("/root/TiamatRegistry")
+	if wr == null or tr == null:
+		_findings.append("(skip wound_dread_greeting: registries missing)")
+		return
+	# Build a fake player with class_id = chaos_druid
+	var fake := Node.new()
+	var wrapper_script := GDScript.new()
+	wrapper_script.source_code = """extends Node
+var stats = null
+var character_appearance = null
+"""
+	wrapper_script.reload()
+	fake.set_script(wrapper_script)
+	var stats_script := GDScript.new()
+	stats_script.source_code = "extends Resource\nvar class_def: Resource = null\n"
+	stats_script.reload()
+	var fake_stats := Resource.new()
+	fake_stats.set_script(stats_script)
+	var class_def_script := GDScript.new()
+	class_def_script.source_code = "extends Resource\nvar class_id: StringName = &\"chaos_druid\"\n"
+	class_def_script.reload()
+	var fake_class_def := Resource.new()
+	fake_class_def.set_script(class_def_script)
+	fake_stats.class_def = fake_class_def
+	fake.stats = fake_stats
+
+	var class_greets := {&"chaos_druid": "class druid line"}
+	var dread_greets := {"WAKING": "tiamat waking line"}
+	var wound_dread_greets := {"SEEPING": "wound seeping line", "BLEEDING": "wound bleeding line"}
+
+	# Test 1: both registries at 0, class line wins
+	tr.set_awareness(0)
+	wr.set_creep(0)
+	var got_dormant: String = NPCLines.pick_contextual_greeting(
+		fake, class_greets, "default", dread_greets, {}, "", wound_dread_greets)
+	# Test 2: Wound at SEEPING, Tiamat at 0 -> wound dread wins
+	wr.set_creep(30)
+	var got_seeping: String = NPCLines.pick_contextual_greeting(
+		fake, class_greets, "default", dread_greets, {}, "", wound_dread_greets)
+	# Test 3: Wound at BLEEDING, Tiamat at WAKING -> wound dread wins
+	# (wound layer comes first; Tiamat is later)
+	wr.set_creep(60)
+	tr.set_awareness(60)  # WAKING
+	var got_both: String = NPCLines.pick_contextual_greeting(
+		fake, class_greets, "default", dread_greets, {}, "", wound_dread_greets)
+	# Test 4: Wound at 0 but Tiamat at WAKING -> Tiamat line (no wound to read)
+	wr.set_creep(0)
+	tr.set_awareness(60)
+	var got_tiamat_only: String = NPCLines.pick_contextual_greeting(
+		fake, class_greets, "default", dread_greets, {}, "", wound_dread_greets)
+	# Cleanup
+	tr.set_awareness(0)
+	wr.set_creep(0)
+	fake.queue_free()
+	var all_ok: bool = (
+		got_dormant == "class druid line"
+		and got_seeping == "wound seeping line"
+		and got_both == "wound bleeding line"
+		and got_tiamat_only == "tiamat waking line"
+	)
+	if all_ok:
+		_pass("wound_dread_greeting", "class->seeping->bleeding-over-waking->waking (priority chain correct)")
+	else:
+		_fail("wound_dread_greeting", "got dormant=%s seeping=%s both=%s tiamat_only=%s" %
+			[got_dormant, got_seeping, got_both, got_tiamat_only])
 
 func _scenario_hud_presence() -> void:
 	var huds := get_tree().get_nodes_in_group("hud")
