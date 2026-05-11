@@ -1,4 +1,4 @@
-[gd_scene load_steps=9 format=3 uid="uid://bedc124210744"]
+[gd_scene load_steps=12 format=3 uid="uid://bedc124210744"]
 [ext_resource type="Script" path="res://scripts/world/boss_arena.gd" id="boss_arena_verdant_wound"]
 [ext_resource type="Script" path="res://scripts/world/lodestone.gd" id="boss_lodestone_verdant_grove_heart"]
 [ext_resource type="Script" path="res://scripts/world/lodestone.gd" id="lodestone_verdant_altar"]
@@ -6,6 +6,9 @@
 
 [ext_resource type="Script" path="res://scripts/world/spawn/zone_composer.gd" id="ZoneComposer_verdant_wound"]
 [ext_resource type="Script" path="res://scripts/world/lore_rune.gd" id="lore_rune_script"]
+[ext_resource type="Script" path="res://scripts/npcs/sanctum_mother_npc.gd" id="sanctum_mother_script"]
+[ext_resource type="Script" path="res://scripts/npcs/captain_vashtu_npc.gd" id="captain_vashtu_script"]
+[ext_resource type="Script" path="res://scripts/world/spawn/spawner.gd" id="conflict_spawner_script"]
 
 ; Auto-generated placeholder for Verdant Wound.
 ; Drop real environment art under MeshRoot; lighting/atmosphere already tuned.
@@ -121,3 +124,41 @@ position = Vector3(18, 0.4, 14)
 rune_id = &"the_wound_keepers"
 lore_title = "The Wound-Keepers"
 lore_body = "The druids who tend the Verdant Wound are not gardeners. They are the wound's stewards. They feed it nothing, they water it nothing, they ask it nothing. They walk the paths and they remember. The wound is patient with them."
+
+; ── Sanctum-Mother. Lives by the Verdant Altar lodestone (the safe
+; druid corner of the zone), facing inward toward the Glen. Quest
+; giver for the Druid stabilization line (q_sanctum_tending_glen +
+; q_sanctum_burner_at_the_edge). Reads BOTH cosmic threats and the
+; faction conflict registry through her contextual greetings.
+[node name="SanctumMother" type="CharacterBody3D" parent="."]
+script = ExtResource("sanctum_mother_script")
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3, 0.5, 22)
+
+; ── Captain Vashtu the Censor. Lives at the OPPOSITE edge of the
+; zone, at the Inquisition border outpost. Quest giver for the
+; Inquisition burn quests (q_vashtu_purify_grove + q_vashtu_silence_sanctum).
+; Same priority chain as Sanctum-Mother, inverted political voice.
+; Placement asymmetry is intentional: walking from the lodestone
+; (Druid corner) to the boss arena (corruption heart) takes you
+; PAST Vashtu's outpost. The Crown is moving troops to the Wound
+; boundary because they don't trust the Druids.
+[node name="CaptainVashtu" type="CharacterBody3D" parent="."]
+script = ExtResource("captain_vashtu_script")
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 14, 0.5, -2)
+
+; ── Conflict-aware spawner at the zone center. Default pool spawns
+; corruption mobs the zone already lists. SKIRMISH overlay adds
+; Witch-Burners (Vashtu's order pushing into the grove) and Druid
+; Couriers (Sanctum's messengers running counter-routes). OPEN_WAR
+; adds Inquisitor Primes + a larger Druid presence (the war pulls
+; bigger figures to the boundary).
+[node name="ConflictSpawner_boundary" type="Node3D" parent="."]
+script = ExtResource("conflict_spawner_script")
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6, 1, 6)
+mob_pool = Array[StringName]([&"forest_blight"])
+initial_count = 1
+max_concurrent = 2
+respawn_seconds = 75.0
+conflict_pair_key = &"druid_vs_inquisition"
+pool_skirmish = Array[StringName]([&"witch_burner", &"druid_courier"])
+pool_open_war = Array[StringName]([&"inquisitor_prime", &"blood_hunter"])
