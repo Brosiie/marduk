@@ -139,7 +139,29 @@ func _entry_card(entry: Dictionary) -> Control:
 		body.text = String(entry.get("unlock_hint", "Discover this in the world."))
 		body.modulate = Color(0.40, 0.40, 0.50)
 	v.add_child(body)
+	# Bestiary entries get a kill-count footer rendered after the lore.
+	# id format is "b_<mob_id>"; strip the prefix to look up the count.
+	# Hidden when count is 0 OR when the entry is locked (no spoiler).
+	if unlocked and _selected_category == &"bestiary" and String(id).begins_with("b_"):
+		var mob_id := StringName(String(id).substr(2))
+		var n: int = _registry.get_kill_count(mob_id) if _registry.has_method("get_kill_count") else 0
+		if n > 0:
+			var counter := Label.new()
+			counter.text = "Kills: %s" % _format_kill_count(n)
+			counter.add_theme_font_size_override("font_size", 11)
+			counter.add_theme_color_override("font_color", Color(0.95, 0.65, 0.30))
+			v.add_child(counter)
 	return box
+
+# 1234 -> "1,234" so big kill totals don't read as a single blob.
+func _format_kill_count(n: int) -> String:
+	var s: String = str(n)
+	var out: String = ""
+	for i in range(s.length()):
+		if i > 0 and (s.length() - i) % 3 == 0:
+			out += ","
+		out += s[i]
+	return out
 
 func _on_category_pressed(id: StringName) -> void:
 	_selected_category = id

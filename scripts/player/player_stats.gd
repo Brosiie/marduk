@@ -219,6 +219,39 @@ func set_node_rank(id: StringName, rank: int) -> void:
 	elif rank <= 0 and id in unlocked_skill_node_ids:
 		unlocked_skill_node_ids.erase(id)
 
+# Refund every spent skill point back to unspent. Walks node_ranks +
+# multiplies each rank by the node's per-rank cost (read from
+# SkillTreeRegistry so we honor variable-cost nodes), refunds the
+# total, and clears all rank state.
+#
+# Returns the number of skill points refunded so the caller can show
+# "+47 skill points" toast. Caller is responsible for the gold cost
+# (the skill tree panel handles the cost gate before calling).
+func refund_all_skill_points() -> int:
+	var refunded: int = 0
+	# Resolve each unlocked node's cost from the SkillTreeRegistry so
+	# we don't assume cost=1 for every rank. Falls back to cost=1 if
+	# the registry doesn't expose the node (defensive).
+	var tree_root := Engine.get_main_loop() as SceneTree
+	var registry: Node = null
+	if tree_root:
+		registry = tree_root.root.get_node_or_null("SkillTreeRegistry")
+	for id in node_ranks.keys():
+		var rank: int = int(node_ranks[id])
+		if rank <= 0:
+			continue
+		var per_rank_cost: int = 1
+		if registry and registry.has_method("get_node_by_id"):
+			var n = registry.get_node_by_id(id)
+			if n and "cost" in n:
+				per_rank_cost = max(1, int(n.cost))
+		refunded += rank * per_rank_cost
+	# Wipe all rank state + reset the unlocked-ids list
+	node_ranks.clear()
+	unlocked_skill_node_ids.clear()
+	unspent_skill_points += refunded
+	return refunded
+
 func mastered_breathing_styles() -> int:
 	var count := 0
 	for style_id in [&"water", &"flame", &"mist", &"thunder", &"stone", &"wind"]:

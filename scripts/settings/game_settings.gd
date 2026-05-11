@@ -91,6 +91,15 @@ func has_property(name: String) -> bool:
 			return true
 	return false
 
+# Public accessor for the aggressive_loot_pickup setting. Named
+# get_auto_loot() because that's what ItemPickup._on_body_entered
+# calls (auto-loot is the player-facing label). Without this method
+# the wire was BROKEN: ItemPickup queried a non-existent method via
+# `has_method("get_auto_loot")` which always returned false, so the
+# setting silently did nothing. Players couldn't enable auto-loot.
+func get_auto_loot() -> bool:
+	return aggressive_loot_pickup
+
 # === Apply ===
 func _apply_display() -> void:
 	if fullscreen:

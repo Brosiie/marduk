@@ -18,9 +18,14 @@ func emit_hit(target: Node, result: DamageCalc.Result, ability: Ability) -> void
 	hit_landed.emit(target, result, ability)
 	if result.killed:
 		kill_registered.emit(target, null)
+	var element: StringName = _element_name(ability.damage_type if ability else 0)
+	# Per-element DPS bookkeeping so build-tuners can see whether their
+	# 60%-fire-bonus build is actually fire-skewed in practice. Tracked
+	# in a rolling 5-second window so the meter shows CURRENT damage
+	# pace, not lifetime totals (those live in the player run-stats).
+	_record_damage_for_dps(element, result.damage)
 	# Spawn damage floater immediately so every hit gets a number.
 	if target is Node3D:
-		var element: StringName = _element_name(ability.damage_type if ability else 0)
 		# Class tint on crits, only resolve when crit so the lookup
 		# doesn't run on every hit.
 		var class_tint: Color = _resolve_class_tint() if result.crit else Color(0,0,0,0)
@@ -54,3 +59,62 @@ func _element_name(damage_type: int) -> StringName:
 		Ability.DamageType.SHADOW:    return &"shadow"
 		Ability.DamageType.ARCANE:    return &"void"
 		_:                            return &"physical"
+
+# ───────── DPS by element ─────────
+#
+# Rolling 5-second window. Each hit drops a {time, element, amount}
+# entry into _dps_log; the getter prunes entries older than DPS_WINDOW
+# before summing. Build-tuners read get_dps_breakdown() to see how
+# their actual DPS distributes across elements (vs. theoretical
+# tooltip math).
+
+const DPS_WINDOW: float = 5.0
+var _dps_log: Array = []  # of {t: float, element: StringName, dmg: float}
+
+func _record_damage_for_dps(element: StringName, damage: float) -> void:
+	if damage <= 0.0:
+		return
+	var now: float = Time.get_ticks_msec() / 1000.0
+	_dps_log.append({"t": now, "element": element, "dmg": damage})
+	# Prune occasionally so the array doesn't grow unbounded between
+	# reader calls. ~every 32 entries is cheap and keeps memory tight.
+	if _dps_log.size() % 32 == 0:
+		_prune_dps_log(now)
+
+func _prune_dps_log(now: float) -> void:
+	var cutoff: float = now - DPS_WINDOW
+	var keep: Array = []
+	for e in _dps_log:
+		if float(e["t"]) >= cutoff:
+			keep.append(e)
+	_dps_log = keep
+
+# Returns {element_id: dps_float} for each element with damage in the
+# current window. Reader-friendly: sums over WINDOW seconds and divides
+# by the actual elapsed time of the oldest tracked hit (or DPS_WINDOW
+# if the window is full), so a 1-second burst of 600 dmg reads as
+# 600 dps not 120.
+func get_dps_breakdown() -> Dictionary:
+	var now: float = Time.get_ticks_msec() / 1000.0
+	_prune_dps_log(now)
+	if _dps_log.is_empty():
+		return {}
+	var by_element: Dictionary = {}
+	var oldest_t: float = float(_dps_log[0]["t"])
+	for e in _dps_log:
+		var el: StringName = e["element"]
+		by_element[el] = float(by_element.get(el, 0.0)) + float(e["dmg"])
+		oldest_t = min(oldest_t, float(e["t"]))
+	var elapsed: float = max(0.5, now - oldest_t)
+	for k in by_element.keys():
+		by_element[k] = float(by_element[k]) / elapsed
+	return by_element
+
+# Total DPS across all elements over the rolling window. Cheap call
+# for HUD / nameplate / cast-bar to show "current DPS = N" at a glance.
+func get_dps_total() -> float:
+	var by_el: Dictionary = get_dps_breakdown()
+	var sum: float = 0.0
+	for v in by_el.values():
+		sum += float(v)
+	return sum

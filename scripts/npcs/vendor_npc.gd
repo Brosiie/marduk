@@ -63,6 +63,37 @@ func _on_dawn() -> void:
 func _open_dialogue() -> void:
 	_open_shop_panel()
 
+# Override the base NPC's chatter trigger so vendors with an active
+# deal announce it specifically instead of saying "best prices on this
+# side of Babilim" generically. Once-per-day flag so the toast doesn't
+# spam every time the player crosses the radius.
+const DEAL_TOAST_FLAG_PREFIX := "vendor_deal_toasted_"
+var _deal_toasted_for_today: bool = false
+
+func _on_body_entered(body: Node3D) -> void:
+	super._on_body_entered(body)
+	if not body.is_in_group("player"):
+		return
+	if _todays_deal == null:
+		return
+	if _deal_toasted_for_today:
+		return
+	_deal_toasted_for_today = true
+	var juice: Node = get_node_or_null("/root/Juice")
+	if juice and juice.has_method("toast"):
+		var deal_name: String = _todays_deal.display_name if _todays_deal else "an item"
+		juice.toast(
+			"%s has a deal: %s (-%d%%)" % [display_name, deal_name, int(DEAL_DISCOUNT_PCT * 100)],
+			Color(0.55, 0.95, 0.55),
+			3.0,
+		)
+
+# Reset the once-per-day toast gate when the deal rotates at dawn.
+# Override the base _on_dawn so we wrap, not replace.
+func _on_dawn() -> void:
+	super._on_dawn()
+	_deal_toasted_for_today = false
+
 func _open_shop_panel() -> void:
 	var hud := get_tree().get_first_node_in_group("hud") if get_tree() else null
 	if hud == null:

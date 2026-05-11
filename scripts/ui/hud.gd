@@ -170,6 +170,15 @@ func _ready() -> void:
 		qt.set_script(qt_script)
 		qt.name = "QuestTracker"
 		$Root.add_child(qt)
+	# DPS meter (bottom right, above action bar). Auto-hides when no
+	# damage in the last 5 seconds; surfaces during combat with current
+	# DPS + per-element breakdown.
+	var dps_script: GDScript = load("res://scripts/ui/hud_components/dps_meter.gd")
+	if dps_script:
+		var dps := Control.new()
+		dps.set_script(dps_script)
+		dps.name = "DpsMeter"
+		$Root.add_child(dps)
 	# Combat log (bottom left, above ability bar)
 	var cl_script: GDScript = load("res://scripts/ui/hud_components/combat_log.gd")
 	if cl_script:

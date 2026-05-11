@@ -393,6 +393,17 @@ func _build_header() -> void:
 	hbox.add_child(pts_label)
 	_points_label = pts_label
 
+	# Refund button: respec all spent points for a gold cost. Cost
+	# scales with player level so early refunds are cheap (encouraging
+	# experimentation) and late refunds bite (encouraging commitment).
+	# Two-click confirmation pattern matches the save-slot delete flow.
+	var refund_btn := Button.new()
+	refund_btn.name = "RefundBtn"
+	refund_btn.custom_minimum_size = Vector2(160, 36)
+	refund_btn.text = _refund_btn_label()
+	refund_btn.pressed.connect(_on_refund_pressed.bind(refund_btn))
+	hbox.add_child(refund_btn)
+
 	var close_btn := Button.new()
 	close_btn.text = "Close [Esc]"
 	close_btn.custom_minimum_size = Vector2(120, 36)
@@ -663,3 +674,73 @@ func _refresh_after_purchase() -> void:
 		_render_tooltip_for(_selected_node_id)
 	if _line_canvas:
 		_line_canvas.queue_redraw()
+	# Refund button label may also need a refresh after purchase since
+	# the cost shown might have changed (level-scaled).
+	_refresh_refund_btn()
+
+# ───────── Skill point refund (respec) ─────────
+#
+# Cost = REFUND_BASE_COST + REFUND_PER_LEVEL * player_level. At level 1
+# that's 100g; at level 50 it's 1100g. Lets new players experiment
+# cheaply, makes endgame respec feel like a meaningful choice.
+const REFUND_BASE_COST: int = 100
+const REFUND_PER_LEVEL: int = 20
+
+func _refund_cost() -> int:
+	if stats == null:
+		return REFUND_BASE_COST
+	return REFUND_BASE_COST + REFUND_PER_LEVEL * max(1, int(stats.level))
+
+func _refund_btn_label() -> String:
+	# Refresh-friendly label: shows the current cost so the player sees
+	# the gold price up front. Empty button text if there's nothing to
+	# refund (no spent points).
+	if stats == null or stats.node_ranks.is_empty():
+		return "Refund (none spent)"
+	return "Refund Skills (%dg)" % _refund_cost()
+
+func _refresh_refund_btn() -> void:
+	# Find the refund button in the header (sibling search keeps us
+	# decoupled from the variable scope of _build_header).
+	if panel_root == null:
+		return
+	var btn: Button = panel_root.find_child("RefundBtn", true, false) as Button
+	if btn:
+		btn.text = _refund_btn_label()
+
+# Two-click confirm: first press arms, second press within 4s commits.
+var _refund_confirming_until: float = 0.0
+
+func _on_refund_pressed(btn: Button) -> void:
+	if stats == null or stats.node_ranks.is_empty():
+		return
+	var cost: int = _refund_cost()
+	# Gold gate first
+	var gold: int = int(stats.gold) if "gold" in stats else 0
+	if gold < cost:
+		var juice = get_node_or_null("/root/Juice")
+		if juice and juice.has_method("toast"):
+			juice.toast("Need %dg to refund (have %d)" % [cost, gold], Color(0.85, 0.45, 0.30), 2.4)
+		return
+	# Two-click confirmation
+	var now: float = Time.get_ticks_msec() / 1000.0
+	if now > _refund_confirming_until:
+		_refund_confirming_until = now + 4.0
+		btn.text = "Click again to confirm"
+		var juice2 = get_node_or_null("/root/Juice")
+		if juice2 and juice2.has_method("toast"):
+			juice2.toast("Refund all skills for %dg?  Click again to confirm." % cost,
+				Color(0.95, 0.85, 0.30), 3.5)
+		return
+	# Confirmed: spend gold, refund, refresh entire panel.
+	stats.gold -= cost
+	var refunded: int = stats.refund_all_skill_points() if stats.has_method("refund_all_skill_points") else 0
+	_refund_confirming_until = 0.0
+	# Notify player so any active class signals refresh (ability bar
+	# bindings tied to skill nodes need to clear).
+	if player and player.has_signal("class_changed") and stats and stats.class_def:
+		player.emit_signal("class_changed", stats.class_def)
+	_refresh_after_purchase()
+	var juice3 = get_node_or_null("/root/Juice")
+	if juice3 and juice3.has_method("toast"):
+		juice3.toast("Refunded %d skill points." % refunded, Color(0.45, 0.95, 0.55), 3.0)
