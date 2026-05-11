@@ -684,6 +684,30 @@ func _register_faction_starter_quests() -> void:
 	sm_q2.faction_rep_changes = {&"druids": 700, &"inquisition": -400}
 	sm_q2.min_faction_rep = {&"druids": 3000}  # Friendly with Druids required
 
+	# CAPTAIN VASHTU, low-level Inquisition burn. The Inquisition's
+	# counter-lever to the Sanctum-Mother. Same shape, opposite rep
+	# direction. Lore-critical: completing these pushes BOTH cosmic
+	# threats UP via the registry subscribers. The player can see this
+	# in the HUD widgets; the Captain cannot. That's the tragedy.
+	var vq1 := _make(&"q_vashtu_purify_grove", "Purify the Grove's Edge",
+		"Captain Vashtu asks that you cull the salt-demons crowding the grove's edge before they breed deeper. The Sanctum will not authorize the fire; the Censor's Company does not need authorization. Bring her six heads.",
+		&"captain_vashtu", 6,
+		[{"description": "Slay 6 Salt-Demons at the Wound boundary", "kind": "kill", "target_id": "salt_demon", "required_count": 6}],
+		750, 200)
+	vq1.faction_rep_changes = {&"inquisition": 350, &"druids": -150}
+
+	# CAPTAIN VASHTU, harder. Strike a Druid agent the Censor has been
+	# tracking. min_faction_rep on Inquisition makes the player commit
+	# before she trusts them with a Druid kill (which is the line that
+	# turns the cold faction tension into something hotter).
+	var vq2 := _make(&"q_vashtu_silence_sanctum", "Silence the Sanctum's Hand",
+		"The Sanctum has a courier moving between the Glen and Babilim. The Captain wants that courier silenced. She does not say killed; she says silenced. We both know what we mean.",
+		&"captain_vashtu", 12,
+		[{"description": "Slay the Druid Courier on the Reed Road", "kind": "kill", "target_id": "druid_courier", "required_count": 1}],
+		1500, 420)
+	vq2.faction_rep_changes = {&"inquisition": 700, &"druids": -500}
+	vq2.min_faction_rep = {&"inquisition": 3000}  # Friendly with Inquisition required
+
 	# ─── THE SEVENTH BREATH (hidden lore unlock) ────────────────────
 	# "Sun is the seventh and unspoken." Six Breaths public lore names
 	# six disciplines: Flame, Frost, Stone, Wind, Reed, Bone. The

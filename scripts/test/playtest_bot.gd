@@ -136,6 +136,7 @@ func _run() -> void:
 	await _scenario_wound_dread_greeting()
 	await _scenario_seventh_breath_gates()
 	await _scenario_seventh_master_visibility()
+	await _scenario_vashtu_dread_inversion()
 
 	_finish()
 
@@ -1539,6 +1540,51 @@ func _scenario_seventh_master_visibility() -> void:
 		_pass("seventh_master_visibility", "hidden before earned, visible in meeting window, hidden after")
 	else:
 		_fail("seventh_master_visibility", "visibilities=%s (want [F,F]:false, [T,F]:true, [T,T]:false, [F,T]:false)" % str(visibilities))
+
+# 21. Captain Vashtu dread inversion: the Inquisition NPC uses the same
+# NPCLines pick chain as the Sanctum-Mother but with OPPOSITE-toned
+# lines. Verify her CONSUMING-tier wound line still wins over a class
+# line, AND that it's a different line than the Sanctum-Mother's at
+# the same tier (different authors, same priority chain, different
+# political voice).
+func _scenario_vashtu_dread_inversion() -> void:
+	var wr: Node = get_node_or_null("/root/WoundRegistry")
+	if wr == null:
+		_findings.append("(skip vashtu_dread_inversion: WoundRegistry missing)")
+		return
+	# Resolve both NPC scripts so we can read their WOUND_DREAD_GREETINGS
+	# tables without instantiating CharacterBody3D nodes (which would
+	# require a scene context).
+	var vashtu_script: GDScript = load("res://scripts/npcs/captain_vashtu_npc.gd")
+	var sanctum_script: GDScript = load("res://scripts/npcs/sanctum_mother_npc.gd")
+	if vashtu_script == null or sanctum_script == null:
+		_findings.append("(skip vashtu_dread_inversion: NPC scripts missing)")
+		return
+	# Both should expose WOUND_DREAD_GREETINGS as a class constant. Pull
+	# them off the script directly via get_script_constant_map.
+	var vashtu_consts: Dictionary = vashtu_script.get_script_constant_map()
+	var sanctum_consts: Dictionary = sanctum_script.get_script_constant_map()
+	var vashtu_table: Dictionary = vashtu_consts.get("WOUND_DREAD_GREETINGS", {})
+	var sanctum_table: Dictionary = sanctum_consts.get("WOUND_DREAD_GREETINGS", {})
+	if vashtu_table.is_empty() or sanctum_table.is_empty():
+		_fail("vashtu_dread_inversion", "one or both NPCs missing WOUND_DREAD_GREETINGS")
+		return
+	# All 4 wound tiers should be authored on both
+	var tiers := ["SEEPING", "BLEEDING", "UNCONTAINED", "CONSUMING"]
+	var same_tier_count: int = 0
+	var differ_tier_count: int = 0
+	for tier in tiers:
+		if not vashtu_table.has(tier) or not sanctum_table.has(tier):
+			continue
+		if String(vashtu_table[tier]) == String(sanctum_table[tier]):
+			same_tier_count += 1
+		else:
+			differ_tier_count += 1
+	# Expected: all 4 tiers authored on both, all 4 differ
+	if differ_tier_count == 4 and same_tier_count == 0:
+		_pass("vashtu_dread_inversion", "all 4 wound-dread tiers authored on both NPCs with distinct lines")
+	else:
+		_fail("vashtu_dread_inversion", "same=%d differ=%d (want differ=4)" % [same_tier_count, differ_tier_count])
 
 func _scenario_hud_presence() -> void:
 	var huds := get_tree().get_nodes_in_group("hud")
