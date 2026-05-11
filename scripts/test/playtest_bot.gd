@@ -139,6 +139,7 @@ func _run() -> void:
 	await _scenario_vashtu_dread_inversion()
 	await _scenario_faction_conflict_transitions()
 	await _scenario_quest_open_war_gate()
+	await _scenario_spawner_conflict_pool()
 
 	_finish()
 
@@ -1691,6 +1692,74 @@ func _scenario_quest_open_war_gate() -> void:
 	else:
 		_fail("quest_open_war_gate", "cold=%s skirmish=%s war_blocked=%s cooled=%s" %
 			[cold_ok, skirmish_ok, war_blocked, cooled_ok])
+
+# 24. Spawner conflict pool: a Spawner with conflict_pair_key set
+# expands its effective pool when conflict reaches SKIRMISH+, expands
+# further at OPEN_WAR. Walks the wound creep through 0/50/80 and
+# verifies the pool size matches at each tier.
+func _scenario_spawner_conflict_pool() -> void:
+	var wr: Node = get_node_or_null("/root/WoundRegistry")
+	var fcr: Node = get_node_or_null("/root/FactionConflictRegistry")
+	if wr == null or fcr == null:
+		_findings.append("(skip spawner_conflict_pool: registries missing)")
+		return
+	# Build a Spawner with declared pools
+	var spawner_script: GDScript = load("res://scripts/world/spawn/spawner.gd")
+	if spawner_script == null:
+		_findings.append("(skip spawner_conflict_pool: Spawner script missing)")
+		return
+	var s: Node3D = Node3D.new()
+	s.set_script(spawner_script)
+	add_child(s)
+	# Typed Array[StringName] assignments require explicit construction.
+	var base_pool: Array[StringName] = [&"forest_blight", &"corrupted_wolf"]
+	var skirm_pool: Array[StringName] = [&"witch_burner"]
+	var war_pool_setup: Array[StringName] = [&"druid_courier", &"inquisitor_prime"]
+	s.mob_pool = base_pool
+	s.conflict_pair_key = &"druid_vs_inquisition"
+	s.pool_skirmish = skirm_pool
+	s.pool_open_war = war_pool_setup
+	# COLD: pool == base
+	wr.set_creep(0)
+	fcr.recompute_all()
+	var cold_pool: Array = s._effective_pool()
+	# SKIRMISH: pool == base + skirmish
+	wr.set_creep(50)
+	fcr.recompute_all()
+	var skirmish_pool: Array = s._effective_pool()
+	# OPEN_WAR: pool == base + skirmish + open_war
+	wr.set_creep(80)
+	fcr.recompute_all()
+	var war_pool: Array = s._effective_pool()
+	# Cool back to COLD
+	wr.set_creep(0)
+	fcr.recompute_all()
+	var cooled_pool: Array = s._effective_pool()
+	# Cleanup
+	s.queue_free()
+	# Verify sizes:
+	#   COLD:     2 (base only)
+	#   SKIRMISH: 3 (base + 1 skirmish)
+	#   OPEN_WAR: 5 (base + 1 skirmish + 2 open_war)
+	#   COOLED:   2 (back to base only)
+	var sizes_ok: bool = (
+		cold_pool.size() == 2
+		and skirmish_pool.size() == 3
+		and war_pool.size() == 5
+		and cooled_pool.size() == 2
+	)
+	# Verify the skirmish overlay actually contains witch_burner at SKIRMISH+
+	var has_burner: bool = &"witch_burner" in skirmish_pool
+	# Verify open_war overlay adds druid_courier
+	var has_courier: bool = &"druid_courier" in war_pool
+	# Verify cooled pool dropped both
+	var dropped_correctly: bool = not (&"witch_burner" in cooled_pool) and not (&"druid_courier" in cooled_pool)
+	if sizes_ok and has_burner and has_courier and dropped_correctly:
+		_pass("spawner_conflict_pool", "pool expands 2->3->5 then drops back to 2 on cool")
+	else:
+		_fail("spawner_conflict_pool", "sizes=%d/%d/%d/%d burner=%s courier=%s dropped=%s" %
+			[cold_pool.size(), skirmish_pool.size(), war_pool.size(), cooled_pool.size(),
+			 has_burner, has_courier, dropped_correctly])
 
 func _scenario_hud_presence() -> void:
 	var huds := get_tree().get_nodes_in_group("hud")

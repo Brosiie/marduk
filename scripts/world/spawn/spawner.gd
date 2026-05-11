@@ -14,6 +14,26 @@ class_name Spawner
 @export var respawn_jitter: float = 6.0        # +/- variance on respawn time
 @export var enabled: bool = true
 
+# ─────── Conflict-aware spawning (optional) ───────
+# A spawner placed at a faction-border zone can declare a pair_key
+# from FactionConflictRegistry. When that pair escalates to SKIRMISH+,
+# additional mob ids enter the spawn pool, producing visible faction
+# patrols at the border. At OPEN_WAR, MORE mobs enter the pool. Cooling
+# the conflict back to TENSE/COLD restores the base mob_pool only.
+#
+# Existing spawners that don't set conflict_pair_key keep their
+# behavior unchanged (both fields default to empty arrays).
+#
+# Example: a base mob_pool of [&"forest_blight"] at the Verdant Wound
+# edge with conflict_pair_key = &"druid_vs_inquisition" and
+# pool_skirmish = [&"witch_burner", &"blood_hunter"]. At COLD, only
+# forest_blights spawn. At SKIRMISH, burners start patrolling. At
+# OPEN_WAR, add a Druid Courier scout (pool_open_war) representing
+# the temple pushing back at the burners.
+@export var conflict_pair_key: StringName = &""
+@export var pool_skirmish: Array[StringName] = []
+@export var pool_open_war: Array[StringName] = []
+
 var _alive: Array = []  # of EnemyBase
 var _next_respawn_at: float = 0.0
 
@@ -43,9 +63,13 @@ func _process(_delta: float) -> void:
 	_spawn_one()
 
 func _spawn_one() -> void:
-	if mob_pool.is_empty():
+	# Build effective pool from base + conflict overlays. Re-evaluated
+	# on every spawn so a tier transition during a respawn cycle
+	# affects the very next mob picked; no scene reload required.
+	var pool: Array = _effective_pool()
+	if pool.is_empty():
 		return
-	var mob_id: StringName = mob_pool[randi() % mob_pool.size()]
+	var mob_id: StringName = pool[randi() % pool.size()]
 	var mob: Mob = MobRegistry.get_mob(mob_id) if MobRegistry else null
 	if not mob:
 		return
@@ -154,3 +178,28 @@ func _player_within_radius() -> bool:
 		if global_position.distance_to(p.global_position) < disturb_radius:
 			return true
 	return false
+
+# Build the effective spawn pool by reading FactionConflictRegistry.
+# COLD or unset conflict_pair_key returns mob_pool unchanged. SKIRMISH
+# adds pool_skirmish entries. OPEN_WAR adds pool_open_war on top of
+# pool_skirmish (escalations compound). Each entry occupies a slot
+# in the resulting Array, so a 3-base + 2-skirmish pool weights
+# random pick 60/40 toward the base at SKIRMISH; authors can tune
+# the bias by sizing the overlay arrays.
+func _effective_pool() -> Array:
+	var pool: Array = []
+	for mid in mob_pool:
+		pool.append(mid)
+	if conflict_pair_key == &"":
+		return pool
+	var fcr: Node = get_node_or_null("/root/FactionConflictRegistry")
+	if fcr == null or not fcr.has_method("get_state"):
+		return pool
+	var state: String = String(fcr.get_state(conflict_pair_key))
+	if state == "SKIRMISH" or state == "OPEN_WAR":
+		for mid in pool_skirmish:
+			pool.append(mid)
+	if state == "OPEN_WAR":
+		for mid in pool_open_war:
+			pool.append(mid)
+	return pool
