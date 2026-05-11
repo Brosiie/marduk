@@ -135,6 +135,7 @@ func _run() -> void:
 	await _scenario_wound_creep_tiers()
 	await _scenario_wound_dread_greeting()
 	await _scenario_seventh_breath_gates()
+	await _scenario_seventh_master_visibility()
 
 	_finish()
 
@@ -1493,6 +1494,51 @@ func _scenario_seventh_breath_gates() -> void:
 		_fail("seventh_breath_gates", "s1=%d s2=%d s3=%d s2_prereq=%s s3_prereq=%s blocked0=%s pass3k=%s blocked3k=%s pass21k=%s" %
 			[s1_threshold, s2_threshold, s3_threshold, s2_prereq, s3_prereq,
 			 s1_blocked_at_neutral, s1_passes_at_friendly, s2_blocked_at_friendly, s3_passes_at_revered])
+
+# 20. Seventh Master visibility: the NPC is hidden when the player
+# hasn't completed the pilgrimage AND already-met. Visible only in the
+# window between the two flags. Walks all four combinations and
+# verifies the gate matches lore intent (no-show before earned, no-show
+# after met, visible only in the meeting window).
+func _scenario_seventh_master_visibility() -> void:
+	var sf: Node = get_node_or_null("/root/SaveFlags")
+	if sf == null:
+		_findings.append("(skip seventh_master_visibility: SaveFlags missing)")
+		return
+	# Snapshot existing flag state to restore after the test
+	var prior_pilgrim: bool = bool(sf.has_permanent(&"seventh_breath_pilgrimage_done"))
+	var prior_known:   bool = bool(sf.has_permanent(&"seventh_breath_known"))
+	# Spawn a Seventh Master and walk all four combinations of the flags
+	var sm_script: GDScript = load("res://scripts/npcs/seventh_master_npc.gd")
+	if sm_script == null:
+		_findings.append("(skip seventh_master_visibility: script missing)")
+		return
+	var visibilities: Dictionary = {}
+	for combo in [[false, false], [true, false], [true, true], [false, true]]:
+		sf.set_permanent(&"seventh_breath_pilgrimage_done", combo[0])
+		sf.set_permanent(&"seventh_breath_known", combo[1])
+		var sm: Node = sm_script.new()
+		add_child(sm)
+		await get_tree().process_frame
+		visibilities[str(combo)] = bool(sm.visible)
+		sm.queue_free()
+		await get_tree().process_frame
+	# Restore prior flag state
+	sf.set_permanent(&"seventh_breath_pilgrimage_done", prior_pilgrim)
+	sf.set_permanent(&"seventh_breath_known", prior_known)
+	# Expected: pilgrim=false -> hidden (regardless of known)
+	# pilgrim=true, known=false -> visible (the meeting window)
+	# pilgrim=true, known=true -> hidden (already done, lore-permanent)
+	var ok: bool = (
+		visibilities["[false, false]"] == false
+		and visibilities["[true, false]"] == true
+		and visibilities["[true, true]"] == false
+		and visibilities["[false, true]"] == false
+	)
+	if ok:
+		_pass("seventh_master_visibility", "hidden before earned, visible in meeting window, hidden after")
+	else:
+		_fail("seventh_master_visibility", "visibilities=%s (want [F,F]:false, [T,F]:true, [T,T]:false, [F,T]:false)" % str(visibilities))
 
 func _scenario_hud_presence() -> void:
 	var huds := get_tree().get_nodes_in_group("hud")
