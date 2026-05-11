@@ -18,6 +18,7 @@
 [ext_resource type="PackedScene" path="res://assets/characters/mixamo/classes/ronin.glb" id="7_ronin"]
 [ext_resource type="Script" path="res://scripts/world/procedural_katana.gd" id="8_katana"]
 [ext_resource type="Script" path="res://scripts/world/warp_portal.gd" id="9_warp"]
+[ext_resource type="Script" path="res://scripts/world/lore_rune.gd" id="lore_rune_script"]
 
 [sub_resource type="PlaneMesh" id="floor_mesh"]
 size = Vector2(180, 180)
@@ -236,3 +237,17 @@ script = ExtResource("zone_composer")
 style_id = &"sword_vow_ruins"
 size = 80.0
 
+
+[node name="LoreRune_kazats_oath" type="Area3D" parent="."]
+script = ExtResource("lore_rune_script")
+position = Vector3(15, 0.4, -10)
+rune_id = &"kazats_oath"
+lore_title = "The Oath of Kazat"
+lore_body = "Enforcer Kazat took the iron mask Tashmu offered him an hour after Lord Ennum died. He keeps the mask polished. The oath he took before the Sword-Vow he no longer remembers, and the men who heard him take it are all dead. He polishes the mask twice a day."
+
+[node name="LoreRune_ennums_last_word" type="Area3D" parent="."]
+script = ExtResource("lore_rune_script")
+position = Vector3(-12, 0.4, -5)
+rune_id = &"ennums_last_word"
+lore_title = "Ennum's Last Word"
+lore_body = "Lord Ennum said \"sword\" before Tashmu's blade took his throat. The court chroniclers wrote it down as a vow renewal. The Storyteller, who was there, writes it as a question. She has not corrected the chronicle. She will not."

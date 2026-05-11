@@ -152,6 +152,20 @@ func _make_slot(idx: int) -> Control:
 	cd.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	cd.visible = false
 	s.add_child(cd)
+	# Pie-sweep cooldown indicator: a gold arc that wraps the slot's
+	# perimeter and shrinks clockwise from 12 o'clock as the ability
+	# returns. Standard ARPG/MOBA convention (WoW, Dota, Diablo). The
+	# vertical CD mask above handles the "this is unavailable" desat;
+	# this arc handles the "how close to ready" read.
+	var pie := Control.new()
+	pie.name = "CDPie"
+	pie.anchor_right = 1.0
+	pie.anchor_bottom = 1.0
+	pie.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	pie.visible = false
+	pie.set_meta("cd_pct", 0.0)
+	pie.draw.connect(_draw_cooldown_pie.bind(pie))
+	s.add_child(pie)
 
 	var cd_lbl := Label.new()
 	cd_lbl.name = "CDLabel"
@@ -299,6 +313,7 @@ func _update_cooldowns() -> void:
 		var total: float = 1.0
 		if i < kit.size() and not kit[i].is_empty():
 			total = max(0.05, float(kit[i].get("cooldown", 1.0)))
+		var pie: Control = s.get_node_or_null("CDPie")
 		if remaining > 0.05:
 			cd.visible = true
 			cd_lbl.visible = true
@@ -308,10 +323,19 @@ func _update_cooldowns() -> void:
 			# mask covers nothing. Standard fill-up MOBA UI.
 			var pct: float = clamp(remaining / total, 0.0, 1.0)
 			cd.anchor_top = 1.0 - pct  # mask top edge climbs as ability returns
+			# Drive the pie-sweep: full circle at remaining=total,
+			# nothing at remaining=0. Stores pct as meta so the draw
+			# callback reads the latest value when queue_redraw fires.
+			if pie:
+				pie.visible = true
+				pie.set_meta("cd_pct", pct)
+				pie.queue_redraw()
 		else:
 			cd.visible = false
 			cd_lbl.visible = false
 			cd.anchor_top = 0.0  # reset for next use
+			if pie:
+				pie.visible = false
 
 # Procedural icon: 64x64 image rendered with multiple compositing
 # passes, vertical gradient body (lit from above), corner vignette,
@@ -677,3 +701,27 @@ func _color_for_id(id: StringName) -> Color:
 	if "iai" in s or "katana" in s: return Color(0.85, 0.30, 0.20)
 	if "moon" in s: return Color(0.55, 0.20, 0.55)
 	return Color(0.45, 0.45, 0.55)
+
+# Cooldown pie sweep: paints a thin gold arc on the slot perimeter that
+# wraps clockwise from 12 o'clock. Arc length = cd_pct * TAU. The pct
+# is set per-frame by _update_cooldowns; when pct reaches 0 the arc
+# disappears (slot is ready). Uses a partial draw_arc for cheap
+# rendering — no shader, no mesh.
+func _draw_cooldown_pie(pie: Control) -> void:
+	var pct: float = float(pie.get_meta("cd_pct", 0.0))
+	if pct <= 0.0:
+		return
+	var center: Vector2 = pie.size / 2.0
+	var radius: float = (min(pie.size.x, pie.size.y) / 2.0) - 2.0
+	# Start at -PI/2 (12 o'clock) and sweep clockwise by pct * TAU.
+	# Godot's draw_arc goes counter-clockwise from start_angle to
+	# end_angle if end > start in standard radian convention, so this
+	# is just start + arc_length for the visual we want.
+	var start_angle: float = -PI / 2.0
+	var end_angle: float = start_angle + TAU * pct
+	# Thick gold edge that reads at a glance against any icon underneath.
+	# Two passes: dark backing for contrast + bright gold on top.
+	pie.draw_arc(center, radius, start_angle, end_angle, 28,
+		Color(0.20, 0.10, 0.02, 0.85), 4.0, true)
+	pie.draw_arc(center, radius, start_angle, end_angle, 28,
+		Color(1.0, 0.85, 0.30, 0.92), 2.5, true)

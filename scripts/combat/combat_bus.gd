@@ -13,6 +13,11 @@ signal hit_landed(target: Node, result: DamageCalc.Result, ability: Ability)
 signal kill_registered(target: Node, killer: Node)
 signal perfect_parry(position: Vector3)
 signal stance_broken(position: Vector3)
+# Emits when the rolling DPS exceeds 150% of the session-average DPS.
+# CombatLog hooks this to log a one-liner so build-tuners see when
+# their loop is hot. Cooldown'd so a sustained spike fires once, not
+# every frame above threshold.
+signal dps_spike(current_dps: float, session_avg: float)
 
 func emit_hit(target: Node, result: DamageCalc.Result, ability: Ability) -> void:
 	hit_landed.emit(target, result, ability)
@@ -69,7 +74,13 @@ func _element_name(damage_type: int) -> StringName:
 # tooltip math).
 
 const DPS_WINDOW: float = 5.0
+const DPS_SPIKE_FACTOR: float = 1.5  # current must beat 150% of session avg
+const DPS_SPIKE_COOLDOWN: float = 8.0  # min seconds between spike signals
+const DPS_SPIKE_MIN_SESSION_TIME: float = 10.0  # need a baseline first
 var _dps_log: Array = []  # of {t: float, element: StringName, dmg: float}
+var _session_total_damage: float = 0.0
+var _session_started_at: float = -1.0
+var _last_dps_spike_at: float = -INF
 
 func _record_damage_for_dps(element: StringName, damage: float) -> void:
 	if damage <= 0.0:
@@ -80,6 +91,14 @@ func _record_damage_for_dps(element: StringName, damage: float) -> void:
 	# reader calls. ~every 32 entries is cheap and keeps memory tight.
 	if _dps_log.size() % 32 == 0:
 		_prune_dps_log(now)
+	# Session-average bookkeeping: total damage / session-elapsed gives
+	# a baseline. We emit dps_spike when the rolling current DPS exceeds
+	# DPS_SPIKE_FACTOR * session_avg. Cooldown'd so a sustained spike
+	# fires once rather than every frame.
+	_session_total_damage += damage
+	if _session_started_at < 0.0:
+		_session_started_at = now
+	_check_dps_spike(now)
 
 func _prune_dps_log(now: float) -> void:
 	var cutoff: float = now - DPS_WINDOW
@@ -118,3 +137,29 @@ func get_dps_total() -> float:
 	for v in by_el.values():
 		sum += float(v)
 	return sum
+
+# Session-average DPS. Useful as a baseline against which the rolling
+# window compares for spike detection. Returns 0 until at least
+# DPS_SPIKE_MIN_SESSION_TIME seconds of session.
+func get_session_avg_dps() -> float:
+	if _session_started_at < 0.0:
+		return 0.0
+	var now: float = Time.get_ticks_msec() / 1000.0
+	var elapsed: float = now - _session_started_at
+	if elapsed < DPS_SPIKE_MIN_SESSION_TIME:
+		return 0.0
+	return _session_total_damage / elapsed
+
+# Spike detection: if current rolling DPS is over DPS_SPIKE_FACTOR x
+# session_avg AND we haven't fired recently, emit dps_spike. CombatLog
+# subscribes to log a "DPS SPIKE: 1,240" line for build-tuners.
+func _check_dps_spike(now: float) -> void:
+	if now - _last_dps_spike_at < DPS_SPIKE_COOLDOWN:
+		return
+	var avg: float = get_session_avg_dps()
+	if avg <= 0.0:
+		return  # not enough session time yet
+	var current: float = get_dps_total()
+	if current >= avg * DPS_SPIKE_FACTOR:
+		_last_dps_spike_at = now
+		dps_spike.emit(current, avg)

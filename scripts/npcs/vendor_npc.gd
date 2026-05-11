@@ -93,6 +93,59 @@ func _on_body_entered(body: Node3D) -> void:
 func _on_dawn() -> void:
 	super._on_dawn()
 	_deal_toasted_for_today = false
+	# Visual restock cue: small gold sparkle puff over the stall so the
+	# player visually catches the daily rotation even if they're not in
+	# range to hear the toast. Self-cleans after 2s.
+	_spawn_restock_sparkle()
+
+# One-shot particle burst over the vendor's head. Reads as "shop just
+# refreshed." Color matches the gold deal accent so the rotation +
+# the deal-of-the-day badge share a visual language.
+func _spawn_restock_sparkle() -> void:
+	var p := GPUParticles3D.new()
+	p.name = "RestockSparkle"
+	p.amount = 35
+	p.lifetime = 1.4
+	p.preprocess = 0.0
+	p.one_shot = true
+	p.explosiveness = 0.95
+	p.visibility_aabb = AABB(Vector3(-2, -1, -2), Vector3(4, 4, 4))
+	var mat := ParticleProcessMaterial.new()
+	mat.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_SPHERE
+	mat.emission_sphere_radius = 0.30
+	mat.direction = Vector3(0, 1, 0)
+	mat.spread = 28.0
+	mat.initial_velocity_min = 0.8
+	mat.initial_velocity_max = 1.6
+	mat.gravity = Vector3(0, -0.3, 0)  # slight fall so the burst settles
+	mat.scale_min = 0.08
+	mat.scale_max = 0.16
+	mat.color = Color(1.0, 0.85, 0.30)
+	# Tiny rotational swirl so the burst doesn't look like a balloon pop
+	mat.tangential_accel_min = -0.6
+	mat.tangential_accel_max = 0.6
+	p.process_material = mat
+	var quad := QuadMesh.new()
+	quad.size = Vector2(0.10, 0.10)
+	var smat := StandardMaterial3D.new()
+	smat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	smat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	smat.albedo_color = Color(1.0, 0.85, 0.30)
+	smat.emission_enabled = true
+	smat.emission = Color(1.0, 0.85, 0.30)
+	smat.emission_energy_multiplier = 2.4
+	smat.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
+	quad.material = smat
+	p.draw_pass_1 = quad
+	p.position = Vector3(0, 2.4, 0)
+	add_child(p)
+	# Cleanup after the lifetime + a generous tail to ensure no stutter
+	get_tree().create_timer(p.lifetime + 0.5).timeout.connect(func():
+		if is_instance_valid(p): p.queue_free())
+	# Audio sting: pickup cue at bright pitch reads as "shop opening"
+	var ab: Node = get_node_or_null("/root/AudioBus")
+	if ab and ab.has_method("play_cue"):
+		ab.play_cue(&"pickup", global_position, -10.0, 1.6)
 
 func _open_shop_panel() -> void:
 	var hud := get_tree().get_first_node_in_group("hud") if get_tree() else null

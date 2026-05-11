@@ -136,6 +136,27 @@ func get_kill_count(mob_id: StringName) -> int:
 		return 0
 	return int(sf.get_permanent(StringName(KILL_COUNT_PREFIX + String(mob_id)), 0))
 
+# Append a paragraph to an existing entry's body. Used by BossBase._die
+# to add a player-authored "I killed this thing at level X" postscript
+# to the boss's lore entry. The append accumulates across kills so a
+# player who slays the same boss multiple times builds up a small
+# journal under the canonical lore.
+#
+# Idempotent: if the entry doesn't exist, no-op. If the entry doesn't
+# carry a body field, treat as empty string. Newlines added between
+# the existing body and the appended text so the journal entries read
+# as distinct stanzas, not a wall of text.
+func append_to_body(id: StringName, paragraph: String) -> void:
+	if not _entries.has(id) or paragraph == "":
+		return
+	var entry: Dictionary = _entries[id]
+	var current_body: String = String(entry.get("body", ""))
+	if current_body.length() > 0:
+		entry["body"] = current_body + "\n\n" + paragraph
+	else:
+		entry["body"] = paragraph
+	_entries[id] = entry
+
 func _save_flag(id: StringName) -> void:
 	var sf := get_node_or_null("/root/SaveFlags")
 	if sf and sf.has_method("set_permanent"):

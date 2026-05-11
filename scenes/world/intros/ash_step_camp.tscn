@@ -6,6 +6,7 @@
 [ext_resource type="Shader" path="res://shaders/toon.gdshader" id="4_toon"]
 [ext_resource type="Script" path="res://scripts/enemies/hassu_the_hooked.gd" id="5_hassu"]
 [ext_resource type="Script" path="res://scripts/world/spawn/spawner.gd" id="6_spawner"]
+[ext_resource type="Script" path="res://scripts/world/lore_rune.gd" id="lore_rune_script"]
 
 ; Ash-Step Camp — Berserker intro arena.
 ; Volcanic ash plain east of the Bone Mountains. Broken pillar to one side
@@ -155,3 +156,17 @@ position = Vector3(0, 0.1, -6)
 ; ── World Environment ────────────────────────────────────────────
 [node name="WorldEnv" type="WorldEnvironment" parent="."]
 environment = SubResource("env")
+
+[node name="LoreRune_hassus_promise" type="Area3D" parent="."]
+script = ExtResource("lore_rune_script")
+position = Vector3(8, 0.4, 6)
+rune_id = &"hassus_promise"
+lore_title = "Hassu's Promise"
+lore_body = "Hassu the Hooked was promised a horse. He was promised the horse by a man who is now dead, by a court that no longer exists. The promise is still on his forehead, tattooed. He scratches it sometimes."
+
+[node name="LoreRune_ash_step_dawn" type="Area3D" parent="."]
+script = ExtResource("lore_rune_script")
+position = Vector3(-9, 0.4, -3)
+rune_id = &"ash_step_dawn"
+lore_title = "The Day the Ash Came"
+lore_body = "The volcano in the south breathed once and the ash made it this far. The grass died gray. Hassu's father took the camp here because nothing would grow and nobody would want it. He was right about both, and he is still buried under the third tent."

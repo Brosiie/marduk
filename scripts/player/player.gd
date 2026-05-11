@@ -641,6 +641,16 @@ const MOUNT_SPEED_BONUS: float = 0.6
 var _mounted: bool = false
 var _mount_visual: Node3D = null
 var _base_move_speed: float = 0.0
+# Mount stamina: drains while moving above MOUNT_STAMINA_MIN_SPEED,
+# regens while stopped. Empty stamina = forced dismount with a brief
+# "your mount is exhausted" toast. Gives the mount a soft pacing rule
+# without taking it away during commute. Tuned so a full bar = ~25s of
+# sustained gallop, which covers any single zone traversal.
+const MOUNT_STAMINA_MAX: float = 100.0
+const MOUNT_STAMINA_DRAIN_PER_SEC: float = 4.0    # 25s of gallop from full
+const MOUNT_STAMINA_REGEN_PER_SEC: float = 12.0   # ~8s to fully recharge
+const MOUNT_STAMINA_MIN_SPEED: float = 3.5         # below this = no drain
+var _mount_stamina: float = MOUNT_STAMINA_MAX
 
 func toggle_mount() -> void:
 	if _mounted:
@@ -659,6 +669,9 @@ func _mount() -> void:
 	_mounted = true
 	_base_move_speed = move_speed
 	move_speed *= 1.0 + MOUNT_SPEED_BONUS
+	# Reset stamina on remount so dismount + remount = fresh mount.
+	# (Mount stamina is per-mount-session, not persistent.)
+	_mount_stamina = MOUNT_STAMINA_MAX
 	# Procedural mount silhouette: body + neck + head + 4 legs + tail.
 	# Class-themed via _mount_color_for_class so a Demon's mount glows
 	# ember-red (flame steed), Druid gets brown (bear), default is
@@ -817,6 +830,53 @@ func _tick_mount_hoofbeats(delta: float) -> void:
 			&"berserker": pitch = 0.85  # boar = heavy
 			&"chaos_druid": pitch = 0.92
 	ab.play_cue(&"hoof", global_position, -8.0, pitch)
+
+func _tick_mount_stamina(delta: float) -> void:
+	if not _mounted:
+		# Regen stamina even when not mounted so remounting after a
+		# 10s walk is fresh. Cap at max.
+		_mount_stamina = min(MOUNT_STAMINA_MAX, _mount_stamina + MOUNT_STAMINA_REGEN_PER_SEC * delta)
+		return
+	var speed: float = Vector2(velocity.x, velocity.z).length()
+	if speed > MOUNT_STAMINA_MIN_SPEED:
+		_mount_stamina -= MOUNT_STAMINA_DRAIN_PER_SEC * delta
+		if _mount_stamina <= 0.0:
+			_mount_stamina = 0.0
+			_force_dismount_exhausted()
+			return
+	else:
+		# Standing or walking slow on the mount = recovery
+		_mount_stamina = min(MOUNT_STAMINA_MAX, _mount_stamina + MOUNT_STAMINA_REGEN_PER_SEC * 0.5 * delta)
+	# Tint the mount visual as stamina drops so the player sees the
+	# warning without needing a UI bar. >50% = normal color, 25-50% =
+	# dimmed, <25% = red-tinted pulse (mount is on its last breath).
+	if _mount_visual and is_instance_valid(_mount_visual):
+		var pct: float = _mount_stamina / MOUNT_STAMINA_MAX
+		var tint: Color = Color(1, 1, 1)
+		if pct < 0.25:
+			# Pulsing red warning
+			var pulse: float = 0.6 + 0.4 * sin(Time.get_ticks_msec() / 150.0)
+			tint = Color(1.0, 0.30 + 0.20 * pulse, 0.30 + 0.20 * pulse)
+		elif pct < 0.5:
+			# Dim shade
+			tint = Color(0.75, 0.70, 0.65)
+		_mount_visual.modulate = tint
+
+# Public accessor for HUD / mount-stamina-bar UIs that want to render
+# the pct as a chip. Returns 1.0 when not mounted (stamina is full when
+# you're off the mount and resting).
+func mount_stamina_pct() -> float:
+	return _mount_stamina / MOUNT_STAMINA_MAX
+
+# Forced dismount because the mount ran out of breath. Distinct flow
+# from _force_dismount_on_damage so the toast can read different.
+func _force_dismount_exhausted() -> void:
+	if not _mounted:
+		return
+	_dismount()
+	var juice = get_node_or_null("/root/Juice")
+	if juice and juice.has_method("toast"):
+		juice.toast("Mount exhausted!", Color(0.85, 0.55, 0.20), 1.8)
 
 # Combat-driven dismount. Called from take_damage when the player
 # takes a hit while mounted, so combat reads as "knocked off the
@@ -3110,6 +3170,7 @@ func _physics_process(delta: float) -> void:
 	_update_animation()
 	_tick_footsteps(delta)
 	_tick_mount_hoofbeats(delta)
+	_tick_mount_stamina(delta)
 	_tick_combo(delta)
 	_tick_resource(delta)
 	_tick_form(delta)

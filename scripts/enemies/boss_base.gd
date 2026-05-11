@@ -1196,6 +1196,11 @@ func _die(killer: Node) -> void:
 	# Set save flags for major bosses (mini-bosses have their own quest flags via QuestLog)
 	if is_main_boss or is_final_boss or is_secret_boss:
 		SaveFlags.mark_boss_defeated(boss_id)
+	# Expand the boss's codex entry with a "killed at level X" postscript.
+	# Reads as the player's own account joining the canonical lore. Each
+	# kill appends a fresh stanza (level + class + time of day) so a
+	# multi-cycle player builds up a kill journal per boss.
+	_append_codex_kill_record(killer)
 	# Tiamat awareness tick. Prologue mini-bosses pay full price (every
 	# class prologue feeds her dream); main / final / secret bosses pay
 	# the slightly smaller main-boss tariff because they're rarer events
@@ -1500,6 +1505,37 @@ func _resolve_telegraph_color(p: BossAttackPattern) -> Color:
 # Size the decal quad to match the attack's footprint. The quad's UVs
 # are 0..1 across the full surface, and the shader assumes the danger
 # zone fills the quad.
+# Append a kill-journal stanza to this boss's codex entry. Reads like
+# the player's own log book joining the canonical lore. Pulls killer
+# level + class + time-of-day so each entry reads distinct ("Felled at
+# Level 8 by a Ronin, mid-afternoon"). The codex bestiary entry uses
+# the b_<boss_id> id; this also targets b_<boss_id> so the boss's
+# kill-journal sits below its lore in the same UI surface.
+func _append_codex_kill_record(killer: Node) -> void:
+	if boss_id == &"":
+		return
+	var cdx: Node = get_node_or_null("/root/CodexRegistry")
+	if cdx == null or not cdx.has_method("append_to_body"):
+		return
+	var lvl: int = 1
+	var class_name_str: String = "champion"
+	if killer and killer.get("stats") and killer.stats:
+		lvl = int(killer.stats.level) if "level" in killer.stats else 1
+		if killer.stats.get("class_def") and killer.stats.class_def:
+			class_name_str = String(killer.stats.class_def.display_name) if "display_name" in killer.stats.class_def else "champion"
+	# Time-of-day flavor: dawn / day / dusk / night based on WorldClock
+	var time_phrase: String = "in the dark"
+	var clock: Node = get_node_or_null("/root/WorldClock")
+	if clock and "time_of_day" in clock:
+		var t: float = float(clock.time_of_day)
+		if t < 0.25:        time_phrase = "before dawn"
+		elif t < 0.40:      time_phrase = "at sunrise"
+		elif t < 0.60:      time_phrase = "at midday"
+		elif t < 0.75:      time_phrase = "at sunset"
+		else:               time_phrase = "after dark"
+	var stanza: String = "— Felled at Level %d by a %s, %s." % [lvl, class_name_str, time_phrase]
+	cdx.append_to_body(StringName("b_" + String(boss_id)), stanza)
+
 # Spike the procedural breath intensity during a windup so even a boss
 # with no real attack anim VISUALLY READS as winding up. The breath
 # script self-installs via EnemyBase._install_procedural_breath; we

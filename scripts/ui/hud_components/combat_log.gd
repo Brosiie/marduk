@@ -116,6 +116,8 @@ func _attach_signals() -> void:
 	var cb := get_node_or_null("/root/CombatBus")
 	if cb and cb.has_signal("kill_registered"):
 		cb.kill_registered.connect(_on_kill_registered)
+	if cb and cb.has_signal("dps_spike"):
+		cb.dps_spike.connect(_on_dps_spike)
 
 func _process(delta: float) -> void:
 	# Age out old lines (fade then remove)
@@ -216,6 +218,14 @@ func _on_item_collected(item: Item, qty: int) -> void:
 	if interesting_only and int(item.rarity) <= 1:  # 0=JUNK, 1=BASIC
 		return
 	log_loot("%s%s" % [item.display_name, (" x%d" % qty) if qty > 1 else ""], int(item.rarity))
+
+func _on_dps_spike(current_dps: float, session_avg: float) -> void:
+	# Show how much over baseline the spike was so the player learns
+	# what their combo / build actually does at peak. Multiplier reads
+	# more intuitively than raw deltas.
+	var ratio: float = current_dps / max(session_avg, 0.01)
+	log_event("⚡ DPS SPIKE: %d (%.1fx avg)" % [int(round(current_dps)), ratio],
+		Color(1.0, 0.95, 0.30))
 
 func _on_kill_registered(target: Node, _killer: Node) -> void:
 	# Only log boss kills here; mob kills would spam the feed during

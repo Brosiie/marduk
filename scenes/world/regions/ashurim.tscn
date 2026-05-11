@@ -6,6 +6,7 @@
 [ext_resource type="Script" path="res://scripts/world/warp_portal.gd" id="warp_"]
 
 [ext_resource type="Script" path="res://scripts/world/spawn/zone_composer.gd" id="ZoneComposer_ashurim"]
+[ext_resource type="Script" path="res://scripts/world/lore_rune.gd" id="lore_rune_script"]
 
 ; Auto-generated placeholder for Ashurim.
 ; Drop real environment art under MeshRoot; lighting/atmosphere already tuned.
@@ -117,3 +118,17 @@ has_quest = true
 quest_id = &"q_belitu_brother"
 greeting = "Have you seen my brother? He went into the Cradle two days ago and hasn't come back. He's only twelve. I can pay you. Not much, but everything I have."
 
+
+[node name="LoreRune_ashurim_founding" type="Area3D" parent="."]
+script = ExtResource("lore_rune_script")
+position = Vector3(20, 0.4, 12)
+rune_id = &"ashurim_founding"
+lore_title = "Ashurim, Founding"
+lore_body = "The Storyteller named the city. She has named six cities. Three are still standing. Ashurim is the youngest and the third-best fortified. The other two stood because of their position; Ashurim stands because the Storyteller asked it to."
+
+[node name="LoreRune_the_singing_goat" type="Area3D" parent="."]
+script = ExtResource("lore_rune_script")
+position = Vector3(-15, 0.4, 8)
+rune_id = &"the_singing_goat"
+lore_title = "The Singing Goat"
+lore_body = "Belitu's inn took its name from a goat that wandered in during the founding and refused to leave. The goat ate every paper in the kitchen and walked out singing. Belitu has been here for forty-one years. The goat has not returned. She is hoping."
