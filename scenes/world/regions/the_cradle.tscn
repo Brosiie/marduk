@@ -1,4 +1,4 @@
-[gd_scene load_steps=10 format=3 uid="uid://bf975fad6589a"]
+[gd_scene load_steps=11 format=3 uid="uid://bf975fad6589a"]
 [ext_resource type="Script" path="res://scripts/quests/belitu_brother.gd" id="belitu_brother"]
 [ext_resource type="Script" path="res://scripts/world/boss_arena.gd" id="boss_arena_the_cradle"]
 [ext_resource type="Script" path="res://scripts/world/lodestone.gd" id="boss_lodestone_cradle_throne"]
@@ -6,6 +6,7 @@
 [ext_resource type="Script" path="res://scripts/world/warp_portal.gd" id="warp_"]
 
 [ext_resource type="Script" path="res://scripts/world/spawn/zone_composer.gd" id="ZoneComposer_the_cradle"]
+[ext_resource type="Script" path="res://scripts/world/spawn/refugee_spawner.gd" id="refugee_spawner_script"]
 
 ; Auto-generated placeholder for The Cradle.
 ; Drop real environment art under MeshRoot; lighting/atmosphere already tuned.
@@ -122,3 +123,21 @@ trigger_radius = 12.0
 script = ExtResource("belitu_brother")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4, 0.2, -22)
 
+
+; ── Refugee Spawner. The Cradle is divinely clear and welcoming to
+; pilgrims; refugees who reach here come from far away. All three
+; tracked conflicts can drive arrivals at OPEN_WAR. Smaller density
+; than the cities, the Cradle is sanctuary, not a refugee camp.
+[node name="RefugeeSpawner_dv_inq" type="Node3D" parent="."]
+script = ExtResource("refugee_spawner_script")
+pair_key = &"druid_vs_inquisition"
+refugee_count_skirmish = 0
+refugee_count_open_war = 2
+
+[node name="RefugeeMarker_druid_1" type="Marker3D" parent="RefugeeSpawner_dv_inq"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -12, 0.7, 6)
+metadata/fled_from = "druids"
+
+[node name="RefugeeMarker_inq_1" type="Marker3D" parent="RefugeeSpawner_dv_inq"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 12, 0.7, 6)
+metadata/fled_from = "inquisition"

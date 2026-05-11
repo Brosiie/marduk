@@ -140,6 +140,7 @@ func _run() -> void:
 	await _scenario_faction_conflict_transitions()
 	await _scenario_quest_open_war_gate()
 	await _scenario_spawner_conflict_pool()
+	await _scenario_refugee_spawner_reactive()
 
 	_finish()
 
@@ -1760,6 +1761,65 @@ func _scenario_spawner_conflict_pool() -> void:
 		_fail("spawner_conflict_pool", "sizes=%d/%d/%d/%d burner=%s courier=%s dropped=%s" %
 			[cold_pool.size(), skirmish_pool.size(), war_pool.size(), cooled_pool.size(),
 			 has_burner, has_courier, dropped_correctly])
+
+# 25. Refugee spawner reactive: build a spawner with 3 markers, walk
+# Wound creep through 0/50/80/0 and verify the refugee population
+# tracks the configured per-state densities. Proves the spawner is
+# truly reactive: spawns on transition up, despawns on transition down.
+func _scenario_refugee_spawner_reactive() -> void:
+	var wr: Node = get_node_or_null("/root/WoundRegistry")
+	var fcr: Node = get_node_or_null("/root/FactionConflictRegistry")
+	if wr == null or fcr == null:
+		_findings.append("(skip refugee_spawner_reactive: registries missing)")
+		return
+	# Reset to COLD baseline
+	wr.set_creep(0)
+	fcr.recompute_all()
+	var sp_script: GDScript = load("res://scripts/world/spawn/refugee_spawner.gd")
+	if sp_script == null:
+		_findings.append("(skip refugee_spawner_reactive: spawner script missing)")
+		return
+	# Build a spawner with 3 markers (2 druid + 1 inquisition).
+	var spawner: Node3D = Node3D.new()
+	spawner.set_script(sp_script)
+	spawner.pair_key = &"druid_vs_inquisition"
+	spawner.refugee_count_skirmish = 1
+	spawner.refugee_count_open_war = 3
+	for i in range(3):
+		var m := Marker3D.new()
+		m.set_meta("fled_from", "druids" if i < 2 else "inquisition")
+		m.transform.origin = Vector3(i * 4.0, 0, 0)
+		spawner.add_child(m)
+	add_child(spawner)
+	await get_tree().process_frame
+	await get_tree().process_frame
+	# At COLD baseline: should be 0
+	var pop_cold: int = spawner._spawned.size()
+	# Trip into SKIRMISH (creep 50)
+	wr.set_creep(50)
+	fcr.recompute_all()
+	await get_tree().process_frame
+	var pop_skirm: int = spawner._spawned.size()
+	# Trip into OPEN_WAR (creep 80)
+	wr.set_creep(80)
+	fcr.recompute_all()
+	await get_tree().process_frame
+	var pop_war: int = spawner._spawned.size()
+	# Cool back to COLD
+	wr.set_creep(0)
+	fcr.recompute_all()
+	await get_tree().process_frame
+	var pop_cooled: int = spawner._spawned.filter(func(n): return is_instance_valid(n)).size()
+	# Cleanup
+	spawner.queue_free()
+	wr.set_creep(0)
+	fcr.recompute_all()
+	# Expected: COLD=0, SKIRMISH=1, OPEN_WAR=3, COOLED=0
+	if pop_cold == 0 and pop_skirm == 1 and pop_war == 3 and pop_cooled == 0:
+		_pass("refugee_spawner_reactive", "0->1->3->0 refugees as creep rises and falls")
+	else:
+		_fail("refugee_spawner_reactive", "cold=%d skirm=%d war=%d cooled=%d (want 0/1/3/0)" %
+			[pop_cold, pop_skirm, pop_war, pop_cooled])
 
 func _scenario_hud_presence() -> void:
 	var huds := get_tree().get_nodes_in_group("hud")

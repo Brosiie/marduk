@@ -1,10 +1,11 @@
-[gd_scene load_steps=9 format=3 uid="uid://b6d8417303853"]
+[gd_scene load_steps=10 format=3 uid="uid://b6d8417303853"]
 [ext_resource type="Script" path="res://scripts/world/boss_arena.gd" id="boss_arena_babilim"]
 [ext_resource type="Script" path="res://scripts/world/lodestone.gd" id="boss_lodestone_babilim_holy_sanctum"]
 [ext_resource type="Script" path="res://scripts/world/lodestone.gd" id="lodestone_babilim_altar"]
 [ext_resource type="Script" path="res://scripts/world/warp_portal.gd" id="warp_"]
 
 [ext_resource type="Script" path="res://scripts/world/spawn/zone_composer.gd" id="ZoneComposer_babilim"]
+[ext_resource type="Script" path="res://scripts/world/spawn/refugee_spawner.gd" id="refugee_spawner_script"]
 
 ; Auto-generated placeholder for Babilim, the Iron Crown.
 ; Drop real environment art under MeshRoot; lighting/atmosphere already tuned.
@@ -90,3 +91,36 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, -25)
 arena_radius = 18.0
 trigger_radius = 12.0
 
+
+; ── Refugee Spawner. Babilim is the Crown court, so refugees fleeing
+; here come predominantly from the Black Sail's reach (smuggler raids
+; on Crown shipping) and from the Druid frontier (Inquisition's burn
+; chains push Wound-Marked townsfolk inward). Active at SKIRMISH+ on
+; the relevant pairs.
+[node name="RefugeeSpawner_crown_bs" type="Node3D" parent="."]
+script = ExtResource("refugee_spawner_script")
+pair_key = &"crown_vs_black_sail"
+refugee_count_skirmish = 1
+refugee_count_open_war = 2
+
+[node name="RefugeeMarker_bs_1" type="Marker3D" parent="RefugeeSpawner_crown_bs"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -18, 0.7, 4)
+metadata/fled_from = "black_sail"
+
+[node name="RefugeeMarker_bs_2" type="Marker3D" parent="RefugeeSpawner_crown_bs"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -12, 0.7, 10)
+metadata/fled_from = "black_sail"
+
+[node name="RefugeeSpawner_crown_druid" type="Node3D" parent="."]
+script = ExtResource("refugee_spawner_script")
+pair_key = &"crown_vs_druid"
+refugee_count_skirmish = 1
+refugee_count_open_war = 2
+
+[node name="RefugeeMarker_druid_1" type="Marker3D" parent="RefugeeSpawner_crown_druid"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 18, 0.7, 4)
+metadata/fled_from = "druids"
+
+[node name="RefugeeMarker_inq_1" type="Marker3D" parent="RefugeeSpawner_crown_druid"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 14, 0.7, 10)
+metadata/fled_from = "inquisition"
