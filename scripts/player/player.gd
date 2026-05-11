@@ -633,6 +633,35 @@ func _input(event: InputEvent) -> void:
 		toggle_pet()
 	elif event.is_action_pressed("lock_on"):
 		_toggle_lock_on()
+	elif InputMap.has_action("toggle_recall") and event.is_action_pressed("toggle_recall"):
+		_recall_to_marked_lodestone()
+
+# Recall key: warps to the player's marked recall lodestone. Pressing
+# this WHILE STANDING ON a lodestone marks that one as the recall stone
+# instead (handled by Lodestone._unhandled_input). Out-of-combat gate
+# mirrors mount/dismount so you can't recall mid-fight.
+func _recall_to_marked_lodestone() -> void:
+	var now: float = Time.get_ticks_msec() / 1000.0
+	if now - _last_combat_time < 5.0:
+		_play_deny_cue()
+		return
+	var registry: Node = get_node_or_null("/root/LodestoneRegistry")
+	if registry == null or not registry.has_method("recall_to_marked"):
+		return
+	var marked: StringName = registry.get_recall_marked() if registry.has_method("get_recall_marked") else &""
+	if marked == &"":
+		var juice = get_node_or_null("/root/Juice")
+		if juice and juice.has_method("toast"):
+			juice.toast("No recall stone marked yet.", Color(0.85, 0.55, 0.30), 2.4)
+		return
+	# Audio sting + toast before the warp so the player gets feedback.
+	var ab: Node = get_node_or_null("/root/AudioBus")
+	if ab and ab.has_method("play_cue"):
+		ab.play_cue(&"warp", global_position, -3.0, 0.85)
+	var juice2 = get_node_or_null("/root/Juice")
+	if juice2 and juice2.has_method("toast"):
+		juice2.toast("Recalling...", Color(0.55, 0.78, 1.0), 1.6)
+	registry.recall_to_marked()
 
 # --- Mount + Pet (WoW-style summon system) ---
 # Mount: H key. While mounted, +60% movement speed and a visual mount mesh

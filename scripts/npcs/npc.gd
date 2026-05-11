@@ -414,22 +414,44 @@ const _AMBIENT_LINES_NIGHT := {
 const AMBIENT_CHATTER_COOLDOWN: float = 30.0
 var _last_chatter_at: float = -INF
 var _chatter_label: Label3D = null
+# Class-ID lines: NPC's first-meeting reaction to seeing the player's
+# class. Reads as "this NPC clocks who you are." Once-per-NPC-per-save
+# via SaveFlags so the second visit gets normal ambient lines.
+const _CLASS_ID_LINES := {
+	&"ronin":                "Ronin. Where is your lord?",
+	&"berserker":            "Ash-Step on you. Smell it from here.",
+	&"assassin":             "I didn't see you walk up. That's a trick.",
+	&"ranger":               "Hawk-handler. The hawk is judging me.",
+	&"mage":                 "Inkstone scholar. I can tell from the fingers.",
+	&"chaos_druid":          "Druid. The Wound followed you in, didn't it.",
+	&"demon":                "...don't come closer.",
+	&"paladin_guardian":     "Sun on you, Paladin. Bless this house.",
+	&"paladin_lightbringer": "Lightbringer. They said you were dead.",
+}
 
 func _maybe_ambient_chatter() -> void:
 	var now: float = Time.get_ticks_msec() / 1000.0
 	if (now - _last_chatter_at) < AMBIENT_CHATTER_COOLDOWN:
 		return
 	_last_chatter_at = now
-	# Pick line from day/night pool for this npc_id, fall through to
-	# _default if no specific lines exist. Honest: many NPCs default.
-	var night: bool = _is_night_now()
-	var pool_dict: Dictionary = _AMBIENT_LINES_NIGHT if night else _AMBIENT_LINES_DAY
-	var lines: Array = pool_dict.get(npc_id, [])
-	if lines.is_empty():
-		lines = pool_dict.get(&"_default", [])
-	if lines.is_empty():
-		return
-	var line: String = String(lines[randi() % lines.size()])
+	# Class-ID greeting wins on FIRST meeting if the NPC has a line for
+	# the player's class. Reads as "this NPC sees who you are." After
+	# the first encounter the standard ambient pool takes over.
+	var class_line: String = _maybe_class_id_line()
+	var line: String = ""
+	if class_line != "":
+		line = class_line
+	else:
+		# Pick line from day/night pool for this npc_id, fall through to
+		# _default if no specific lines exist. Honest: many NPCs default.
+		var night: bool = _is_night_now()
+		var pool_dict: Dictionary = _AMBIENT_LINES_NIGHT if night else _AMBIENT_LINES_DAY
+		var lines: Array = pool_dict.get(npc_id, [])
+		if lines.is_empty():
+			lines = pool_dict.get(&"_default", [])
+		if lines.is_empty():
+			return
+		line = String(lines[randi() % lines.size()])
 	# Spawn a transient Label3D above head, fade in then out over 4s.
 	# Re-uses the existing _interact_prompt position so it sits where
 	# the player's eye already is.
@@ -453,6 +475,36 @@ func _maybe_ambient_chatter() -> void:
 	tw.tween_property(_chatter_label, "modulate:a", 0.0, 0.5)
 	tw.tween_callback(func():
 		if is_instance_valid(_chatter_label): _chatter_label.queue_free())
+
+# Resolve the class-ID line for this NPC's first encounter with the
+# player. Returns "" if (a) we already greeted this NPC before, (b)
+# the player has no class yet, or (c) we have no canned line for the
+# class. Once it returns a real line, the SaveFlag is set so future
+# encounters fall through to the ambient pool.
+func _maybe_class_id_line() -> String:
+	if npc_id == &"":
+		return ""
+	# Already greeted? SaveFlag covers this NPC for the rest of the save.
+	var sf: Node = get_node_or_null("/root/SaveFlags")
+	var flag: StringName = StringName("npc_greeted_%s" % String(npc_id))
+	if sf and sf.has_method("has_permanent") and sf.has_permanent(flag):
+		return ""
+	# Resolve the player's class id. Bail if no class assigned yet
+	# (CharacterCreator hasn't run, or unit-test contexts).
+	var player: Node = get_tree().get_first_node_in_group("player")
+	if player == null:
+		return ""
+	if not ("stats" in player) or player.stats == null:
+		return ""
+	if not ("class_def" in player.stats) or player.stats.class_def == null:
+		return ""
+	var cid: StringName = StringName(player.stats.class_def.class_id)
+	if not _CLASS_ID_LINES.has(cid):
+		return ""
+	# Stamp the flag so we don't re-trigger.
+	if sf and sf.has_method("set_permanent"):
+		sf.set_permanent(flag, true)
+	return String(_CLASS_ID_LINES[cid])
 
 func _show_interact_prompt() -> void:
 	if _interact_prompt and is_instance_valid(_interact_prompt):

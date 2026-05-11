@@ -23,6 +23,8 @@ var _registry: Node = null
 var _category_btns: Dictionary = {}
 var _selected_category: StringName = &"regions"
 var _list_v: VBoxContainer
+var _search_edit: LineEdit = null
+var _search_query: String = ""
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_PASS
@@ -63,11 +65,25 @@ func _ready() -> void:
 		cat_v.add_child(btn)
 		_category_btns[cat.id] = btn
 
-	# Right column: scrollable entries
+	# Right column: search bar + scrollable entries
+	var right_v := VBoxContainer.new()
+	right_v.size_flags_horizontal = SIZE_EXPAND_FILL
+	right_v.size_flags_vertical = SIZE_EXPAND_FILL
+	right_v.add_theme_constant_override("separation", 6)
+	h.add_child(right_v)
+	# Search bar: live filter on the entry list. Matches against
+	# display_name + body so the player can find an entry by ANY word
+	# they remember (boss name, region, mob name, lore phrase). Empty
+	# query = no filter (default behavior).
+	_search_edit = LineEdit.new()
+	_search_edit.placeholder_text = "Search entries..."
+	_search_edit.size_flags_horizontal = SIZE_EXPAND_FILL
+	_search_edit.text_changed.connect(_on_search_changed)
+	right_v.add_child(_search_edit)
 	var scroll := ScrollContainer.new()
 	scroll.size_flags_horizontal = SIZE_EXPAND_FILL
 	scroll.size_flags_vertical = SIZE_EXPAND_FILL
-	h.add_child(scroll)
+	right_v.add_child(scroll)
 	_list_v = VBoxContainer.new()
 	_list_v.add_theme_constant_override("separation", 8)
 	_list_v.size_flags_horizontal = SIZE_EXPAND_FILL
@@ -102,14 +118,46 @@ func refresh() -> void:
 		_list_v.add_child(lbl)
 		return
 	var entries: Array = _registry.entries_by_category(_selected_category)
+	# Apply search filter when a query is active. Matches case-insensitive
+	# against display_name + body + unlock_hint, so the player can find
+	# an entry by any word they remember (NPC name, lore phrase, hint).
+	# Locked entries are matched on display_name + unlock_hint only, not
+	# body (no spoilers via search).
+	if _search_query != "":
+		var q: String = _search_query.to_lower()
+		var filtered: Array = []
+		for entry in entries:
+			if _entry_matches_query(entry, q):
+				filtered.append(entry)
+		entries = filtered
 	if entries.is_empty():
 		var hint := Label.new()
-		hint.text = "No entries in this category yet."
+		hint.text = "No matching entries." if _search_query != "" else "No entries in this category yet."
 		hint.modulate = Color(0.65, 0.65, 0.7)
 		_list_v.add_child(hint)
 		return
 	for entry in entries:
 		_list_v.add_child(_entry_card(entry))
+
+func _entry_matches_query(entry: Dictionary, lower_query: String) -> bool:
+	var name: String = String(entry.get("display_name", "")).to_lower()
+	if name.contains(lower_query):
+		return true
+	var hint: String = String(entry.get("unlock_hint", "")).to_lower()
+	if hint.contains(lower_query):
+		return true
+	# Only search the body for UNLOCKED entries — searching locked-entry
+	# bodies would reveal lore the player hasn't earned.
+	var id: StringName = entry.get("id", &"")
+	if _registry and _registry.is_unlocked(id):
+		var body: String = String(entry.get("body", entry.get("description", ""))).to_lower()
+		if body.contains(lower_query):
+			return true
+	return false
+
+func _on_search_changed(new_text: String) -> void:
+	_search_query = new_text.strip_edges()
+	refresh()
 
 func _entry_card(entry: Dictionary) -> Control:
 	var box := PanelContainer.new()

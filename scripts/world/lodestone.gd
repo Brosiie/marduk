@@ -208,6 +208,12 @@ func _on_body_exited(body: Node3D) -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if not _player_inside:
 		return
+	# Toggle the recall mark with the dedicated recall key (R by default;
+	# falls through to the action lookup so rebinds Just Work). Marking
+	# THIS stone makes future R-presses-while-away warp to it.
+	if InputMap.has_action("toggle_recall") and event.is_action_pressed("toggle_recall"):
+		_mark_as_recall_stone()
+		return
 	if not event.is_action_pressed("interact"):
 		return
 	var registry := get_node_or_null("/root/LodestoneRegistry")
@@ -222,6 +228,25 @@ func _unhandled_input(event: InputEvent) -> void:
 		# After first attune, also flash the map open so the player sees the
 		# new dot light up.
 		_open_map_panel()
+
+# Mark THIS lodestone as the player's recall stone. Pressing the recall
+# key while AWAY from any lodestone warps back here. Toast confirms.
+func _mark_as_recall_stone() -> void:
+	var registry := get_node_or_null("/root/LodestoneRegistry")
+	if registry == null or not registry.has_method("set_recall_marked"):
+		return
+	if not registry.is_discovered(lodestone_id):
+		# Can't mark an undiscovered stone. Attune first.
+		_attune()
+		if not registry.is_discovered(lodestone_id):
+			return
+	if registry.set_recall_marked(lodestone_id):
+		var juice: Node = get_node_or_null("/root/Juice")
+		if juice and juice.has_method("toast"):
+			juice.toast("Recall set: %s" % display_name, Color(1.0, 0.85, 0.45), 2.5)
+		var ab: Node = get_node_or_null("/root/AudioBus")
+		if ab and ab.has_method("play_cue"):
+			ab.play_cue(&"lodestone", global_position, -4.0, 1.4)
 
 func _attune() -> void:
 	var registry := get_node_or_null("/root/LodestoneRegistry")

@@ -1334,6 +1334,16 @@ func _award_guaranteed_drops(killer: Node) -> void:
 	# launch + spark fall.
 	_spawn_loot_cascade()
 
+	# Re-fight loot scaling: each kill of the SAME boss drops fewer
+	# rolls + lower legendary chance. Reads kill count from CodexRegistry
+	# (bestiary tracker) and applies a multiplier:
+	#   1st kill: 1.0x (full loot, the canonical first-clear feel)
+	#   2nd:      0.5x rolls, 0.5x legendary chance
+	#   3rd+:     0.25x rolls, 0.2x legendary chance
+	# Stops boss-arena re-fight from being the "spam Kazat for legendaries"
+	# strategy. Trophy + V-rekill stays in for sport, just doesn't pay
+	# out a fresh jackpot every time.
+	var refight_mult: float = _refight_loot_multiplier()
 	# Guaranteed VERY_RARE
 	if loot_table:
 		# Resolve Prestige once; falling back to cycle 0 if the autoload is
@@ -1342,30 +1352,53 @@ func _award_guaranteed_drops(killer: Node) -> void:
 		var prestige_node: Node = get_node_or_null("/root/Prestige")
 		var cycle: int = prestige_node.current_prestige_level() if prestige_node else 0
 		var rolls: Array[Item] = loot_table.roll(cycle)
-		for it in rolls:
-			killer.receive_loot(it)
+		# Trim drops by refight_mult so re-kills shed rolls. Always keep
+		# at least 1 if there were any rolls so re-fight isn't empty.
+		var keep_count: int = max(1 if rolls.size() > 0 else 0, int(round(rolls.size() * refight_mult)))
+		for i in range(min(keep_count, rolls.size())):
+			killer.receive_loot(rolls[i])
 
-	# 1% LEGENDARY for killer's class
+	# 1% LEGENDARY for killer's class (scaled by refight_mult)
 	var killer_class: StringName = &""
 	if killer.get("stats") and killer.stats.class_def:
 		killer_class = killer.stats.class_def.class_id
-	if randf() < 0.01 and killer_class != &"":
+	if randf() < (0.01 * refight_mult) and killer_class != &"":
 		var legendary: Item = LegendaryRegistry.get_legendary_for(killer_class)
 		if legendary:
 			killer.receive_loot(legendary)
 
 	# Final-boss-only: 1% ANY legendary + 0.5% Heaven (Ronin only)
 	if is_final_boss or is_secret_boss:
-		if randf() < 0.01:
+		if randf() < (0.01 * refight_mult):
 			var any_legendary: Item = LegendaryRegistry.random_legendary()
 			if any_legendary:
 				killer.receive_loot(any_legendary)
 		# Heaven only drops if (a) killer is Ronin, (b) once per save profile.
 		# The sword refuses to manifest for any other hand. Bond's design.
+		# NOT scaled by refight_mult since it's already a once-per-save gate.
 		if killer_class == &"ronin" and randf() < 0.005:
 			if not SaveFlags.has_permanent(&"heaven_obtained"):
 				killer.receive_loot(LegendaryRegistry.get_heaven())
 				SaveFlags.set_permanent(&"heaven_obtained", true)
+
+# Compute the loot multiplier based on how many times the player has
+# already killed THIS boss. First kill = 1.0 (standard loot), 2nd = 0.5,
+# 3rd+ = 0.25. Reads CodexRegistry's bestiary kill counter (we bump the
+# counter in EnemyBase._die so it covers boss kills too).
+func _refight_loot_multiplier() -> float:
+	if boss_id == &"":
+		return 1.0
+	var cdx: Node = get_node_or_null("/root/CodexRegistry")
+	if cdx == null or not cdx.has_method("get_kill_count"):
+		return 1.0
+	# Note: this fires AFTER EnemyBase._die has already bumped the count,
+	# so kill #1 returns count==1, kill #2 returns count==2, etc.
+	var count: int = cdx.get_kill_count(boss_id)
+	if count <= 1:
+		return 1.0
+	elif count == 2:
+		return 0.5
+	return 0.25
 
 # --- Boss aura ---
 # Crimson particle ring + ominous mote column at the boss's feet so

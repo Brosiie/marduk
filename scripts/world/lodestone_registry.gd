@@ -155,3 +155,45 @@ func count_discovered() -> int:
 
 func count_total() -> int:
 	return LODESTONES.size()
+
+# ───────── Recall hotkey support ─────────
+#
+# The player can mark any lodestone as their "recall stone" by holding
+# the recall key while standing on it (handled by Lodestone.gd). The
+# stored stone is what `recall_to_marked()` warps to when the player
+# presses the recall key while AWAY from a lodestone.
+#
+# Stored as a SaveFlags permanent so the marked stone survives saves +
+# scene changes. Defaults to the most recently discovered stone if no
+# explicit recall mark exists, so the recall key always does SOMETHING
+# useful even before the player learns the marking gesture.
+
+const RECALL_FLAG_KEY: StringName = &"lodestone_recall_marked"
+
+func get_recall_marked() -> StringName:
+	var sf: Node = get_node_or_null("/root/SaveFlags")
+	if sf and sf.has_method("get_permanent"):
+		var v: Variant = sf.get_permanent(RECALL_FLAG_KEY, "")
+		if v is String and String(v) != "":
+			return StringName(String(v))
+	# Fallback: most recently discovered stone (last entry in _discovered)
+	if not _discovered.is_empty():
+		var keys: Array = _discovered.keys()
+		return keys[keys.size() - 1]
+	return &""
+
+func set_recall_marked(id: StringName) -> bool:
+	if not is_discovered(id):
+		return false
+	var sf: Node = get_node_or_null("/root/SaveFlags")
+	if sf and sf.has_method("set_permanent"):
+		sf.set_permanent(RECALL_FLAG_KEY, String(id))
+	return true
+
+# Warp to the marked recall stone. Convenience wrapper around travel()
+# for player.gd's recall hotkey handler.
+func recall_to_marked() -> bool:
+	var id: StringName = get_recall_marked()
+	if id == &"":
+		return false
+	return travel(id)

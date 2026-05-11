@@ -199,6 +199,10 @@ func _ready() -> void:
 	_setup_toast_layer()
 	if player.has_signal("item_collected"):
 		player.item_collected.connect(_on_item_collected)
+	# Zone-entry sting + banner. Fires once per zone per save profile;
+	# subsequent re-entries skip both. Deferred so the player's class +
+	# audio bus are fully ready before the cue plays.
+	call_deferred("_maybe_play_zone_entry_sting")
 
 func _process(_delta: float) -> void:
 	if player and player.stats:
@@ -1139,3 +1143,61 @@ func bind_boss(boss: Node) -> void:
 func unbind_boss() -> void:
 	if boss_bar and boss_bar.has_method("hide_bar"):
 		boss_bar.hide_bar()
+
+# Zone-entry sting: first time the player loads a region scene, fire
+# a deep audio cue + a quest-banner-style "YOU HAVE ENTERED ..." card.
+# Tracked via SaveFlags permanent so each zone announces itself once
+# per save profile. Subsequent visits stay quiet so the player isn't
+# bombarded every commute.
+const _ZONE_NAME_BY_SCENE := {
+	"sword_vow_ruins":     "Sword-Vow Ruins",
+	"ash_step_camp":       "Ash-Step Camp",
+	"whisper_shrine":      "Whisper Shrine",
+	"inkstone_tower":      "Inkstone Tower",
+	"coven_glen":          "Coven Glen",
+	"greenheart_glade":    "Greenheart Glade",
+	"sunsworn_chapel":     "Sunsworn Chapel",
+	"the_cradle":          "The Cradle of Marduk",
+	"the_reed_wastes":     "The Reed Wastes",
+	"lapis_bay":           "Lapis Bay",
+	"bone_mountains":      "Bone Mountains",
+	"verdant_wound":       "The Verdant Wound",
+	"ember_steppes":       "Ember Steppes",
+	"mist_vale":           "Mist Vale",
+	"shrieking_highlands": "Shrieking Highlands",
+	"sundered_coast":      "Sundered Coast",
+	"black_citadel":       "Black Citadel",
+	"fire_stair":          "Fire-Stair",
+	"ashurim":             "Ashurim",
+	"babilim":             "Babilim",
+}
+
+func _maybe_play_zone_entry_sting() -> void:
+	var tree := get_tree()
+	if tree == null or tree.current_scene == null:
+		return
+	# Pull the scene-file name (no extension) so we can resolve the
+	# friendly zone name + the SaveFlag key.
+	var scene_path: String = tree.current_scene.scene_file_path
+	if scene_path == "":
+		return
+	var fname: String = scene_path.get_file().trim_suffix(".tscn")
+	if not _ZONE_NAME_BY_SCENE.has(fname):
+		return  # not a tracked region scene (e.g. menu / intro / arena)
+	var sf: Node = get_node_or_null("/root/SaveFlags")
+	var flag: StringName = StringName("zone_entered_" + fname)
+	if sf and sf.has_method("has_permanent") and sf.has_permanent(flag):
+		return  # already announced this zone before
+	if sf and sf.has_method("set_permanent"):
+		sf.set_permanent(flag, true)
+	# Audio sting first (lodestone cue at low pitch reads as "deep
+	# place opening up to you"), then the banner.
+	var ab: Node = get_node_or_null("/root/AudioBus")
+	if ab and ab.has_method("play_cue"):
+		ab.play_cue(&"lodestone", Vector3.ZERO, -3.0, 0.55)
+	var juice: Node = get_node_or_null("/root/Juice")
+	var name: String = String(_ZONE_NAME_BY_SCENE[fname])
+	if juice and juice.has_method("quest_banner"):
+		juice.quest_banner("YOU HAVE ENTERED", name, "", Color(0.95, 0.85, 0.45), 4.0)
+	elif juice and juice.has_method("toast"):
+		juice.toast("Entered: %s" % name, Color(0.95, 0.85, 0.45), 3.0)

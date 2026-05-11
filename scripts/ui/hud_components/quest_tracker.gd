@@ -133,6 +133,30 @@ func refresh() -> void:
 		hint.add_theme_constant_override("outline_size", 3)
 		hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		_v.add_child(hint)
+	# Tiny keyhint footer reminding the player a full quest log exists.
+	# Reads the actual InputMap binding so it stays accurate when key
+	# rebind UI ships. Dim color so it doesn't fight the objective list.
+	var key_label: String = _resolve_key_label(&"toggle_quests")
+	var footer := Label.new()
+	footer.text = "[%s] full quest log" % key_label
+	footer.add_theme_font_size_override("font_size", 10)
+	footer.add_theme_color_override("font_color", Color(0.55, 0.45, 0.30))
+	_v.add_child(footer)
+
+# Walk InputMap for the action and return a friendly key string.
+# Mirrors ControlsHelpPanel's resolver but kept inline so quest tracker
+# doesn't depend on the help panel script.
+func _resolve_key_label(action_name: StringName) -> String:
+	if not InputMap.has_action(action_name):
+		return "?"
+	var events: Array = InputMap.action_get_events(action_name)
+	for ev in events:
+		if ev is InputEventKey:
+			var ke: InputEventKey = ev
+			var key: int = ke.physical_keycode if ke.physical_keycode != 0 else ke.keycode
+			var s: String = OS.get_keycode_string(key)
+			return s if s != "" else "?"
+	return "?"
 
 # Build a one-line "next thing to do" hint from an objective dict. For
 # kill objectives, we append "in <zone>" by looking up the target_id in
