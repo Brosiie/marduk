@@ -664,10 +664,15 @@ func _die(killer: Node) -> void:
 		qr.progress(&"kill", mob_id, 1)
 		_spawn_quest_progress_floaters(qr)
 	# Codex bestiary unlock: first time the player kills a mob type, flip
-	# its bestiary entry from locked to readable.
+	# its bestiary entry from locked to readable. Also bump the per-mob
+	# kill counter so the bestiary entry can show "kills: 47" beside the
+	# lore text. Lifetime counter, persists across saves + prestige.
 	var cdx = get_node_or_null("/root/CodexRegistry")
-	if cdx and cdx.has_method("unlock") and mob_id != &"":
-		cdx.unlock(StringName("b_" + String(mob_id)))
+	if cdx and mob_id != &"":
+		if cdx.has_method("unlock"):
+			cdx.unlock(StringName("b_" + String(mob_id)))
+		if cdx.has_method("bump_kill_count"):
+			cdx.bump_kill_count(mob_id)
 	if killer and killer.get("stats") and killer.stats.has_method("gain_xp"):
 		killer.stats.gain_xp(xp_reward)
 	# Award stance charge to Ronin killers, drop loot via prestige-aware table

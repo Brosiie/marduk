@@ -113,9 +113,52 @@ func refresh() -> void:
 	var counters: Array = []
 	if _registry.has_method("get_progress"):
 		counters = _registry.get_progress(quest_id)
+	# Track which objective is the FIRST incomplete one so we can render
+	# a "next" hint below the list. Players new to soulslikes often get
+	# lost; surfacing "the next thing you should do" up front helps.
+	var next_hint_text: String = ""
 	for i in range(objectives.size()):
 		var current: int = counters[i] if i < counters.size() else 0
 		_v.add_child(_objective_row(objectives[i], current))
+		var required: int = int(objectives[i].get("required_count", 1))
+		if next_hint_text == "" and current < required:
+			next_hint_text = _format_next_hint(objectives[i])
+	if next_hint_text != "":
+		# Small spacer line, then the gold "NEXT" hint with arrow.
+		var hint := Label.new()
+		hint.text = "→ " + next_hint_text
+		hint.add_theme_font_size_override("font_size", 12)
+		hint.add_theme_color_override("font_color", Color(1.0, 0.85, 0.30))
+		hint.add_theme_color_override("font_outline_color", Color(0.10, 0.05, 0.0, 0.95))
+		hint.add_theme_constant_override("outline_size", 3)
+		hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		_v.add_child(hint)
+
+# Build a one-line "next thing to do" hint from an objective dict. For
+# kill objectives, we append "in <zone>" by looking up the target_id in
+# MobRegistry / BossRegistry. For reach_zone, we just say "go to <zone>".
+# For other kinds, we fall back to the objective's description.
+func _format_next_hint(obj: Dictionary) -> String:
+	var kind: String = String(obj.get("kind", ""))
+	var target_id: String = String(obj.get("target_id", ""))
+	var desc: String = String(obj.get("description", ""))
+	if kind == "reach_zone" and target_id != "":
+		return "Travel to %s" % target_id.capitalize().replace("_", " ")
+	if kind == "kill" and target_id != "":
+		# Try to resolve the home zone from MobRegistry first, then BossRegistry.
+		var mr: Node = get_node_or_null("/root/MobRegistry")
+		if mr and mr.has_method("get_mob"):
+			var mob = mr.get_mob(StringName(target_id))
+			if mob and mob.get("home_zone") != null and String(mob.home_zone) != "":
+				return "%s (in %s)" % [desc, String(mob.home_zone).capitalize().replace("_", " ")]
+		var br: Node = get_node_or_null("/root/BossRegistry")
+		if br and br.has_method("get_boss"):
+			var rec = br.get_boss(StringName(target_id))
+			if rec and rec.get("zone_id") != null and String(rec.zone_id) != "":
+				return "%s (in %s)" % [desc, String(rec.zone_id).capitalize().replace("_", " ")]
+	if desc != "":
+		return desc
+	return "Continue the quest."
 
 func _objective_row(obj: Dictionary, current_count: int) -> Control:
 	var row := HBoxContainer.new()

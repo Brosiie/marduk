@@ -106,6 +106,12 @@ func add_rep(faction_id: StringName, delta: int) -> int:
 	if old_tier != new_tier:
 		tier_changed.emit(faction_id, new_tier, old_tier)
 		_toast_tier_change(faction_id, new_tier, delta > 0)
+		# Tier-up milestone reward: grant gold + a stage flag the FIRST
+		# time the player crosses Friendly / Honored / Revered / Exalted
+		# with this faction. Once-only per faction-tier so reps that
+		# yo-yo across a boundary don't double-reward.
+		if delta > 0:
+			_grant_tier_milestone_reward(faction_id, new_tier)
 	return new_val
 
 func set_rep(faction_id: StringName, value: int) -> void:
@@ -147,6 +153,55 @@ func bar_for(faction_id: StringName) -> Dictionary:
 	}
 
 # ───────── UI helper ─────────
+
+# Per-tier gold reward. Friendly is the first "you have a relationship"
+# tier so it pays modestly. Exalted is the cap and pays correspondingly.
+# Hostile/Hated tiers grant nothing (we don't pay you for being hated).
+const _TIER_REWARDS := {
+	"Friendly": 50,
+	"Honored":  200,
+	"Revered":  500,
+	"Exalted":  1000,
+}
+
+func _grant_tier_milestone_reward(faction_id: StringName, new_tier: String) -> void:
+	if not _TIER_REWARDS.has(new_tier):
+		return
+	# Already-claimed gate: each faction-tier pays out exactly once
+	# across the whole save (not per prestige cycle - if you're Honored
+	# at the moment of prestige reset, your next climb to Honored
+	# doesn't double-pay). Tracked via SaveFlags permanent.
+	var flag: StringName = StringName("tier_reward_%s_%s" % [String(faction_id), new_tier.to_lower()])
+	var sf: Node = get_node_or_null("/root/SaveFlags")
+	if sf and sf.has_method("has_permanent") and sf.has_permanent(flag):
+		return
+	if sf and sf.has_method("set_permanent"):
+		sf.set_permanent(flag, true)
+	# Award gold to the player. Skip silently if there's no player in
+	# scene (e.g. menu / unit-test contexts).
+	var amount: int = int(_TIER_REWARDS[new_tier])
+	var tree := Engine.get_main_loop() as SceneTree
+	if tree == null:
+		return
+	var player: Node = tree.get_first_node_in_group("player")
+	if player and "stats" in player and player.stats and "gold" in player.stats:
+		player.stats.gold += amount
+	# Big toast announces the milestone + the reward
+	var juice: Node = get_node_or_null("/root/Juice")
+	if juice:
+		var f := get_faction(faction_id)
+		var name: String = f.display_name if f else String(faction_id)
+		var color: Color = TIER_COLORS.get(new_tier, Color.WHITE)
+		if juice.has_method("quest_banner"):
+			juice.quest_banner(
+				"REPUTATION MILESTONE",
+				"%s — %s" % [name, new_tier],
+				"+%d gold awarded" % amount,
+				color,
+				4.0,
+			)
+		elif juice.has_method("toast"):
+			juice.toast("Milestone: %s %s  +%d gold" % [name, new_tier, amount], color, 3.5)
 
 func _toast_tier_change(faction_id: StringName, new_tier: String, was_gain: bool) -> void:
 	var juice: Node = get_node_or_null("/root/Juice")

@@ -38,9 +38,33 @@ const ELEMENT_COLORS := {
 	&"heal":      Color(0.40, 0.95, 0.55),
 }
 
+# Window during which sequential hits on the same target STACK into the
+# existing floater (text becomes "%d (xN)" + a punch animation) instead
+# of spawning a new one. Reads as "you hit them 4 times in a row"
+# rather than "4 numbers piled on top of each other." Crits never stack
+# (they're always their own moment), and stacking is also disabled for
+# class-tinted crits so PvP friend-or-foe reads still work.
+const STACK_WINDOW: float = 0.55
+const STACK_META_KEY := "active_dmg_floater"
+
 static func spawn(target: Node3D, amount: float, is_crit: bool = false, element: StringName = &"physical", class_tint: Color = Color(0,0,0,0)) -> DamageFloater:
 	if target == null or not is_instance_valid(target):
 		return null
+	# Try to stack onto an existing floater on this target. Only valid
+	# when the previous floater is still alive AND not a crit AND we
+	# haven't crit this hit (crits always solo). The active floater is
+	# stored as meta on the target so multiple attackers on the same
+	# mob also stack into one number rather than fighting for screen
+	# space (acceptable trade: party-DPS reads as one big stack).
+	if not is_crit and target.has_meta(STACK_META_KEY):
+		var existing = target.get_meta(STACK_META_KEY)
+		if existing is DamageFloater and is_instance_valid(existing):
+			var ex_floater: DamageFloater = existing
+			var now: float = Time.get_ticks_msec() / 1000.0
+			var expire_at: float = float(ex_floater.get_meta("expire_at", 0.0))
+			if now < expire_at and not bool(ex_floater.get_meta("is_crit", false)):
+				ex_floater._add_stack(amount, now)
+				return ex_floater
 	var floater := DamageFloater.new()
 	# Damage tiers, three sizes based on raw damage and crit flag so
 	# small chip damage doesn't dominate the screen and big hits
@@ -92,12 +116,49 @@ static func spawn(target: Node3D, amount: float, is_crit: bool = false, element:
 	floater.position = target.global_position + Vector3(0, 1.8, 0) + jitter
 	target.get_tree().current_scene.add_child(floater)
 	floater._animate(is_crit)
+	# Stamp meta on both the floater and the target so future hits in
+	# STACK_WINDOW can find + merge into this floater. is_crit is meta'd
+	# so the stacking check can refuse to merge into a crit floater.
+	# stack_total starts at the spawn amount; updated by _add_stack.
+	floater.set_meta("expire_at", Time.get_ticks_msec() / 1000.0 + STACK_WINDOW)
+	floater.set_meta("is_crit", is_crit)
+	floater.set_meta("stack_count", 1)
+	floater.set_meta("stack_total", amount)
+	if not is_crit:
+		target.set_meta(STACK_META_KEY, floater)
+		# When the floater dies, clear the meta on the target so the
+		# next hit doesn't try to stack into a freed instance.
+		floater.tree_exited.connect(func():
+			if is_instance_valid(target) and target.get_meta(STACK_META_KEY, null) == floater:
+				target.remove_meta(STACK_META_KEY)
+		)
 	# Crit screen flash + audio cue: massive feedback for crit hits
 	if is_crit:
 		var juice: Node = target.get_node_or_null("/root/Juice")
 		if juice and juice.has_method("flash"):
 			juice.flash(Color(1.0, 0.92, 0.50), 0.18, 0.30)
 	return floater
+
+# Merge another hit into this active floater. Bumps stack_count, sums
+# damage into stack_total, refreshes the expire window, and triggers a
+# small punch animation so the eye catches the increment. Called only
+# from spawn() when STACK_WINDOW gating passes.
+func _add_stack(extra_damage: float, now: float) -> void:
+	var stack_count: int = int(get_meta("stack_count", 1)) + 1
+	var stack_total: float = float(get_meta("stack_total", 0.0)) + extra_damage
+	set_meta("stack_count", stack_count)
+	set_meta("stack_total", stack_total)
+	set_meta("expire_at", now + STACK_WINDOW)
+	# Update the rendered text. Format: "342 (x4)" — the running total
+	# damage with stack count after, so the player reads "biggest hit"
+	# AND "how fast they're hitting" together.
+	text = "%d (x%d)" % [int(round(stack_total)), stack_count]
+	# Punch tween: pop scale up then back so the increment is visible
+	# even mid-rise. Cancel any previous punch so back-to-back stacks
+	# don't queue tweens forever.
+	var punch := create_tween()
+	punch.tween_property(self, "scale", Vector3.ONE * 1.25, 0.06).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	punch.tween_property(self, "scale", Vector3.ONE, 0.10)
 
 func _animate(is_crit: bool = false) -> void:
 	var start_pos := position

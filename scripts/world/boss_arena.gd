@@ -81,16 +81,17 @@ func _skip_arena_for_defeated_boss() -> void:
 	# (Sword-Vow Ruins + a future expansion arena) used to have ALL of
 	# them despawned when re-entering only ONE defeated arena.
 	_engaged = true
+	var defeated_id: StringName = _resolve_my_boss_id()
 	# Prefer the explicit boss_path binding
 	if boss_path != NodePath():
 		var bound: Node = get_node_or_null(boss_path)
 		if bound and is_instance_valid(bound):
 			bound.queue_free()
+			_spawn_victory_trophy(defeated_id)
 			return
 	# Fallback: find a boss in the scene whose boss_id matches this
 	# arena's id. Only despawn that one. Bosses without ids (legacy)
 	# are left alone rather than nuked indiscriminately.
-	var defeated_id: StringName = _resolve_my_boss_id()
 	if defeated_id == &"":
 		return
 	for n in get_tree().get_nodes_in_group("boss"):
@@ -98,7 +99,120 @@ func _skip_arena_for_defeated_boss() -> void:
 			continue
 		if "boss_id" in n and StringName(n.get("boss_id")) == defeated_id:
 			n.queue_free()
+			_spawn_victory_trophy(defeated_id)
 			return
+
+# Persistent monument planted at the boss spawn point after a defeat.
+# Visible the next time the player enters the (now empty) arena so the
+# space reads as "I cleared this" instead of "where did the boss go?"
+# Stack-of-skulls + a glowing rune. Interacting with it (V) shows a
+# small lore card and offers a re-fight (resets _engaged + respawns
+# the boss for sport / loot grinding).
+func _spawn_victory_trophy(defeated_id: StringName) -> void:
+	if defeated_id == &"":
+		return
+	# Resolve where the boss WAS so the trophy plants in the right spot.
+	# If boss_path was set we use the bound node's position pre-free;
+	# we already freed it, so fall back to this arena's position.
+	var trophy_pos: Vector3 = global_position
+	# Build a small Area3D + interact prompt + skull mesh
+	var trophy := Area3D.new()
+	trophy.name = "BossTrophy_" + String(defeated_id)
+	trophy.add_to_group("boss_trophy")
+	trophy.collision_layer = 0
+	trophy.collision_mask = 2  # players-only
+	trophy.set_meta("boss_id", defeated_id)
+	var trigger := SphereShape3D.new()
+	trigger.radius = 2.2
+	var cs := CollisionShape3D.new()
+	cs.shape = trigger
+	trophy.add_child(cs)
+	# Skull mesh stand-in: stacked spheres + emissive base
+	var base := MeshInstance3D.new()
+	var box_mesh := BoxMesh.new()
+	box_mesh.size = Vector3(0.8, 0.4, 0.8)
+	base.mesh = box_mesh
+	var base_mat := StandardMaterial3D.new()
+	base_mat.albedo_color = Color(0.18, 0.16, 0.14)
+	base_mat.roughness = 0.85
+	base.material_override = base_mat
+	base.position = Vector3(0, 0.2, 0)
+	trophy.add_child(base)
+	# Skull (sphere) on top of the base
+	var skull := MeshInstance3D.new()
+	var sphere_mesh := SphereMesh.new()
+	sphere_mesh.radius = 0.30
+	sphere_mesh.height = 0.55
+	skull.mesh = sphere_mesh
+	var skull_mat := StandardMaterial3D.new()
+	skull_mat.albedo_color = Color(0.85, 0.78, 0.65)
+	skull_mat.roughness = 0.65
+	skull.material_override = skull_mat
+	skull.position = Vector3(0, 0.7, 0)
+	trophy.add_child(skull)
+	# Emissive rune light — orange glow reads as "monument to violence"
+	var lit := OmniLight3D.new()
+	lit.light_color = Color(1.0, 0.55, 0.20)
+	lit.light_energy = 1.6
+	lit.omni_range = 4.0
+	lit.position = Vector3(0, 0.5, 0)
+	trophy.add_child(lit)
+	# Floating Label3D with the boss name + "[V] Re-fight"
+	var br: Node = get_node_or_null("/root/BossRegistry")
+	var boss_name: String = String(defeated_id).capitalize().replace("_", " ")
+	if br and br.has_method("get_boss"):
+		var rec = br.get_boss(defeated_id)
+		if rec and rec.get("display_name") != null:
+			boss_name = String(rec.display_name)
+	var label := Label3D.new()
+	label.text = "%s\n[V] Re-fight" % boss_name
+	label.font_size = 22
+	label.modulate = Color(1.0, 0.85, 0.55)
+	label.outline_size = 4
+	label.outline_modulate = Color(0, 0, 0, 0.92)
+	label.position = Vector3(0, 1.6, 0)
+	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	label.no_depth_test = true
+	label.fixed_size = true
+	label.pixel_size = 0.005
+	trophy.add_child(label)
+	# Wire the V-press to clear the defeated flag + reload the scene.
+	trophy.body_entered.connect(_on_trophy_body_entered.bind(trophy, defeated_id))
+	trophy.body_exited.connect(_on_trophy_body_exited.bind(trophy))
+	get_tree().current_scene.add_child(trophy)
+	trophy.global_position = trophy_pos
+
+var _player_at_trophy: Area3D = null
+
+func _on_trophy_body_entered(_body: Node3D, trophy: Area3D, _id: StringName) -> void:
+	if not _body.is_in_group("player"):
+		return
+	_player_at_trophy = trophy
+
+func _on_trophy_body_exited(_body: Node3D, trophy: Area3D) -> void:
+	if not _body.is_in_group("player"):
+		return
+	if _player_at_trophy == trophy:
+		_player_at_trophy = null
+
+func _unhandled_input(event: InputEvent) -> void:
+	if not (event.is_action_pressed("interact") and _player_at_trophy):
+		return
+	# Re-fight: clear the boss-defeated run flag for this id, reload
+	# the current scene. The arena's _is_boss_already_defeated will now
+	# return false and the boss respawns + the gates rebuild.
+	var defeated_id: StringName = StringName(_player_at_trophy.get_meta("boss_id", &""))
+	if defeated_id == &"":
+		return
+	var sf: Node = get_node_or_null("/root/SaveFlags")
+	if sf and sf.has_method("set_run"):
+		sf.set_run(StringName("%s_defeated" % defeated_id), false)
+	# Toast first so the player sees the prompt before the scene change.
+	var juice: Node = get_node_or_null("/root/Juice")
+	if juice and juice.has_method("toast"):
+		juice.toast("Re-summoning the foe...", Color(0.95, 0.45, 0.20), 2.0)
+	# Reload current scene to respawn the boss with full HP + cinematic.
+	get_tree().reload_current_scene()
 
 func _resolve_my_boss_id() -> StringName:
 	# Resolve which boss this arena owns. Mirrors the logic in

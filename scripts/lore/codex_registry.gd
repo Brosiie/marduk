@@ -111,6 +111,31 @@ func count_unlocked() -> int:
 func count_total() -> int:
 	return _entries.size()
 
+# ───── Bestiary kill counters ─────
+#
+# Per-mob_id integer count of how many times the player has killed this
+# mob type. Stored as SaveFlags permanent (key = "kills_<mob_id>") so it
+# persists across saves + prestige. Bumped from EnemyBase._die; read by
+# the codex bestiary tab to render "kills: 47" under each entry.
+
+const KILL_COUNT_PREFIX := "kills_"
+
+func bump_kill_count(mob_id: StringName) -> void:
+	if mob_id == &"":
+		return
+	var current: int = get_kill_count(mob_id)
+	var sf: Node = get_node_or_null("/root/SaveFlags")
+	if sf and sf.has_method("set_permanent"):
+		sf.set_permanent(StringName(KILL_COUNT_PREFIX + String(mob_id)), current + 1)
+
+func get_kill_count(mob_id: StringName) -> int:
+	if mob_id == &"":
+		return 0
+	var sf: Node = get_node_or_null("/root/SaveFlags")
+	if sf == null or not sf.has_method("get_permanent"):
+		return 0
+	return int(sf.get_permanent(StringName(KILL_COUNT_PREFIX + String(mob_id)), 0))
+
 func _save_flag(id: StringName) -> void:
 	var sf := get_node_or_null("/root/SaveFlags")
 	if sf and sf.has_method("set_permanent"):
