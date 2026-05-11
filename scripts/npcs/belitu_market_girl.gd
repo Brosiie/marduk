@@ -39,6 +39,16 @@ const GLYPH_GREETINGS := {
 	"inquisition":"Burner mark. The last one of you took my uncle. I'll still ask if you've seen my brother. I have to. But I'm not glad you're here.",
 }
 
+# Faction-conflict observations from street level. Belitu sees what
+# passes the market: the wounded, the corpses, the carts that don't
+# come back. She doesn't speculate. She just tells you what she
+# watched from her stall.
+const CONFLICT_GREETINGS := {
+	"druid_vs_inquisition:SKIRMISH": "Two carts of wounded came through this morning. Druid green on the canvas, Inquisition white on the bodies. Or the other way, I can't tell anymore. Have you seen my brother? Please.",
+	"druid_vs_inquisition:OPEN_WAR": "The market's closing early. Mama won't say why. I will: there was a body in the well this morning. A burner. The well was the Sanctum's. Have you seen my brother. Please. Please.",
+	"crown_vs_black_sail:SKIRMISH":  "The fish boats aren't coming in. Black Sail's blockading. The Crown won't say so but I know what an empty dock looks like. Have you seen my brother?",
+}
+
 const BELITU_QUEST_LADDER := [
 	&"q_belitu_brother",       # lvl 1, find her missing brother
 	&"q_belitu_druid_friend",  # lvl 3, slay Inquisition Burners, +Druids / -Inquisition
@@ -70,7 +80,10 @@ func _set_greeting_for(player: Node) -> void:
 		CLASS_GREETINGS,
 		DEFAULT_GREETING,
 		DREAD_GREETINGS,
-		GLYPH_GREETINGS
+		GLYPH_GREETINGS,
+		"",  # no walked-back
+		{},  # no wound dread
+		CONFLICT_GREETINGS
 	)
 
 func _refresh_quest_offer() -> void:

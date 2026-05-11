@@ -359,6 +359,15 @@ func accept_quest(id: StringName) -> bool:
 		if juice and juice.has_method("toast"):
 			juice.toast("Locked: need %s" % reason, Color(0.85, 0.55, 0.30), 3.0)
 		return false
+	# Conflict gate: some quests are unavailable during OPEN_WAR with a
+	# specific faction pair. Soft gate, becomes offerable again when the
+	# pair cools to SKIRMISH or lower. The quest-giver isn't dismissing
+	# the player; they're at war and can't run errands.
+	if q.has_method("meets_conflict_requirements") and not q.meets_conflict_requirements():
+		var juice2 = get_node_or_null("/root/Juice")
+		if juice2 and juice2.has_method("toast"):
+			juice2.toast("Locked: open war prevents this quest.", Color(0.95, 0.30, 0.30), 3.0)
+		return false
 	_active[id] = q
 	# Initialize progress counters at zero for each objective.
 	var counters: Array[int] = []
@@ -683,6 +692,11 @@ func _register_faction_starter_quests() -> void:
 		1400, 380)
 	sm_q2.faction_rep_changes = {&"druids": 700, &"inquisition": -400}
 	sm_q2.min_faction_rep = {&"druids": 3000}  # Friendly with Druids required
+	# Conflict gate: while druid_vs_inquisition is at OPEN_WAR, the
+	# Sanctum-Mother is running a war, not handing out side-quests.
+	# Soft gate, becomes offerable again when conflict cools.
+	sm_q1.disabled_during_open_war_with = &"druid_vs_inquisition"
+	sm_q2.disabled_during_open_war_with = &"druid_vs_inquisition"
 
 	# CAPTAIN VASHTU, low-level Inquisition burn. The Inquisition's
 	# counter-lever to the Sanctum-Mother. Same shape, opposite rep
@@ -707,6 +721,10 @@ func _register_faction_starter_quests() -> void:
 		1500, 420)
 	vq2.faction_rep_changes = {&"inquisition": 700, &"druids": -500}
 	vq2.min_faction_rep = {&"inquisition": 3000}  # Friendly with Inquisition required
+	# Symmetric conflict gate: when the war is OPEN, even the Censor
+	# can't take new contracts; she's running the war effort.
+	vq1.disabled_during_open_war_with = &"druid_vs_inquisition"
+	vq2.disabled_during_open_war_with = &"druid_vs_inquisition"
 
 	# ─── THE SEVENTH BREATH (hidden lore unlock) ────────────────────
 	# "Sun is the seventh and unspoken." Six Breaths public lore names

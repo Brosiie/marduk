@@ -27,7 +27,8 @@ static func pick_contextual_greeting(
 		dread_greetings: Dictionary = {},
 		glyph_greetings: Dictionary = {},
 		walked_back_greeting: String = "",
-		wound_dread_greetings: Dictionary = {}
+		wound_dread_greetings: Dictionary = {},
+		conflict_state_greetings: Dictionary = {}
 	) -> String:
 	# Layer 1: walked-back override
 	if walked_back_greeting != "" and _player_walked_back(player):
@@ -41,6 +42,19 @@ static func pick_contextual_greeting(
 		var glyph_match: String = _glyph_aware_line(player, glyph_greetings)
 		if glyph_match != "":
 			return glyph_match
+
+	# Layer 2b: faction-pair conflict state. NPCs who LIVE through
+	# the faction tension (Belitu watching skirmishes from her stall,
+	# Iddinu logging Crown casualties) speak to the war directly.
+	# Conflict state takes priority over cosmic dread because the
+	# immediate political horror feels more urgent than the slow
+	# cosmic one. Keyed by "<pair_key>:<state>" so a single NPC can
+	# author lines for multiple pairs (eg Iddinu reads BOTH
+	# crown_vs_black_sail and crown_vs_druid).
+	if not conflict_state_greetings.is_empty():
+		var conflict_match: String = _conflict_state_line(conflict_state_greetings)
+		if conflict_match != "":
+			return conflict_match
 
 	# Layer 3a: Wound creep dread. Druid-faction characters who SEE
 	# the corruption directly (Sanctum-Mother and her wards) read
@@ -139,6 +153,46 @@ static func _dread_line(dread_greetings: Dictionary) -> String:
 	# above (typo / unsupported tier), still try a direct lookup
 	if dread_greetings.has(tier):
 		return String(dread_greetings[tier])
+	return ""
+
+static func _conflict_state_line(conflict_state_greetings: Dictionary) -> String:
+	# conflict_state_greetings keys are "<pair_key>:<state>" strings
+	# (eg "druid_vs_inquisition:OPEN_WAR"). The NPC author chooses
+	# which pairs they care about; the helper walks every authored
+	# entry and returns the first match whose pair is at the
+	# specified state. State priority within the lookup: OPEN_WAR
+	# beats SKIRMISH beats TENSE (hottest authored wins).
+	var fcr: Node = Engine.get_main_loop().root.get_node_or_null("/root/FactionConflictRegistry") if Engine.get_main_loop() else null
+	if fcr == null or not fcr.has_method("get_state"):
+		return ""
+	# Index the table by pair_key so we can walk one pair's authored
+	# states by hotness.
+	var by_pair: Dictionary = {}
+	for k in conflict_state_greetings.keys():
+		var parts := String(k).split(":")
+		if parts.size() != 2:
+			continue
+		var pair: String = parts[0]
+		var state: String = parts[1]
+		if not by_pair.has(pair):
+			by_pair[pair] = {}
+		by_pair[pair][state] = String(conflict_state_greetings[k])
+	# For each authored pair, check current state and pick the
+	# hottest line the NPC authored that's <= current state.
+	const _STATE_ORDER := ["OPEN_WAR", "SKIRMISH", "TENSE"]
+	for pair in by_pair.keys():
+		var current_state: String = String(fcr.get_state(StringName(pair)))
+		if current_state == "COLD":
+			continue
+		var current_idx: int = _STATE_ORDER.find(current_state)
+		# Walk from hottest authored down to current state and return
+		# the first authored line at-or-below current.
+		for state_candidate in _STATE_ORDER:
+			var candidate_idx: int = _STATE_ORDER.find(state_candidate)
+			if candidate_idx < current_idx:
+				continue  # hotter than current; skip
+			if by_pair[pair].has(state_candidate):
+				return String(by_pair[pair][state_candidate])
 	return ""
 
 static func _wound_dread_line(wound_dread_greetings: Dictionary) -> String:

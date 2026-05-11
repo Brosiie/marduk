@@ -138,6 +138,7 @@ func _run() -> void:
 	await _scenario_seventh_master_visibility()
 	await _scenario_vashtu_dread_inversion()
 	await _scenario_faction_conflict_transitions()
+	await _scenario_quest_open_war_gate()
 
 	_finish()
 
@@ -1648,6 +1649,48 @@ func _scenario_faction_conflict_transitions() -> void:
 	else:
 		_fail("faction_conflict_transitions", "s0=%s s1=%s s2=%s s3=%s s4=%s up=%d down=%d" %
 			[s0, s1, s2, s3, s4, saw_up, saw_down])
+
+# 23. Quest OPEN_WAR gate: a Sanctum-Mother stabilization quest carries
+# disabled_during_open_war_with = &"druid_vs_inquisition". At COLD or
+# SKIRMISH state, meets_conflict_requirements returns true. At
+# OPEN_WAR, it returns false. Verifies the soft-gate works both ways.
+func _scenario_quest_open_war_gate() -> void:
+	var qr: Node = get_node_or_null("/root/QuestRegistry")
+	var wr: Node = get_node_or_null("/root/WoundRegistry")
+	var fcr: Node = get_node_or_null("/root/FactionConflictRegistry")
+	if qr == null or wr == null or fcr == null:
+		_findings.append("(skip quest_open_war_gate: registries missing)")
+		return
+	var q = qr.get_quest(&"q_sanctum_tending_glen")
+	if q == null:
+		_findings.append("(skip quest_open_war_gate: q_sanctum_tending_glen not registered)")
+		return
+	# Sanity: the quest must declare the conflict gate. Otherwise this
+	# test is meaningless.
+	if not "disabled_during_open_war_with" in q or q.disabled_during_open_war_with != &"druid_vs_inquisition":
+		_fail("quest_open_war_gate", "q_sanctum_tending_glen missing disabled_during_open_war_with = druid_vs_inquisition")
+		return
+	# COLD: wound creep at 0 -> COLD state -> quest available
+	wr.set_creep(0)
+	fcr.recompute_all()
+	var cold_ok: bool = q.meets_conflict_requirements()
+	# SKIRMISH: creep at 50 -> SKIRMISH -> still available (soft gate)
+	wr.set_creep(50)
+	fcr.recompute_all()
+	var skirmish_ok: bool = q.meets_conflict_requirements()
+	# OPEN_WAR: creep at 80 -> OPEN_WAR -> blocked
+	wr.set_creep(80)
+	fcr.recompute_all()
+	var war_blocked: bool = not q.meets_conflict_requirements()
+	# Cool back to COLD -> available again (reversibility)
+	wr.set_creep(0)
+	fcr.recompute_all()
+	var cooled_ok: bool = q.meets_conflict_requirements()
+	if cold_ok and skirmish_ok and war_blocked and cooled_ok:
+		_pass("quest_open_war_gate", "COLD/SKIRMISH allow, OPEN_WAR blocks, cooled re-allows")
+	else:
+		_fail("quest_open_war_gate", "cold=%s skirmish=%s war_blocked=%s cooled=%s" %
+			[cold_ok, skirmish_ok, war_blocked, cooled_ok])
 
 func _scenario_hud_presence() -> void:
 	var huds := get_tree().get_nodes_in_group("hud")

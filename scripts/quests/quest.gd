@@ -78,6 +78,29 @@ func unmet_faction_summary() -> String:
 			parts.append("%s with %s" % [tier_name, fname])
 	return ", ".join(parts)
 
+# Faction-conflict gate: quests can declare a pair_key they're
+# unavailable during. Use case: Sanctum-Mother stabilization quests
+# cannot be ACCEPTED while druid_vs_inquisition is at OPEN_WAR, because
+# the Druids are fighting a war, not running errands. Soft gate:
+# becomes offerable again when conflict cools to SKIRMISH or lower.
+# This is meaningful design, war is reversible but the quests it
+# pauses are not deferred; the Druid path is genuinely closed while
+# the war is hot, and the player must push rep to cool it.
+# Format: pair_key (StringName). Empty (&"") means no gate.
+@export var disabled_during_open_war_with: StringName = &""
+
+func meets_conflict_requirements() -> bool:
+	if disabled_during_open_war_with == &"":
+		return true
+	var fcr: Node = Engine.get_main_loop().root.get_node_or_null("/root/FactionConflictRegistry") if Engine.get_main_loop() else null
+	if fcr == null or not fcr.has_method("get_state"):
+		return true  # registry not loaded, fail open
+	var state: String = String(fcr.get_state(disabled_during_open_war_with))
+	# Currently gated only at OPEN_WAR. SKIRMISH+ still allows the
+	# quest, on the theory that border raids are exactly when the
+	# faction needs the player's help most.
+	return state != "OPEN_WAR"
+
 func build_objectives() -> Array:
 	# Inflate inspector data into Objective instances
 	var arr: Array = []

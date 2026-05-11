@@ -41,6 +41,18 @@ const GLYPH_GREETINGS := {
 	"inquisition":"Inquisition mark. Let me be plain: I've watched what your order does to the bodies it leaves behind. We'll talk if you can hear me through that. Not before.",
 }
 
+# Faction-conflict observations. The Storyteller is the wise outsider
+# who sees all sides; her conflict lines name the pair she's watching
+# and what it's doing to Ashurim. Authored heaviest on
+# druid_vs_inquisition because that's the central political pressure.
+const CONFLICT_GREETINGS := {
+	"druid_vs_inquisition:TENSE":    "The Sanctum-Mother and the Censor are sniping at each other again through messengers. Nothing burns yet. But I am listening for which language they switch to first.",
+	"druid_vs_inquisition:SKIRMISH": "Border raids both directions. A burner died at the Glen yesterday; a courier died on the Reed Road. Both sides will say it started with the other side. They are not wrong, exactly.",
+	"druid_vs_inquisition:OPEN_WAR": "Open war between the temple and the order. Ashurim is taking refugees from both sides. They sit at separate tables. Sit anywhere. Drink. The kettle is on either way.",
+	"crown_vs_black_sail:SKIRMISH":  "The Reed Road is not safe. The Crown's caravans are arriving with fewer wagons than they left with. The Black Sail are not pretending anymore.",
+	"crown_vs_black_sail:OPEN_WAR":  "The Crown has declared the Reed Road closed. The Black Sail captains say it is open. Both are correct from where they stand.",
+}
+
 func _ready() -> void:
 	npc_id = &"storyteller"
 	display_name = "The Storyteller"
@@ -152,5 +164,7 @@ func _set_greeting_for(player: Node) -> void:
 		DEFAULT_GREETING,
 		DREAD_GREETINGS,
 		GLYPH_GREETINGS,
-		WALKED_BACK_GREETING
+		WALKED_BACK_GREETING,
+		{},  # no wound dread layer
+		CONFLICT_GREETINGS
 	)

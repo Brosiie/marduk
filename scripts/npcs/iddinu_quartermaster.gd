@@ -41,6 +41,18 @@ const GLYPH_GREETINGS := {
 	"wound":      "Wound mark. Wipe your boots BEFORE you cross the threshold. I will not have green on my floor. State your business in three sentences or fewer.",
 }
 
+# Faction-conflict from the Quartermaster's desk: receipts, casualty
+# rolls, and the budget consequences of war. Iddinu treats faction
+# tension as a logistics problem first, a moral problem second.
+const CONFLICT_GREETINGS := {
+	"druid_vs_inquisition:SKIRMISH": "Casualty count is up. The Crown is fronting medic supplies to the Inquisition for free. I have a problem with this. Above my pay grade. State your business.",
+	"druid_vs_inquisition:OPEN_WAR": "I am filing both burners and druids as 'unforeseen war losses' on the same line. The accountants in Babilim will ask. I will say it was clerical. Sit. We're behind.",
+	"crown_vs_black_sail:SKIRMISH":  "The Reed Road audit's been delayed again. Black Sail keeps killing our auditors. The Crown will not say so officially. Sit. The ledger is still open.",
+	"crown_vs_black_sail:OPEN_WAR":  "The Crown's declared a state of war with the Captains. Effective immediately, ALL Black Sail receipts are sealed. Whatever you have, sit, before someone official walks in.",
+	"crown_vs_druid:SKIRMISH":       "The Crown has stopped paying the Druids for their corruption-tending services. Officially this is a 'budget review.' Unofficially, it is the Crown losing patience.",
+	"crown_vs_druid:OPEN_WAR":       "The Crown is moving troops to the Wound boundary. The Druids will treat this as invasion. I treat it as logistics. Sit. State your business. Quickly.",
+}
+
 const IDDINU_QUEST_LADDER := [
 	&"q_iddinu_supplies",          # lvl 1, kill 6 Tashmu's Footmen, +Crown
 	&"q_iddinu_crown_loyalty",     # lvl 3, Caravan Toll, big +Crown
@@ -73,7 +85,10 @@ func _set_greeting_for(player: Node) -> void:
 		CLASS_GREETINGS,
 		DEFAULT_GREETING,
 		DREAD_GREETINGS,
-		GLYPH_GREETINGS
+		GLYPH_GREETINGS,
+		"",  # no walked-back
+		{},  # no wound dread
+		CONFLICT_GREETINGS
 	)
 
 func _refresh_quest_offer() -> void:
