@@ -54,6 +54,17 @@ var _conflict_floor: float = 0.0
 const CONFLICT_FLOOR_SKIRMISH: float = 0.10
 const CONFLICT_FLOOR_OPEN_WAR: float = 0.25
 
+# Tiamat awareness floor: separate from conflict because the threat
+# is cosmic, not political. Her dream rising raises the music's
+# floor on a DIFFERENT axis. At AWAKE the floor is high enough that
+# the combat layer is always partially audible; the world is no
+# longer pretending nothing is wrong.
+var _tiamat_floor: float = 0.0
+const TIAMAT_FLOOR_STIRRING: float = 0.05
+const TIAMAT_FLOOR_WAKING:   float = 0.15
+const TIAMAT_FLOOR_WAKING_2: float = 0.30
+const TIAMAT_FLOOR_AWAKE:    float = 0.50
+
 func _ready() -> void:
 	_player = AudioStreamPlayer.new()
 	_player.bus = "Music"
@@ -81,6 +92,35 @@ func _wire_conflict_signal() -> void:
 	if not fcr.pair_state_changed.is_connected(cb):
 		fcr.pair_state_changed.connect(cb)
 	_recompute_conflict_floor()
+	# Sixth subscriber to the cosmic-threat publisher set: Tiamat's
+	# dream raises the music's floor on its own axis. Wired here so
+	# both cosmic floors land alongside one another.
+	var tr: Node = get_node_or_null("/root/TiamatRegistry")
+	if tr and tr.has_signal("tier_changed"):
+		var tcb := Callable(self, "_on_tiamat_tier_changed")
+		if not tr.tier_changed.is_connected(tcb):
+			tr.tier_changed.connect(tcb)
+		_recompute_tiamat_floor()
+
+func _on_tiamat_tier_changed(_new_tier: String, _old_tier: String, _new_value: int) -> void:
+	_recompute_tiamat_floor()
+
+# Tiamat floor: read current tier from TiamatRegistry and map to a
+# float. Higher tier = louder baseline. Same shape as conflict floor
+# but on a cosmic axis (not political). The two floors compound in
+# the effective-target lerp; war + cosmic horror both raise music.
+func _recompute_tiamat_floor() -> void:
+	var tr: Node = get_node_or_null("/root/TiamatRegistry")
+	if tr == null or not tr.has_method("current_tier"):
+		_tiamat_floor = 0.0
+		return
+	var tier: String = String(tr.current_tier())
+	match tier:
+		"STIRRING":  _tiamat_floor = TIAMAT_FLOOR_STIRRING
+		"WAKING":    _tiamat_floor = TIAMAT_FLOOR_WAKING
+		"WAKING_2":  _tiamat_floor = TIAMAT_FLOOR_WAKING_2
+		"AWAKE":     _tiamat_floor = TIAMAT_FLOOR_AWAKE
+		_:           _tiamat_floor = 0.0
 
 func _on_conflict_changed(_pair_key: StringName, _new_state: String, _old_state: String) -> void:
 	_recompute_conflict_floor()
@@ -111,11 +151,12 @@ func _process(delta: float) -> void:
 	# stop entirely so we don't spend cycles on silence.
 	if _combat_player == null:
 		return
-	# Effective target = max(per-fight target, conflict_floor). War in
-	# the world means the combat layer never falls below the floor,
-	# even when no boss fight is active. Boss fights still drive it
-	# higher; the floor is just the new minimum.
-	var effective_target: float = max(_combat_target_intensity, _conflict_floor)
+	# Effective target = max(per-fight target, conflict_floor, tiamat_floor).
+	# War in the world OR Tiamat dreaming OR both means the combat
+	# layer never falls below the floor. Boss fights still drive it
+	# higher; the floors are just the new minimum. The two cosmic
+	# floors compound via max so the SCARIER axis always wins.
+	var effective_target: float = max(_combat_target_intensity, max(_conflict_floor, _tiamat_floor))
 	_combat_intensity = lerp(_combat_intensity, effective_target, clamp(delta * 0.6, 0.0, 1.0))
 	if _combat_intensity < 0.02 and _combat_player.playing:
 		_combat_player.stop()

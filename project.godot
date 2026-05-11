@@ -71,6 +71,7 @@ FactionRegistry="*res://scripts/factions/faction_registry.gd"
 FactionConflictRegistry="*res://scripts/factions/faction_conflict_registry.gd"
 TiamatRegistry="*res://scripts/world/tiamat_registry.gd"
 WoundRegistry="*res://scripts/world/wound_registry.gd"
+NPCRoster="*res://scripts/world/npc_roster.gd"
 ClassRegistry="*res://scripts/classes/class_registry.gd"
 PlaytestBot="*res://scripts/test/playtest_bot.gd"
 

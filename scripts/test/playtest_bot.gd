@@ -142,6 +142,9 @@ func _run() -> void:
 	await _scenario_spawner_conflict_pool()
 	await _scenario_refugee_spawner_reactive()
 	await _scenario_music_conflict_floor()
+	await _scenario_music_tiamat_floor()
+	await _scenario_npc_roster_registration()
+	await _scenario_refugee_day_night()
 
 	_finish()
 
@@ -1865,6 +1868,97 @@ func _scenario_music_conflict_floor() -> void:
 	else:
 		_fail("music_conflict_floor", "cold=%.2f skirm=%.2f war=%.2f cooled=%.2f" %
 			[floor_cold, floor_skirm, floor_war, floor_cooled])
+
+# 27. MusicDirector tiamat floor: sixth subscriber lands. Walk Tiamat
+# awareness through every tier and verify _tiamat_floor maps to
+# 0.0 / 0.05 / 0.15 / 0.30 / 0.50.
+func _scenario_music_tiamat_floor() -> void:
+	var md: Node = get_node_or_null("/root/MusicDirector")
+	var tr: Node = get_node_or_null("/root/TiamatRegistry")
+	if md == null or tr == null:
+		_findings.append("(skip music_tiamat_floor: registries missing)")
+		return
+	tr.set_awareness(0); md._recompute_tiamat_floor()
+	var f0: float = md._tiamat_floor
+	tr.set_awareness(30); md._recompute_tiamat_floor()  # STIRRING
+	var f1: float = md._tiamat_floor
+	tr.set_awareness(60); md._recompute_tiamat_floor()  # WAKING
+	var f2: float = md._tiamat_floor
+	tr.set_awareness(80); md._recompute_tiamat_floor()  # WAKING_2
+	var f3: float = md._tiamat_floor
+	tr.set_awareness(120); md._recompute_tiamat_floor()  # AWAKE
+	var f4: float = md._tiamat_floor
+	tr.set_awareness(0); md._recompute_tiamat_floor()
+	var ok: bool = (
+		is_equal_approx(f0, 0.0) and is_equal_approx(f1, 0.05)
+		and is_equal_approx(f2, 0.15) and is_equal_approx(f3, 0.30)
+		and is_equal_approx(f4, 0.50)
+	)
+	if ok:
+		_pass("music_tiamat_floor", "0.0/0.05/0.15/0.30/0.50 across DORMANT/STIRRING/WAKING/WAKING_2/AWAKE")
+	else:
+		_fail("music_tiamat_floor", "0=%.2f 1=%.2f 2=%.2f 3=%.2f 4=%.2f" % [f0, f1, f2, f3, f4])
+
+# 28. NPCRoster registration: verify the canonical entries are present
+# in the autoload's _roster (Seventh Master in sun_gate is the v1
+# canonical placement). Doesn't test scene-spawn (would need to load
+# the actual sun_gate scene); just verifies the registry shape.
+func _scenario_npc_roster_registration() -> void:
+	var nr: Node = get_node_or_null("/root/NPCRoster")
+	if nr == null:
+		_findings.append("(skip npc_roster_registration: NPCRoster missing)")
+		return
+	var entries: Array = nr.entries_for(&"sun_gate")
+	if entries.is_empty():
+		_fail("npc_roster_registration", "sun_gate has zero registered NPCs (expected Seventh Master)")
+		return
+	# Verify the Seventh Master script is the registered path
+	var found_seventh: bool = false
+	for entry in entries:
+		if String(entry.get("script_path", "")).ends_with("seventh_master_npc.gd"):
+			found_seventh = true
+			break
+	if found_seventh:
+		_pass("npc_roster_registration", "sun_gate roster has Seventh Master entry")
+	else:
+		_fail("npc_roster_registration", "sun_gate entries don't include seventh_master_npc.gd")
+
+# 29. Refugee day/night dialog: build a refugee, switch WorldClock
+# between day and night, verify greeting text changes.
+func _scenario_refugee_day_night() -> void:
+	var wc: Node = get_node_or_null("/root/WorldClock")
+	if wc == null:
+		_findings.append("(skip refugee_day_night: WorldClock missing)")
+		return
+	# Build a refugee directly (not through the spawner) so we can
+	# inspect its greeting field.
+	var script: GDScript = load("res://scripts/npcs/refugee_npc.gd")
+	if script == null:
+		_findings.append("(skip refugee_day_night: refugee script missing)")
+		return
+	var r: CharacterBody3D = CharacterBody3D.new()
+	r.set_script(script)
+	r.set("fled_from", &"druids")
+	add_child(r)
+	# Force day, refresh
+	wc.time_of_day = 0.5  # noon
+	r._refresh_line()
+	var day_line: String = r.greeting
+	# Force night, refresh
+	wc.time_of_day = 0.0  # midnight
+	r._refresh_line()
+	var night_line: String = r.greeting
+	r.queue_free()
+	# Verify lines differ AND both pulled the druid-fled flavor
+	var ok: bool = (
+		day_line != night_line
+		and day_line.find("Glen") >= 0
+		and night_line.find("Glen") >= 0  # both reference druid context
+	)
+	if ok:
+		_pass("refugee_day_night", "day + night lines differ and both reference druid origin")
+	else:
+		_fail("refugee_day_night", "day='%s' night='%s'" % [day_line.substr(0, 40), night_line.substr(0, 40)])
 
 func _scenario_hud_presence() -> void:
 	var huds := get_tree().get_nodes_in_group("hud")

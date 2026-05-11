@@ -1,0 +1,100 @@
+[gd_scene load_steps=8 format=3 uid="uid://bsun7thgateaaa"]
+[ext_resource type="Script" path="res://scripts/world/lodestone.gd" id="lodestone_sun_gate_threshold"]
+[ext_resource type="Script" path="res://scripts/world/warp_portal.gd" id="warp_"]
+
+[ext_resource type="Script" path="res://scripts/world/spawn/zone_composer.gd" id="ZoneComposer_sun_gate"]
+[ext_resource type="Script" path="res://scripts/world/lore_rune.gd" id="lore_rune_script"]
+
+; The Sun Gate. The world's edge. Marduk passed through here and left
+; what came after. The Sixth Master sends pilgrims here. The Seventh
+; meets them. The Seventh Master himself spawns via NPCRoster (he is
+; visibility-gated on the seventh_breath_pilgrimage_done flag).
+;
+; Atmosphere: noon-pale, blinding-white, sourceless light. No shadows.
+; The gate itself is implied: a circular stone arch wider than three
+; men can span. Wind that does not move the dust.
+;
+; Palette: noon-white · pale gold · faintest blue-shadow
+
+[sub_resource type="Environment" id="Env_sun_gate"]
+background_mode = 1
+background_color = Color(0.9000, 0.8800, 0.7800, 1)
+ambient_light_source = 2
+ambient_light_color = Color(0.9500, 0.9000, 0.7800, 1)
+ambient_light_energy = 1.4
+fog_enabled = true
+fog_light_color = Color(1.0000, 0.9500, 0.8500, 1)
+fog_density = 0.0100
+fog_aerial_perspective = 0.3
+tonemap_mode = 2
+glow_enabled = true
+glow_intensity = 0.85
+
+[sub_resource type="PlaneMesh" id="Ground_sun_gate"]
+size = Vector2(80, 80)
+
+[sub_resource type="StandardMaterial3D" id="GroundMat_sun_gate"]
+albedo_color = Color(0.9200, 0.8800, 0.7400, 1)
+roughness = 0.92
+metallic = 0.0
+
+[node name="Sun_Gate" type="Node3D"]
+metadata/region_id = "sun_gate"
+metadata/level_min = 40
+metadata/level_max = 70
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("Env_sun_gate")
+
+; The sun here is overhead, sourceless, and brighter than anywhere
+; else in the world. There are no shadows. Players reading the scene
+; should sense WRONGNESS: noon should produce shadows, this noon does
+; not. The world is thin here.
+[node name="Sun" type="DirectionalLight3D" parent="."]
+transform = Transform3D(1.0000, 0.0000, 0.0000, 0.0000, 0.0000, 1.0000, 0.0000, -1.0000, 0.0000, 0, 50, 0)
+light_color = Color(1.0000, 0.9800, 0.9000, 1)
+light_energy = 1.6
+shadow_enabled = false
+
+[node name="Ground" type="MeshInstance3D" parent="."]
+mesh = SubResource("Ground_sun_gate")
+material_override = SubResource("GroundMat_sun_gate")
+
+[node name="GroundBody" type="StaticBody3D" parent="Ground"]
+
+[node name="GroundShape" type="CollisionShape3D" parent="Ground/GroundBody"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.05, 0)
+
+[node name="MeshRoot" type="Node3D" parent="."]
+
+[node name="PlayerSpawn" type="Marker3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 15)
+
+[node name="Geometry" type="Node3D" parent="MeshRoot"]
+script = ExtResource("ZoneComposer_sun_gate")
+style_id = &"sun_gate"
+size = 40.0
+
+[node name="WarpHome" type="Area3D" parent="."]
+script = ExtResource("warp_")
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.5, 28)
+target_scene_path = "res://scenes/world/regions/lapis_bay.tscn"
+label = "Return to Lapis Bay (V)"
+
+[node name="Lodestone" type="Area3D" parent="."]
+script = ExtResource("lodestone_sun_gate_threshold")
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -6, 0.5, 10)
+lodestone_id = &"sun_gate_threshold"
+display_name = "Sun-Gate Threshold"
+
+; The Seventh Master is NOT placed here directly. NPCRoster spawns him
+; at Vector3(0, 1.0, 0) on scene load, gated by seventh_breath_pilgrimage_done.
+; This keeps the scene's NPC roster declarative and central rather than
+; embedding visibility-gated nodes into the .tscn.
+
+[node name="LoreRune_the_seventh_unspoken" type="Area3D" parent="."]
+script = ExtResource("lore_rune_script")
+position = Vector3(0, 0.4, 6)
+rune_id = &"the_seventh_unspoken"
+lore_title = "The Seventh, and Unspoken"
+lore_body = "The temple teaches six breathings. The first masters knew of a seventh. They did not teach it because they did not need to: the one who learns the six finds the seventh on his own. The wind teaches it. The sun teaches it. Walking does. Listening does."
