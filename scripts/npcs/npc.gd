@@ -338,6 +338,11 @@ func _on_body_entered(body: Node3D) -> void:
 	_player_inside = true
 	_label3d.modulate = Color(1.0, 0.95, 0.55)  # highlight on hover
 	_show_interact_prompt()
+	# Ambient chatter: the NPC mutters a one-liner overhead the moment
+	# the player gets within talking range. Different lines per NPC type
+	# + per time-of-day so the world reads as alive instead of a roster
+	# of mute statues. Cooldown so re-entering the radius doesn't spam.
+	_maybe_ambient_chatter()
 
 func _on_body_exited(body: Node3D) -> void:
 	if not body.is_in_group("player"):
@@ -350,6 +355,104 @@ func _on_body_exited(body: Node3D) -> void:
 # only when the player is inside the interaction area. Without this
 # the player has no visual cue that the NPC is interactable.
 var _interact_prompt: Label3D = null
+
+# Ambient chatter: per-NPC-id lines that float above the head when the
+# player walks into the interact radius. Day/night variants give the
+# world a different register depending on when you're walking through.
+# Generic fallback when an NPC has no specific lines so every NPC at
+# least gestures at being alive.
+const _AMBIENT_LINES_DAY := {
+	&"peasant_male": [
+		"Bread's burnt again. Gods.",
+		"You can smell the marsh from here today.",
+		"The market is louder than usual.",
+	],
+	&"peasant_female": [
+		"My boy ran off again. He'll come back.",
+		"Cleaner air than yesterday at least.",
+		"Beggars at the gate again. Crown won't move them.",
+	],
+	&"vendor": [
+		"Best prices on this side of Babilim. Honest.",
+		"Take a look. Touch nothing you can't pay for.",
+		"You are blocking the stall. Move along or buy.",
+	],
+	&"guard": [
+		"Move along. Marduk's eye is on the streets.",
+		"State your business or keep walking.",
+		"Anything to declare. No. Then move.",
+	],
+	&"_default": [
+		"Marduk's blessing.",
+		"Stranger.",
+		"Mind your own.",
+	],
+}
+const _AMBIENT_LINES_NIGHT := {
+	&"peasant_male": [
+		"Should be inside. Whole street should.",
+		"Quieter at night. I prefer it.",
+	],
+	&"peasant_female": [
+		"My boy isn't home yet. I should fetch him.",
+		"The lamps are guttering. Bad oil this season.",
+	],
+	&"vendor": [
+		"Closing up. Come back at dawn.",
+		"Everything's locked. Locks do not stop everything.",
+	],
+	&"guard": [
+		"Curfew. Either you have a reason or you have a problem.",
+		"Quiet tonight. Too quiet sometimes.",
+	],
+	&"_default": [
+		"Late hour, stranger.",
+		"The cold is settling.",
+		"Be safe.",
+	],
+}
+const AMBIENT_CHATTER_COOLDOWN: float = 30.0
+var _last_chatter_at: float = -INF
+var _chatter_label: Label3D = null
+
+func _maybe_ambient_chatter() -> void:
+	var now: float = Time.get_ticks_msec() / 1000.0
+	if (now - _last_chatter_at) < AMBIENT_CHATTER_COOLDOWN:
+		return
+	_last_chatter_at = now
+	# Pick line from day/night pool for this npc_id, fall through to
+	# _default if no specific lines exist. Honest: many NPCs default.
+	var night: bool = _is_night_now()
+	var pool_dict: Dictionary = _AMBIENT_LINES_NIGHT if night else _AMBIENT_LINES_DAY
+	var lines: Array = pool_dict.get(npc_id, [])
+	if lines.is_empty():
+		lines = pool_dict.get(&"_default", [])
+	if lines.is_empty():
+		return
+	var line: String = String(lines[randi() % lines.size()])
+	# Spawn a transient Label3D above head, fade in then out over 4s.
+	# Re-uses the existing _interact_prompt position so it sits where
+	# the player's eye already is.
+	if _chatter_label and is_instance_valid(_chatter_label):
+		_chatter_label.queue_free()
+	_chatter_label = Label3D.new()
+	_chatter_label.text = "\"%s\"" % line
+	_chatter_label.font_size = 18
+	_chatter_label.modulate = Color(0.92, 0.95, 0.85, 0.0)  # fade in via tween
+	_chatter_label.outline_size = 4
+	_chatter_label.outline_modulate = Color(0, 0, 0, 0.85)
+	_chatter_label.fixed_size = true
+	_chatter_label.pixel_size = 0.005
+	_chatter_label.no_depth_test = true
+	_chatter_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	_chatter_label.position = Vector3(0, 3.1, 0)  # above the [V] Talk prompt
+	add_child(_chatter_label)
+	var tw := _chatter_label.create_tween()
+	tw.tween_property(_chatter_label, "modulate:a", 1.0, 0.30)
+	tw.tween_interval(3.5)
+	tw.tween_property(_chatter_label, "modulate:a", 0.0, 0.5)
+	tw.tween_callback(func():
+		if is_instance_valid(_chatter_label): _chatter_label.queue_free())
 
 func _show_interact_prompt() -> void:
 	if _interact_prompt and is_instance_valid(_interact_prompt):

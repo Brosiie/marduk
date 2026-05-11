@@ -1016,6 +1016,133 @@ func _spawn_loot_orb(start_pos: Vector3, color: Color, delay: float) -> void:
 	tw.tween_callback(func():
 		if is_instance_valid(orb): orb.queue_free())
 
+# Vertical loot cascade: 4-6 orbs launch UP from the boss's chest +
+# arc back down with gravity-feel ease-in. Pairs with the existing
+# horizontal ring so boss kills get a full fireworks moment.
+#
+# Each orb gets a launch impulse straight up + slight outward (1.0m
+# spread) so they fan slightly. Arc duration is 1.6s up + 1.2s fall,
+# tuned so the LAST orb lands as the orb ring's animation also wraps
+# (~3s total). Final-boss orbs go higher (12m vs 8m) to read bigger.
+const CASCADE_COUNT_MIN: int = 4
+const CASCADE_COUNT_MAX: int = 6
+const CASCADE_HEIGHT: float = 8.0
+const CASCADE_HEIGHT_FINAL_BOSS: float = 12.0
+const CASCADE_SPREAD_RADIUS: float = 1.0
+
+func _spawn_loot_cascade() -> void:
+	var count: int = randi_range(CASCADE_COUNT_MIN, CASCADE_COUNT_MAX)
+	var peak_height: float = CASCADE_HEIGHT_FINAL_BOSS if is_final_boss else CASCADE_HEIGHT
+	for i in range(count):
+		# Spread the orbs around the corpse so they don't all stack.
+		# Random angle + bias to evenly distributed for the first 3.
+		var angle: float = float(i) * TAU / float(count) + randf_range(-0.2, 0.2)
+		var land_xz_offset: Vector3 = Vector3(
+			cos(angle) * CASCADE_SPREAD_RADIUS,
+			0,
+			sin(angle) * CASCADE_SPREAD_RADIUS,
+		)
+		# Color: cycle from common -> legendary as i grows so the LAST
+		# orb to land is the most striking. Final-boss kills bias toward
+		# legendary range earlier so the cascade reads as 'this was
+		# the king-tier kill.'
+		var rarity_bias: float = float(i) / float(max(count - 1, 1))
+		if is_final_boss:
+			rarity_bias = clamp(rarity_bias + 0.3, 0.0, 1.0)
+		var color: Color = _cascade_color_for(rarity_bias)
+		# Stagger launches by 0.08s so they read as a sequence, not a
+		# single burst.
+		var delay: float = float(i) * 0.08
+		_spawn_cascade_orb(global_position, land_xz_offset, peak_height, color, delay)
+
+# Pick a cascade orb color from a rarity ramp. 0.0 = common silver,
+# 1.0 = legendary orange. Final-boss biases up.
+func _cascade_color_for(t: float) -> Color:
+	# Five-stop ramp: silver -> green -> blue -> purple -> orange
+	var stops := [
+		Color(0.85, 0.85, 0.85),
+		Color(0.40, 0.85, 0.45),
+		Color(0.30, 0.55, 1.00),
+		Color(0.78, 0.30, 1.00),
+		Color(1.00, 0.55, 0.18),
+	]
+	var idx: float = clamp(t, 0.0, 1.0) * float(stops.size() - 1)
+	var lo: int = int(floor(idx))
+	var hi: int = min(lo + 1, stops.size() - 1)
+	var frac: float = idx - float(lo)
+	return (stops[lo] as Color).lerp(stops[hi] as Color, frac)
+
+# Spawn a single cascade orb. Launches from `origin` to (origin +
+# land_xz + UP * peak), then falls to (origin + land_xz). Two-stage
+# tween: ease-out up (rocket launch), ease-in down (gravity fall).
+func _spawn_cascade_orb(origin: Vector3, land_xz: Vector3, peak: float, color: Color, delay: float) -> void:
+	var orb := MeshInstance3D.new()
+	orb.name = "CascadeOrb"
+	var sm := SphereMesh.new()
+	sm.radius = 0.20
+	sm.height = 0.40
+	orb.mesh = sm
+	var smat := StandardMaterial3D.new()
+	smat.albedo_color = color
+	smat.emission_enabled = true
+	smat.emission = color
+	smat.emission_energy_multiplier = 4.0  # brighter than ring orbs so the cascade is the star
+	smat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	orb.material_override = smat
+	orb.position = origin + Vector3(0, 0.6, 0)  # launch from chest height
+	orb.modulate = Color(1, 1, 1, 0)
+	get_tree().current_scene.add_child(orb)
+	# Light source so the orb illuminates the arena floor as it arcs
+	var lit := OmniLight3D.new()
+	lit.light_color = color
+	lit.light_energy = 2.0
+	lit.omni_range = 4.0
+	orb.add_child(lit)
+	# Sparkle trail emitting downward as the orb rises (read as embers
+	# trailing from the launch)
+	var trail := GPUParticles3D.new()
+	trail.amount = 30
+	trail.lifetime = 0.7
+	trail.preprocess = 0.0
+	trail.visibility_aabb = AABB(Vector3(-2, -peak, -2), Vector3(4, peak * 2.0, 4))
+	var pm := ParticleProcessMaterial.new()
+	pm.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_SPHERE
+	pm.emission_sphere_radius = 0.08
+	pm.direction = Vector3(0, -1, 0)
+	pm.spread = 18.0
+	pm.initial_velocity_min = 0.6
+	pm.initial_velocity_max = 1.2
+	pm.gravity = Vector3.ZERO
+	pm.scale_min = 0.08
+	pm.scale_max = 0.14
+	pm.color = color
+	trail.process_material = pm
+	var quad := QuadMesh.new()
+	quad.size = Vector2(0.12, 0.12)
+	var tmat := StandardMaterial3D.new()
+	tmat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	tmat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	tmat.albedo_color = color
+	tmat.emission_enabled = true
+	tmat.emission = color
+	tmat.emission_energy_multiplier = 2.2
+	tmat.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
+	quad.material = tmat
+	trail.draw_pass_1 = quad
+	orb.add_child(trail)
+	# Two-stage tween: launch up (ease-out, slows at apex) then fall
+	# (ease-in, accelerates toward landing). Final fade as it settles.
+	var apex_pos: Vector3 = origin + land_xz * 0.4 + Vector3(0, peak, 0)
+	var land_pos: Vector3 = origin + land_xz + Vector3(0, 0.3, 0)
+	var tw := orb.create_tween()
+	tw.tween_interval(delay)
+	tw.tween_property(orb, "modulate:a", 1.0, 0.15)
+	tw.parallel().tween_property(orb, "position", apex_pos, 1.6).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	tw.tween_property(orb, "position", land_pos, 1.2).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	tw.tween_property(orb, "modulate:a", 0.0, 0.5)
+	tw.tween_callback(func():
+		if is_instance_valid(orb): orb.queue_free())
+
 func _spawn_phase_burst(color: Color) -> void:
 	var burst := GPUParticles3D.new()
 	burst.name = "PhaseBurst"
@@ -1195,6 +1322,12 @@ func _award_guaranteed_drops(killer: Node) -> void:
 	# moment. Each orb drifts up + outward, glows in rarity color,
 	# and dissipates after 4s. Pure visual; no inventory side effects.
 	_spawn_loot_reveal_ring(killer)
+	# Cascade fountain: 4-6 special orbs shoot straight up + arc back
+	# down. Reads as "the boss kept SOMETHING worth fighting for in
+	# the air above its head." Layered over the ring so the moment
+	# has both a horizontal AND vertical component, like a fireworks
+	# launch + spark fall.
+	_spawn_loot_cascade()
 
 	# Guaranteed VERY_RARE
 	if loot_table:

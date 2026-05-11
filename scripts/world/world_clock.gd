@@ -39,9 +39,24 @@ func _process(delta: float) -> void:
 	if night_now != _was_night:
 		if night_now:
 			became_night.emit()
+			_announce_transition(false)
 		else:
 			became_day.emit()
+			_announce_transition(true)
 		_was_night = night_now
+
+# Toast the day/night transition through Juice. "Dawn breaks" doubles
+# as a player-facing prompt that vendors restocked + NPCs returned to
+# their daytime stalls. "Dusk falls" cues NPC commute to taverns + bed.
+# Skipped silently if Juice isn't available (boot / unit-test paths).
+func _announce_transition(is_dawn: bool) -> void:
+	var juice: Node = get_node_or_null("/root/Juice")
+	if juice == null or not juice.has_method("toast"):
+		return
+	if is_dawn:
+		juice.toast("Dawn breaks. Vendors have restocked.", Color(1.0, 0.85, 0.45), 3.0)
+	else:
+		juice.toast("Dusk falls.", Color(0.55, 0.45, 0.85), 2.5)
 
 func is_day() -> bool:
 	return time_of_day >= DAY_START and time_of_day <= DAY_END

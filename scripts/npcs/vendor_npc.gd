@@ -21,6 +21,44 @@ func _ready() -> void:
 		_quest_marker.text = "$"
 		_quest_marker.modulate = Color(1.00, 0.85, 0.45)
 		_quest_marker.visible = true
+	# Daily rotation: each vendor picks ONE "today's deal" item that's
+	# 30% off. Listens for WorldClock.became_day so the deal rotates at
+	# dawn. The deal lives entirely on this vendor; no central registry.
+	# Players who see "deal!" learn to shop at dawn for the best prices,
+	# which reinforces the day/night cycle as a meaningful loop.
+	_roll_todays_deal()
+	var clock := get_node_or_null("/root/WorldClock")
+	if clock and clock.has_signal("became_day"):
+		clock.became_day.connect(_on_dawn)
+
+# Today's deal: a single Item that's discounted 30% on this vendor today.
+# Re-rolled at dawn. null = no deal active (e.g. this vendor's pool is
+# empty). Read by _stock_row to render the "DEAL" badge + price slash.
+var _todays_deal: Item = null
+const DEAL_DISCOUNT_PCT: float = 0.30
+
+func _roll_todays_deal() -> void:
+	var registry := get_node_or_null("/root/ItemRegistry")
+	if registry == null:
+		_todays_deal = null
+		return
+	var pool: Array = registry.items.values()
+	# Bias deals toward COMMON (rarity 2) so they feel meaningful but
+	# don't undercut rare drops. Filter same way _roll_stock does.
+	var deal_pool: Array = []
+	for it in pool:
+		if it == null or it.unique_drop_source != &"":
+			continue
+		if int(it.rarity) == 2 and (slot_affinity < 0 or int(it.slot) == slot_affinity):
+			deal_pool.append(it)
+	if deal_pool.is_empty():
+		_todays_deal = null
+		return
+	deal_pool.shuffle()
+	_todays_deal = deal_pool[0]
+
+func _on_dawn() -> void:
+	_roll_todays_deal()
 
 func _open_dialogue() -> void:
 	_open_shop_panel()
@@ -105,10 +143,31 @@ func _stock_row(item: Item) -> Control:
 	name_lbl.text = item.display_name
 	name_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	row.add_child(name_lbl)
+	# Today's-deal pricing: if this is the rotating discount item, slash
+	# the price + tag the row with a "DEAL!" badge in green so the
+	# player's eye lands on it.
+	var base_price: int = max(1, int(item.sell_value) * 2)
+	var is_deal: bool = (_todays_deal != null and item == _todays_deal)
+	var price: int = base_price
+	if is_deal:
+		price = max(1, int(round(float(base_price) * (1.0 - DEAL_DISCOUNT_PCT))))
+		var deal_badge := Label.new()
+		deal_badge.text = "DEAL!"
+		deal_badge.add_theme_font_size_override("font_size", 11)
+		deal_badge.add_theme_color_override("font_color", Color(0.45, 0.95, 0.55))
+		deal_badge.add_theme_color_override("font_outline_color", Color(0, 0.05, 0, 0.95))
+		deal_badge.add_theme_constant_override("outline_size", 3)
+		row.add_child(deal_badge)
 	var price_lbl := Label.new()
-	var price: int = max(1, int(item.sell_value) * 2)
-	price_lbl.text = "%d gold" % price
-	price_lbl.modulate = Color(1.0, 0.85, 0.30)
+	if is_deal:
+		# Strikethrough the base price + show discounted price after.
+		# BBCode would be cleaner but a plain Label can't render it; use
+		# two stacked labels.
+		price_lbl.text = "%d (was %d)" % [price, base_price]
+		price_lbl.modulate = Color(0.55, 0.95, 0.55)  # green = sale
+	else:
+		price_lbl.text = "%d gold" % price
+		price_lbl.modulate = Color(1.0, 0.85, 0.30)
 	row.add_child(price_lbl)
 	var buy_btn := Button.new()
 	buy_btn.text = "Buy"

@@ -24,6 +24,17 @@ const PANEL_HEIGHT: float = 105.0
 var _v: VBoxContainer
 var _lines: Array[Dictionary] = []  # {label: Label, age: float}
 
+# Spam-filter knobs. Default ON so Bond sees a curated feed of only the
+# events that matter; flip via `set_interesting_only(false)` to get
+# the verbose-old-style firehose for debugging.
+var interesting_only: bool = true
+# Damage-taken throttle: only log a "took N damage" line if EITHER it's
+# been MIN_INTERVAL since the last one OR the hit is BIG (over BIG_PCT
+# of max HP). Stops bleed/poison ticks from drowning the log.
+const DMG_LOG_MIN_INTERVAL: float = 1.0
+const DMG_LOG_BIG_PCT: float = 0.10
+var _last_dmg_log_time: float = -INF
+
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	anchor_left = 0.0
@@ -99,6 +110,13 @@ func _attach_signals() -> void:
 	if lr and lr.has_signal("discovered"):
 		lr.discovered.connect(_on_lodestone)
 
+	# CombatBus boss-defeat hook so kills log without each boss subclass
+	# needing to know about us. Bridge: `kill_registered` fires for any
+	# kill credited to the player; filter to bosses via group membership.
+	var cb := get_node_or_null("/root/CombatBus")
+	if cb and cb.has_signal("kill_registered"):
+		cb.kill_registered.connect(_on_kill_registered)
+
 func _process(delta: float) -> void:
 	# Age out old lines (fade then remove)
 	var to_remove: Array[int] = []
@@ -162,17 +180,55 @@ func log_level_up(new_level: int) -> void:
 
 var _last_hp: float = -1.0
 
-func _on_hp_changed(cur: float, _mx: float) -> void:
+func _on_hp_changed(cur: float, mx: float) -> void:
 	if _last_hp > 0.0 and cur < _last_hp:
 		var delta: float = _last_hp - cur
 		if delta >= 1.0:
-			log_event("← took %d damage" % int(delta), Color(0.95, 0.40, 0.40))
+			# Throttle: in interesting_only mode, suppress damage logs that
+			# fire faster than DMG_LOG_MIN_INTERVAL UNLESS the hit is big
+			# (over DMG_LOG_BIG_PCT of max HP). Catches the "DoT tick spam"
+			# case while still surfacing actual heavy hits in real time.
+			var now: float = Time.get_ticks_msec() / 1000.0
+			var big_pct_threshold: float = mx * DMG_LOG_BIG_PCT
+			var is_big: bool = delta >= big_pct_threshold
+			if interesting_only:
+				if not is_big and (now - _last_dmg_log_time) < DMG_LOG_MIN_INTERVAL:
+					_last_hp = cur
+					return
+			_last_dmg_log_time = now
+			# Big hits get a louder color + a "!" suffix so they stand out
+			# from chip damage in the log.
+			var color: Color = Color(0.95, 0.20, 0.20) if is_big else Color(0.95, 0.55, 0.55)
+			var suffix: String = "!" if is_big else ""
+			log_event("← took %d damage%s" % [int(delta), suffix], color)
 	_last_hp = cur
+
+# Public API to flip the filter at runtime (settings panel hookup).
+func set_interesting_only(enabled: bool) -> void:
+	interesting_only = enabled
 
 func _on_item_collected(item: Item, qty: int) -> void:
 	if item == null:
 		return
+	# Filter out junk + basic loot in interesting_only mode. Player still
+	# gets the toast notification; this just keeps the log focused on
+	# meaningful pickups (rare and above).
+	if interesting_only and int(item.rarity) <= 1:  # 0=JUNK, 1=BASIC
+		return
 	log_loot("%s%s" % [item.display_name, (" x%d" % qty) if qty > 1 else ""], int(item.rarity))
+
+func _on_kill_registered(target: Node, _killer: Node) -> void:
+	# Only log boss kills here; mob kills would spam the feed during
+	# arena clears. BossBase adds itself to the "boss" group so the
+	# group check is enough.
+	if target == null or not is_instance_valid(target):
+		return
+	if not target.is_in_group("boss"):
+		return
+	var name: String = String(target.get("display_name") if target.has_method("get") else "")
+	if name == "":
+		name = String(target.name)
+	log_event("⚔ %s slain" % name, Color(1.0, 0.65, 0.10))
 
 func _on_died() -> void:
 	log_event("You have died.", Color(0.95, 0.40, 0.40))

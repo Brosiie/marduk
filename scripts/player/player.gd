@@ -3039,6 +3039,10 @@ func _tick_footsteps(delta: float) -> void:
 				&"step_wood":  pitch_bias = 1.08
 				&"step_grass": pitch_bias = 0.92
 				&"step_stone": pitch_bias = 0.95
+				&"step_metal": pitch_bias = 1.12
+				&"step_snow":  pitch_bias = 0.85
+				&"step_dirt":  pitch_bias = 0.92
+				&"step_water": pitch_bias = 0.96
 			ab.play_cue(step_cue, global_position, -14.0, pitch_bias * randf_range(0.92, 1.08))
 
 # Probe what the player is standing on. Returns a step cue StringName
@@ -3064,12 +3068,28 @@ func _classify_step_surface() -> StringName:
 			"wood":  return &"step_wood"
 			"grass": return &"step_grass"
 			"stone": return &"step_stone"
-	# Heuristic: if collider's scene path contains 'dojo' or 'wood',
-	# treat as wood; if 'floor' or 'tile' default to stone.
+			"metal": return &"step_metal"
+			"snow":  return &"step_snow"
+			"dirt":  return &"step_dirt"
+			"water": return &"step_water"
+	# Heuristic: name-pattern match on the collider so zones that
+	# haven't been tagged with surface_type still pick the right cue.
+	# Order matters: more specific terms come first (e.g. 'plank' should
+	# beat a generic 'floor' name match).
 	if collider and collider is Node:
 		var nm: String = (collider as Node).name.to_lower()
-		if nm.contains("dojo") or nm.contains("wood") or nm.contains("plank") or nm.contains("tatami"):
+		if nm.contains("dojo") or nm.contains("wood") or nm.contains("plank") or nm.contains("tatami") or nm.contains("deck"):
 			return &"step_wood"
+		if nm.contains("metal") or nm.contains("iron") or nm.contains("grate") or nm.contains("plate"):
+			return &"step_metal"
+		if nm.contains("snow") or nm.contains("frost") or nm.contains("ice"):
+			return &"step_snow"
+		if nm.contains("dirt") or nm.contains("path") or nm.contains("trail") or nm.contains("road"):
+			return &"step_dirt"
+		if nm.contains("grass") or nm.contains("meadow") or nm.contains("glade") or nm.contains("forest"):
+			return &"step_grass"
+		if nm.contains("water") or nm.contains("river") or nm.contains("pond") or nm.contains("marsh") or nm.contains("reed"):
+			return &"step_water"
 	return &"step_stone"
 
 func _physics_process(delta: float) -> void:

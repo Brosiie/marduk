@@ -136,6 +136,12 @@ func _fill_buffer(pb: AudioStreamGeneratorPlayback, name: StringName) -> void:
 		&"step_stone":    _gen_burst(pb, 110.0, 80.0, 0.05, 0.22)
 		&"step_wood":     _gen_burst(pb, 180.0, 140.0, 0.04, 0.16)
 		&"step_grass":    _gen_burst(pb, 70.0, 200.0, 0.06, 0.10)
+		# Extra surface types for richer environments. Metal = ringing
+		# burst, snow = soft long decay, dirt = dull middle ground.
+		&"step_metal":    _gen_burst(pb, 240.0, 480.0, 0.05, 0.32)
+		&"step_snow":     _gen_burst(pb, 60.0, 240.0, 0.10, 0.06)
+		&"step_dirt":     _gen_burst(pb, 80.0, 100.0, 0.06, 0.16)
+		&"step_water":    _gen_burst(pb, 130.0, 320.0, 0.08, 0.18)
 		# Mount hoofbeat: heavier + lower than a footstep so it reads
 		# as a beast underfoot. Played in time with mount stride by the
 		# Player mount tick. Pitch-shift down on the AudioStreamPlayer
