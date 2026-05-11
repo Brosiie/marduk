@@ -1,10 +1,11 @@
-[gd_scene load_steps=9 format=3 uid="uid://b4db3bff10324"]
+[gd_scene load_steps=10 format=3 uid="uid://b4db3bff10324"]
 [ext_resource type="Script" path="res://scripts/world/boss_arena.gd" id="boss_arena_ember_steppes"]
 [ext_resource type="Script" path="res://scripts/world/lodestone.gd" id="boss_lodestone_ember_warband_pyre"]
 [ext_resource type="Script" path="res://scripts/world/lodestone.gd" id="lodestone_ember_circle"]
 [ext_resource type="Script" path="res://scripts/world/warp_portal.gd" id="warp_"]
 
 [ext_resource type="Script" path="res://scripts/world/spawn/zone_composer.gd" id="ZoneComposer_ember_steppes"]
+[ext_resource type="Script" path="res://scripts/world/spawn/spawner.gd" id="conflict_spawner_script"]
 
 ; Auto-generated placeholder for Ember Steppes.
 ; Drop real environment art under MeshRoot; lighting/atmosphere already tuned.
@@ -106,3 +107,17 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, -25)
 arena_radius = 18.0
 trigger_radius = 12.0
 
+
+; ── Conflict spawner for Crown-vs-Black-Sail. Ember Steppes is the
+; Black Sail's overland reach; raiders dominant. SKIRMISH adds Crown
+; archers chasing them; OPEN_WAR adds an Inquisitor Prime.
+[node name="ConflictSpawner_ember" type="Node3D" parent="."]
+script = ExtResource("conflict_spawner_script")
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5, 1, 5)
+mob_pool = Array[StringName]([&"raider_grunt", &"raider_archer"])
+initial_count = 1
+max_concurrent = 2
+respawn_seconds = 75.0
+conflict_pair_key = &"crown_vs_black_sail"
+pool_skirmish = Array[StringName]([&"usurper_archer"])
+pool_open_war = Array[StringName]([&"inquisitor_prime"])

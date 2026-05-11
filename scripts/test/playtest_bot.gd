@@ -141,6 +141,7 @@ func _run() -> void:
 	await _scenario_quest_open_war_gate()
 	await _scenario_spawner_conflict_pool()
 	await _scenario_refugee_spawner_reactive()
+	await _scenario_music_conflict_floor()
 
 	_finish()
 
@@ -1820,6 +1821,50 @@ func _scenario_refugee_spawner_reactive() -> void:
 	else:
 		_fail("refugee_spawner_reactive", "cold=%d skirm=%d war=%d cooled=%d (want 0/1/3/0)" %
 			[pop_cold, pop_skirm, pop_war, pop_cooled])
+
+# 26. MusicDirector conflict floor: when any tracked pair crosses to
+# SKIRMISH+, the music director's _conflict_floor rises so the combat
+# layer never falls fully silent. OPEN_WAR floor is higher than
+# SKIRMISH. Verify the floor tracks the highest-state pair via max.
+func _scenario_music_conflict_floor() -> void:
+	var md: Node = get_node_or_null("/root/MusicDirector")
+	var wr: Node = get_node_or_null("/root/WoundRegistry")
+	var fcr: Node = get_node_or_null("/root/FactionConflictRegistry")
+	if md == null or wr == null or fcr == null:
+		_findings.append("(skip music_conflict_floor: registries missing)")
+		return
+	# Reset baseline
+	wr.set_creep(0)
+	fcr.recompute_all()
+	md._recompute_conflict_floor()
+	var floor_cold: float = md._conflict_floor
+	# SKIRMISH (creep 50)
+	wr.set_creep(50)
+	fcr.recompute_all()
+	md._recompute_conflict_floor()
+	var floor_skirm: float = md._conflict_floor
+	# OPEN_WAR (creep 80)
+	wr.set_creep(80)
+	fcr.recompute_all()
+	md._recompute_conflict_floor()
+	var floor_war: float = md._conflict_floor
+	# Cool back
+	wr.set_creep(0)
+	fcr.recompute_all()
+	md._recompute_conflict_floor()
+	var floor_cooled: float = md._conflict_floor
+	# Expected: 0.0 -> 0.10 -> 0.25 -> 0.0
+	var ok: bool = (
+		is_equal_approx(floor_cold, 0.0)
+		and is_equal_approx(floor_skirm, 0.10)
+		and is_equal_approx(floor_war, 0.25)
+		and is_equal_approx(floor_cooled, 0.0)
+	)
+	if ok:
+		_pass("music_conflict_floor", "0.0 -> 0.10 -> 0.25 -> 0.0 across COLD/SKIRMISH/OPEN_WAR/COOLED")
+	else:
+		_fail("music_conflict_floor", "cold=%.2f skirm=%.2f war=%.2f cooled=%.2f" %
+			[floor_cold, floor_skirm, floor_war, floor_cooled])
 
 func _scenario_hud_presence() -> void:
 	var huds := get_tree().get_nodes_in_group("hud")

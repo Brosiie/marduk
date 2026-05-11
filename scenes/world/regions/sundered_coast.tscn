@@ -1,10 +1,11 @@
-[gd_scene load_steps=9 format=3 uid="uid://bd682ab156df5"]
+[gd_scene load_steps=10 format=3 uid="uid://bd682ab156df5"]
 [ext_resource type="Script" path="res://scripts/world/boss_arena.gd" id="boss_arena_sundered_coast"]
 [ext_resource type="Script" path="res://scripts/world/lodestone.gd" id="boss_lodestone_sundered_wreck"]
 [ext_resource type="Script" path="res://scripts/world/lodestone.gd" id="lodestone_sundered_marker"]
 [ext_resource type="Script" path="res://scripts/world/warp_portal.gd" id="warp_"]
 
 [ext_resource type="Script" path="res://scripts/world/spawn/zone_composer.gd" id="ZoneComposer_sundered_coast"]
+[ext_resource type="Script" path="res://scripts/world/spawn/spawner.gd" id="conflict_spawner_script"]
 
 ; Auto-generated placeholder for Sundered Coast.
 ; Drop real environment art under MeshRoot; lighting/atmosphere already tuned.
@@ -106,3 +107,18 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, -25)
 arena_radius = 18.0
 trigger_radius = 12.0
 
+
+; ── Conflict spawner for Crown-vs-Black-Sail. Sundered Coast is the
+; Wound-touched western shore where Black Sail rules. Reed creepers
+; (corruption) baseline. SKIRMISH adds raiders + Crown footmen.
+; OPEN_WAR adds witch_burner_elite (the Crown's heaviest hand).
+[node name="ConflictSpawner_sundered" type="Node3D" parent="."]
+script = ExtResource("conflict_spawner_script")
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5, 1, 5)
+mob_pool = Array[StringName]([&"reed_creeper"])
+initial_count = 1
+max_concurrent = 2
+respawn_seconds = 75.0
+conflict_pair_key = &"crown_vs_black_sail"
+pool_skirmish = Array[StringName]([&"raider_grunt", &"usurper_footman"])
+pool_open_war = Array[StringName]([&"witch_burner"])

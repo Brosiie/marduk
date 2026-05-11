@@ -1,10 +1,11 @@
-[gd_scene load_steps=9 format=3 uid="uid://b117c52cffaa5"]
+[gd_scene load_steps=10 format=3 uid="uid://b117c52cffaa5"]
 [ext_resource type="Script" path="res://scripts/world/boss_arena.gd" id="boss_arena_the_reed_wastes"]
 [ext_resource type="Script" path="res://scripts/world/lodestone.gd" id="boss_lodestone_reed_drowned_keep"]
 [ext_resource type="Script" path="res://scripts/world/lodestone.gd" id="lodestone_reed_marker"]
 [ext_resource type="Script" path="res://scripts/world/warp_portal.gd" id="warp_"]
 
 [ext_resource type="Script" path="res://scripts/world/spawn/zone_composer.gd" id="ZoneComposer_the_reed_wastes"]
+[ext_resource type="Script" path="res://scripts/world/spawn/spawner.gd" id="conflict_spawner_script"]
 
 ; Auto-generated placeholder for The Reed Wastes.
 ; Drop real environment art under MeshRoot; lighting/atmosphere already tuned.
@@ -110,3 +111,18 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, -25)
 arena_radius = 18.0
 trigger_radius = 12.0
 
+
+; ── Conflict spawner for Crown-vs-Black-Sail. Reed Wastes is the
+; central smuggling route; raiders patrol it baseline. SKIRMISH adds
+; Crown footmen pushing back at the bandits; OPEN_WAR adds an
+; Inquisitor Prime (the Crown deploying its hard arm).
+[node name="ConflictSpawner_reed" type="Node3D" parent="."]
+script = ExtResource("conflict_spawner_script")
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5, 1, 5)
+mob_pool = Array[StringName]([&"raider_grunt"])
+initial_count = 1
+max_concurrent = 2
+respawn_seconds = 75.0
+conflict_pair_key = &"crown_vs_black_sail"
+pool_skirmish = Array[StringName]([&"usurper_footman", &"raider_archer"])
+pool_open_war = Array[StringName]([&"inquisitor_prime"])

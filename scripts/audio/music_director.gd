@@ -45,6 +45,15 @@ var _combat_target_intensity: float = 0.0
 const COMBAT_VOLUME_DB_PEAK: float = -14.0
 const COMBAT_VOLUME_DB_SILENT: float = -80.0
 
+# Conflict intensity floor: when ANY tracked faction pair is at
+# SKIRMISH+, the combat-music layer never drops fully silent. War in
+# the world raises the BASELINE so even non-combat moments carry the
+# weight of conflict. At OPEN_WAR the floor is higher; the world is
+# in active war and the music shouldn't pretend otherwise.
+var _conflict_floor: float = 0.0
+const CONFLICT_FLOOR_SKIRMISH: float = 0.10
+const CONFLICT_FLOOR_OPEN_WAR: float = 0.25
+
 func _ready() -> void:
 	_player = AudioStreamPlayer.new()
 	_player.bus = "Music"
@@ -58,13 +67,56 @@ func _ready() -> void:
 	# Re-evaluate on tree change (scene transitions)
 	get_tree().tree_changed.connect(_on_tree_changed)
 	call_deferred("_refresh")
+	# Subscribe to FactionConflictRegistry.pair_state_changed as the
+	# fifth downstream consumer of the conflict system. When any pair
+	# crosses into SKIRMISH+, raise the conflict_floor so the music
+	# carries the war's weight even between fights.
+	call_deferred("_wire_conflict_signal")
+
+func _wire_conflict_signal() -> void:
+	var fcr: Node = get_node_or_null("/root/FactionConflictRegistry")
+	if fcr == null or not fcr.has_signal("pair_state_changed"):
+		return
+	var cb := Callable(self, "_on_conflict_changed")
+	if not fcr.pair_state_changed.is_connected(cb):
+		fcr.pair_state_changed.connect(cb)
+	_recompute_conflict_floor()
+
+func _on_conflict_changed(_pair_key: StringName, _new_state: String, _old_state: String) -> void:
+	_recompute_conflict_floor()
+
+# The conflict floor is the MAX of every tracked pair's floor. If
+# ANY pair is at OPEN_WAR the floor goes to 0.25; if no pair is
+# OPEN_WAR but at least one is at SKIRMISH, 0.10. Otherwise 0.
+# Using max keeps a single hot pair from being drowned out by quieter
+# ones; war anywhere raises the baseline.
+func _recompute_conflict_floor() -> void:
+	var fcr: Node = get_node_or_null("/root/FactionConflictRegistry")
+	if fcr == null or not fcr.has_method("all_active_conflicts"):
+		_conflict_floor = 0.0
+		return
+	var max_floor: float = 0.0
+	for entry in fcr.all_active_conflicts():
+		var state: String = String(entry.get("state", "COLD"))
+		var f: float = 0.0
+		match state:
+			"SKIRMISH": f = CONFLICT_FLOOR_SKIRMISH
+			"OPEN_WAR": f = CONFLICT_FLOOR_OPEN_WAR
+		if f > max_floor:
+			max_floor = f
+	_conflict_floor = max_floor
 
 func _process(delta: float) -> void:
 	# Smooth combat volume toward target; below 0.05 we let the player
 	# stop entirely so we don't spend cycles on silence.
 	if _combat_player == null:
 		return
-	_combat_intensity = lerp(_combat_intensity, _combat_target_intensity, clamp(delta * 0.6, 0.0, 1.0))
+	# Effective target = max(per-fight target, conflict_floor). War in
+	# the world means the combat layer never falls below the floor,
+	# even when no boss fight is active. Boss fights still drive it
+	# higher; the floor is just the new minimum.
+	var effective_target: float = max(_combat_target_intensity, _conflict_floor)
+	_combat_intensity = lerp(_combat_intensity, effective_target, clamp(delta * 0.6, 0.0, 1.0))
 	if _combat_intensity < 0.02 and _combat_player.playing:
 		_combat_player.stop()
 	elif _combat_intensity >= 0.05 and not _combat_player.playing:
