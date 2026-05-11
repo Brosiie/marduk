@@ -137,6 +137,7 @@ func _run() -> void:
 	await _scenario_seventh_breath_gates()
 	await _scenario_seventh_master_visibility()
 	await _scenario_vashtu_dread_inversion()
+	await _scenario_faction_conflict_transitions()
 
 	_finish()
 
@@ -1585,6 +1586,68 @@ func _scenario_vashtu_dread_inversion() -> void:
 		_pass("vashtu_dread_inversion", "all 4 wound-dread tiers authored on both NPCs with distinct lines")
 	else:
 		_fail("vashtu_dread_inversion", "same=%d differ=%d (want differ=4)" % [same_tier_count, differ_tier_count])
+
+# 22. Faction conflict transitions: drive the registry through every
+# state for druid_vs_inquisition by manipulating rep + wound creep,
+# verify the state matches at each boundary. Also confirms
+# pair_state_changed signal fires the expected number of times
+# during a clean ascend from COLD to OPEN_WAR.
+func _scenario_faction_conflict_transitions() -> void:
+	var fcr: Node = get_node_or_null("/root/FactionConflictRegistry")
+	var fr: Node = get_node_or_null("/root/FactionRegistry")
+	var wr: Node = get_node_or_null("/root/WoundRegistry")
+	if fcr == null or fr == null or wr == null:
+		_findings.append("(skip faction_conflict_transitions: registries missing)")
+		return
+	# Reset to a clean baseline so the test isn't polluted by prior runs.
+	fr.set_rep(&"druids", 0)
+	fr.set_rep(&"inquisition", 0)
+	wr.set_creep(0)
+	fcr.recompute_all()
+	# Listen for state transitions on this pair
+	var transitions: Array[String] = []
+	var listener := func(pair_key: StringName, new_state: String, _old_state: String):
+		if pair_key == &"druid_vs_inquisition":
+			transitions.append(new_state)
+	fcr.pair_state_changed.connect(listener)
+	# Drive through every state by ratcheting wound creep
+	wr.set_creep(0)
+	fcr.recompute_all()
+	var s0: String = fcr.get_state(&"druid_vs_inquisition")  # COLD
+	wr.set_creep(25)
+	fcr.recompute_all()
+	var s1: String = fcr.get_state(&"druid_vs_inquisition")  # TENSE (creep >= 20)
+	wr.set_creep(50)
+	fcr.recompute_all()
+	var s2: String = fcr.get_state(&"druid_vs_inquisition")  # SKIRMISH (creep >= 45)
+	wr.set_creep(75)
+	fcr.recompute_all()
+	var s3: String = fcr.get_state(&"druid_vs_inquisition")  # OPEN_WAR (creep >= 70)
+	# Cooling back to COLD by zeroing creep
+	wr.set_creep(0)
+	fcr.recompute_all()
+	var s4: String = fcr.get_state(&"druid_vs_inquisition")  # COLD again
+	# Cleanup
+	fcr.pair_state_changed.disconnect(listener)
+	fr.set_rep(&"druids", 0)
+	fr.set_rep(&"inquisition", 0)
+	wr.set_creep(0)
+	# Expected sequence: COLD -> TENSE -> SKIRMISH -> OPEN_WAR -> ...
+	# back down to COLD (going down also fires transitions).
+	var states_ok: bool = (s0 == "COLD" and s1 == "TENSE" and s2 == "SKIRMISH" and s3 == "OPEN_WAR" and s4 == "COLD")
+	# Should have seen at least 4 up-transitions + 1 down (back to COLD)
+	var saw_up: int = 0
+	var saw_down: int = 0
+	for t in transitions:
+		if t in ["TENSE", "SKIRMISH", "OPEN_WAR"]:
+			saw_up += 1
+		elif t == "COLD":
+			saw_down += 1
+	if states_ok and saw_up >= 3 and saw_down >= 1:
+		_pass("faction_conflict_transitions", "COLD->TENSE->SKIRMISH->OPEN_WAR->COLD with %d up + %d down transitions" % [saw_up, saw_down])
+	else:
+		_fail("faction_conflict_transitions", "s0=%s s1=%s s2=%s s3=%s s4=%s up=%d down=%d" %
+			[s0, s1, s2, s3, s4, saw_up, saw_down])
 
 func _scenario_hud_presence() -> void:
 	var huds := get_tree().get_nodes_in_group("hud")

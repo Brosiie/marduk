@@ -98,6 +98,13 @@ func _build() -> void:
 	if not fr:
 		content.add_child(_make_label("FactionRegistry not loaded."))
 		return
+	# Conflict state ribbon: if any tracked pair is past COLD, render a
+	# small summary block above the faction cards. Shows the player at
+	# a glance which faction RELATIONSHIPS have caught fire as a result
+	# of their rep choices, not just their isolated standings.
+	var conflict_block: Control = _make_conflict_block()
+	if conflict_block:
+		content.add_child(conflict_block)
 	for f in fr.all_factions():
 		content.add_child(_make_faction_card(f))
 
@@ -164,3 +171,56 @@ func _make_faction_card(f) -> Control:
 
 func _make_label(text: String) -> Label:
 	return T.make_body(text)
+
+# Renders a small card listing every faction PAIR currently past COLD
+# state with their relationship's tension level. Returns null when no
+# pairs have tension (the block is hidden in that case rather than
+# showing an empty "no conflicts" placeholder, since cold-and-quiet
+# is the assumed baseline).
+func _make_conflict_block() -> Control:
+	var fcr: Node = get_node_or_null("/root/FactionConflictRegistry")
+	if fcr == null or not fcr.has_method("all_active_conflicts"):
+		return null
+	var conflicts: Array = fcr.all_active_conflicts()
+	if conflicts.is_empty():
+		return null
+	var card := PanelContainer.new()
+	card.add_theme_stylebox_override("panel", T.panel_box(
+		Color(0.85, 0.45, 0.20, 0.85),
+		Color(0.10, 0.05, 0.04, 0.92)
+	))
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", T.VBOX_SEPARATION_TIGHT)
+	card.add_child(v)
+	# Header
+	var header := Label.new()
+	header.text = "Faction Tensions"
+	header.add_theme_font_size_override("font_size", T.FONT_BUTTON)
+	header.add_theme_color_override("font_color", Color(0.95, 0.65, 0.30))
+	v.add_child(header)
+	# One line per active pair
+	for entry in conflicts:
+		var pair_key: StringName = entry["pair_key"]
+		var state: String = entry["state"]
+		var row := Label.new()
+		row.text = "  %s, %s" % [_pretty_pair_name(pair_key), state.capitalize().replace("_", " ")]
+		row.add_theme_font_size_override("font_size", T.FONT_HINT)
+		row.add_theme_color_override("font_color", _state_color(state))
+		v.add_child(row)
+	return card
+
+func _pretty_pair_name(pair_key: StringName) -> String:
+	# Same rendering as the registry's _pretty_pair, replicated here so
+	# the UI doesn't depend on a private-prefixed helper.
+	var s: String = String(pair_key)
+	var parts: PackedStringArray = s.split("_vs_")
+	if parts.size() != 2:
+		return s.capitalize()
+	return "%s vs %s" % [String(parts[0]).capitalize(), String(parts[1]).capitalize()]
+
+func _state_color(state: String) -> Color:
+	match state:
+		"TENSE":    return Color(0.85, 0.75, 0.30)
+		"SKIRMISH": return Color(0.85, 0.45, 0.20)
+		"OPEN_WAR": return Color(0.95, 0.20, 0.20)
+		_:          return Color(0.65, 0.65, 0.65)
