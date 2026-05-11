@@ -475,13 +475,18 @@ Points of Interest scattered through the world. Examining one fires lore-on-disc
 `DialogueRegistry` autoload holds branching trees for all major NPCs:
 - **The Storyteller** (knows your face from cycles past, drops cycle hints)
 - **Belitu** (Singing Goat innkeeper, hides her ledger problem)
-- **The Sanctum-Mother** (knows there's a traitor druid, won't say which)
+- **The Sanctum-Mother** (Druid leader at Verdant Wound, reads BOTH Tiamat and Wound tiers; quest-giver for stabilization)
+- **Captain Vashtu** (Inquisition Captain, mirrors Sanctum-Mother with inverted political voice; burn-the-glade quest giver)
 - **High Magus Iddinu** (gatekeeps the arcane council)
 - **General Sin-Mushezib** (Crown contracts)
 - **Black-Sail the First** (pirate king, three opening insults)
 - **Sahirum the Witch-Burner** (Inquisition prime, knows your mother's name)
 - **The Oracle Attendant** (always out of chalk)
+- **The Seventh Master** (wordless, at Sun Gate, visibility-gated on pilgrimage flag)
+- **Refugees** (reactive, day/night variants per fleeing faction, no quest, pure presence)
 - **Lucifer** (the offer, the catch, the refuse)
+
+All major NPCs route their opening line through [NPCLines.pick_contextual_greeting()](scripts/npcs/npc_lines.gd) so the world reacts to Tiamat, Wound, faction conflicts, glyph count, walked-back state, and class without each NPC re-implementing the priority logic.
 
 ## Minimap
 
@@ -599,7 +604,7 @@ Full lore in [STORY.md](STORY.md).
 | The Shrieking Highlands | Shrieking | 50-65 | Thunder Dojo |
 | The Sundered Coast | Sundered | 60-75 | Tiamat-spawn nesting |
 | The Black Citadel | Black Citadel | 70-85 | Tiamat boss climb |
-| The Sun Gate | Sun Gate | 80-90 | Post-Tiamat unlock |
+| The Sun Gate | Sun Gate | 80-90 | Post-Tiamat unlock. Seventh Master meets you here, wordless. Scene authored: noon-pale, sourceless light, no shadows. |
 | The Fire Stair | Fire Stair | 85-100 | Lucifer secret boss |
 | The Ascension Plane | Ascension | 1-100 | Prestige-only hub |
 
@@ -728,6 +733,123 @@ These systems are fully specced in [CHARACTER_DESIGN.md § 8.5](CHARACTER_DESIGN
 - **Shadow History** — every death is a Shadow Memory phantom replay at the death-marker, visible to other players
 - **Time-of-Creation Gifts** — already wired in [AppearanceRegistry](scripts/player/appearance_registry.gd) (eclipse, blood moon, founding day)
 - **Inkstone Sage prose-export** — transcribe the Sage's chronicle as a paper-doll journal screenshot
+
+## World State Systems
+
+The world reacts. Three autoload registries own the cosmic and political weather, dozens of independent subscribers (NPCs, spawners, music, HUD widgets, quest gates, vendors) read from them. State authority is concentrated; world reactions are decentralized. None of the subscribers know about each other.
+
+### Tiamat's Awakening (cosmic dread meter)
+
+[TiamatRegistry](scripts/world/tiamat_registry.gd) autoload. A 0..100 counter that climbs as the player rouses Tiamat through play, then drops as druid stabilization quests bleed it back down. Five tiers, each a behavioral breakpoint:
+
+| Tier | Range | Effect |
+|------|-------|--------|
+| DORMANT | 0..14 | World quiet. No glyph. No dread layer. |
+| STIRRING | 15..34 | Music dread floor lifts +0.05. NPCs whisper. HUD shows ⏣. |
+| WAKING | 35..59 | Dread floor +0.15. Sanctum-Mother greeting changes. HUD shows 𒈗. |
+| WAKING_2 | 60..84 | Dread floor +0.30. Lodestone use triggers vision overlay. HUD shows 𒀭. |
+| AWAKE | 85..100 | Dread floor +0.50. End-game posture. HUD shows 𒋾. |
+
+Per-source deltas (auditable, all in one file): main boss kills +5, tiamat-spawn mob kills +1, faction conflict tier-up +2, druid stabilization quest -3, Inquisition burn-the-glade quest +4, prologue arrival in Ashurim +8, Wound-glyph application +4.
+
+### The Wound (mortal/ecological creep meter)
+
+[WoundRegistry](scripts/world/wound_registry.gd) autoload. Separate from Tiamat. Tracks how far The Verdant Wound has spread.
+
+| Tier | Range | Effect |
+|------|-------|--------|
+| CONTAINED | 0..14 | Verdant Wound is a wound, not a spread. |
+| SEEPING | 15..34 | Sanctum-Mother urgency rises. |
+| BLEEDING | 35..59 | Refugee dialog gets heavier near Wound borders. |
+| UNCONTAINED | 60..84 | Druid faction starts losing standing in cities. |
+| CONSUMING | 85..100 | End-game ecological collapse posture. |
+
+Drivers: Druid stabilization quests -5, Inquisition burn-the-glade quest +4, Wound-mutation cosmetic stage gain +2.
+
+### Faction Conflict State Machine
+
+[FactionConflictRegistry](scripts/factions/faction_conflict_registry.gd) autoload. Three pair-state machines:
+
+- `druid_vs_inquisition`
+- `crown_vs_black_sail`
+- `crown_vs_druid`
+
+Each pair walks: **COLD -> TENSE -> SKIRMISH -> OPEN_WAR**, driven by score deltas from quest completions, mob kills, and rep changes. Pair states cool back down passively when the player stops feeding them.
+
+Five independent downstream consumers, none aware of each other:
+1. **NPC greetings** (Sanctum-Mother and Captain Vashtu speak the war they are losing).
+2. **Conflict-aware spawners** at border zones (Reed Wastes, Bone Mountains, Ember Steppes, Sundered Coast) swap their mob pool: peacetime pool at COLD/TENSE, `pool_skirmish` at SKIRMISH, `pool_open_war` at OPEN_WAR.
+3. **Refugee spawners** in safe cities (Ashurim, Babilim, Lapis Bay, The Cradle) spawn fleeing civilians when their watched pair hits SKIRMISH+, despawn them when it cools.
+4. **Quest gates**: quests with `disabled_during_open_war_with` go cold when a pair is at war, re-open when it cools. Soft-gate, not permanent. Game rewards de-escalation.
+5. **Music director**: a `_conflict_floor` (SKIRMISH 0.10, OPEN_WAR 0.25) raises the music intensity passively during war, on top of combat triggers.
+
+### The Seventh Breath (hidden three-stage chain)
+
+A wordless meta-arc gated entirely on player behavior, not menus. Three stages, all in [QuestRegistry](scripts/quests/quest_registry.gd):
+
+1. **The Sixth Master finds you** (after mastering Form 7 of all six base breathing styles + Tiamat defeated). He does not give a quest, he points east.
+2. **Pilgrimage to The Sun Gate.** Walk. No marker. No fast travel target. The lodestone at Sun-Gate Threshold sets `seventh_breath_pilgrimage_done`.
+3. **The Seventh Master is at the gate, wordless.** [seventh_master_npc.gd](scripts/npcs/seventh_master_npc.gd) is visibility-gated on `seventh_breath_pilgrimage_done AND NOT seventh_breath_known`. The interaction sets `seventh_breath_known`, the Master vanishes from the world forever. The Seventh Breath is now a player ability.
+
+The Sun Gate scene itself ([sun_gate.tscn](scenes/world/regions/sun_gate.tscn)) is noon-pale, sourceless light, no shadows. Players reading the scene should sense the world is thin here.
+
+### NPC Contextual Greeting Priority Chain
+
+[NPCLines.pick_contextual_greeting()](scripts/npcs/npc_lines.gd) is a static helper that takes eight inputs (npc_id, player class, walked-back flag, glyph count, Tiamat tier, Wound tier, faction-pair state, time of day) and walks a seven-layer priority chain. The first hit wins:
+
+1. **Walked-back** (Heaven Rule, *"The gate does not open twice"* recognition)
+2. **Glyph saturation** (10+ tattoo glyphs unlocks dense-codex lines)
+3. **Faction conflict at SKIRMISH+** (NPC speaks the war they care about)
+4. **Wound dread at BLEEDING+** (NPC speaks of the green creep)
+5. **Tiamat dread at WAKING+** (NPC speaks of what stirs beneath)
+6. **Class-specific** (e.g., Sanctum-Mother greets a Druid differently than a Ronin)
+7. **Default** (no state hits, fall through to baseline greeting)
+
+Each NPC writes ~20 lines, gets hundreds of contextual combinations. Adding a new state layer is one branch, not a combinatorial rewrite.
+
+### New NPCs (shipped this arc)
+
+- **The Sanctum-Mother** ([sanctum_mother_npc.gd](scripts/npcs/sanctum_mother_npc.gd)) at Verdant Wound. Reads both Tiamat AND Wound tiers. Quest-giver for the stabilization chain that lowers Wound creep.
+- **Captain Vashtu** ([captain_vashtu_npc.gd](scripts/npcs/captain_vashtu_npc.gd)) at Inquisition outposts. Same priority chain, inverted political voice. Burn-the-glade quest giver (the one that raises both Tiamat AND Wound, the player choice that costs the world).
+- **The Seventh Master** ([seventh_master_npc.gd](scripts/npcs/seventh_master_npc.gd)) at Sun Gate. Wordless. Visibility-gated.
+- **Refugees** ([refugee_npc.gd](scripts/npcs/refugee_npc.gd)) reactive in cities. Per-faction day-line and night-line variants. The day-line is what they tell strangers. The night-line is what they say to the fire when they think no one is listening.
+
+### NPCRoster (declarative central placement)
+
+[NPCRoster](scripts/world/npc_roster.gd) autoload. Zone-keyed NPC registry. Instead of placing every NPC in their region .tscn, NPCs that are visibility-gated or that change based on world state are declared in one central registry and spawned per scene load. Keeps .tscn files clean and visibility logic readable in one file. Asymmetric pattern: most autoloads are pure state owners, this one side-effects the scene tree, works because the contract is narrow.
+
+### Save Versioning
+
+[SaveSystem](scripts/save/save_system.gd) now stamps every save with `meta.save_version` (currently 1). Loader walks a `_migrate_v1`...`_migrate_vN` chain to upgrade old saves on load. Saves without the version key are treated as v0 and run through the full chain. Old save files keep working when new flags are added.
+
+### UITheme (central UI constants)
+
+[UITheme](scripts/ui/ui_theme.gd) module owns palette, font sizes, layout spacing, button sizes, and helper builders (`panel_box`, `make_title`, `make_body`, `make_hint`, `make_header_row`). Every UI panel that touched layout was migrated to read from here. One value change re-themes every dialog.
+
+### Vendor Faction Tier Pricing
+
+Vendors now price by faction rep tier. Hated buys at +50% markup and won't sell rare stock. Neutral is base price. Friendly is -10%. Honored is -20% + access to a faction-only catalog. Reading the vendor's price line tells you where you stand without opening a menu.
+
+### Quest Faction Gates
+
+[Quest](scripts/quests/quest.gd) resources now carry two new fields:
+- `min_faction_rep`: a faction key + threshold. Quest hidden until the player crosses it.
+- `disabled_during_open_war_with`: a pair key. Quest temporarily cold while a conflict pair is at OPEN_WAR. Re-opens when the conflict cools.
+
+### Other System Additions
+
+- **Boss `faction_rep_on_kill`**: bosses can grant or remove faction rep on kill, threading faction politics into climactic moments.
+- **Element-typed boss telegraphs**: each boss telegraph carries its element (fire / shadow / void / holy / arcane / nature) so the player can read the screen and dodge by color.
+- **Class-tinted crits**: crit numbers tint by player class element (Ronin gold, Mage arcane-blue, Druid green, etc.) so the screen reads class identity in a fight.
+- **Lodestone vision overlay**: at Tiamat tier WAKING_2+, touching a lodestone triggers a brief cosmic-dread overlay. The world is thin here too.
+- **Boss nameplate cinematic**: first encounter with a named boss flashes their title across the screen with audio sting.
+- **Boss victory trophy**: kill the last boss in a region, get a region-specific trophy item that hangs in your character profile.
+
+### Tooling / Harness
+
+[playtest_bot.gd](scripts/test/playtest_bot.gd) is a 50-scenario headless harness covering every system on this page end-to-end. Run with `--headless --script playtest_bot.gd`. Last green run: 50 PASS, 0 FAIL.
+
+Em-dash sweep done in code and user-visible strings, replaced with comma/colon/period per Bond's preference. README still legacy-mixed (out of scope for this pass).
 
 ## The Heaven Rule
 
@@ -864,16 +986,16 @@ XP curve: `int(50 * pow(level, 1.7))` per level. ~half a million total XP from 1
 
 ## What is Missing on Purpose
 
-- Actual 3D scenes for the 20 zones (Sword-Vow Ruins + Ashurim placeholder shipped Phase 1; rest Phase 2-3)
+- Actual 3D scenes for the remaining open-world zones (Sword-Vow Ruins + Ashurim + The Cradle + Babilim + Lapis Bay + Verdant Wound + Sun Gate + four border zones shipped; the rest Phase 2-3)
 - Per-class character creator UI scene (data layer ready: [CharacterAppearance](scripts/player/character_appearance.gd) + [AppearanceRegistry](scripts/player/appearance_registry.gd) + 5 race resources; UI scene authoring in Phase 2)
 - Per-class male/female mesh variants (existing Mixamo meshes are gender-locked; alternate-gender meshes are Phase 2 art)
 - Animation clips on player AnimationPlayer (49 breathing form anims to author or alias)
 - Bespoke ability hitbox geometry (AbilityRunner has the spawn hook, ability resources need shape data per target_mode)
 - Skill tree visual UI scene file (script exists, .tscn for it not yet built)
-- Vendor / shop UI including Wardrobe-Master transmog vendor, Inkstone Sage tattoo vendor (NPC system supports it, UI screens not authored)
-- Quest log UI (data layer ready, panel not authored)
-- Real lighting and weather scenes per region
-- Per-item meshes — currently using kayKit fallbacks. [Blender procedural generator](blender/scripts/generate_placeholders.py) is ready to crank ~125 placeholders in one run; hand-modeled hero assets are Tier 2 work.
+- Wardrobe-Master transmog vendor + Inkstone Sage tattoo vendor screens (base vendor UI shipped, these two specialized screens not yet authored)
+- Real lighting and weather scenes per region (some shipped: Verdant Wound green palette, Sun Gate noon-pale; rest Phase 2)
+- Per-item meshes, currently using kayKit fallbacks. [Blender procedural generator](blender/scripts/generate_placeholders.py) is ready to crank ~125 placeholders in one run; hand-modeled hero assets are Tier 2 work.
 - Demon visual transformation system implementation (full spec in [DEMON_VISUAL_TRANSFORMATION.md](DEMON_VISUAL_TRANSFORMATION.md), gated on Bond's review)
+- README em-dash legacy sweep (code + user-visible strings are em-dash free; doc-level cleanup deferred)
 
 See [ROADMAP.md](ROADMAP.md) for the build order.
