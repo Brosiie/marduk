@@ -134,6 +134,7 @@ func _run() -> void:
 	await _scenario_tiamat_vision_overlay()
 	await _scenario_wound_creep_tiers()
 	await _scenario_wound_dread_greeting()
+	await _scenario_seventh_breath_gates()
 
 	_finish()
 
@@ -1441,6 +1442,57 @@ var character_appearance = null
 	else:
 		_fail("wound_dread_greeting", "got dormant=%s seeping=%s both=%s tiamat_only=%s" %
 			[got_dormant, got_seeping, got_both, got_tiamat_only])
+
+# 19. Seventh Breath chain gates: verify the three-stage chain enforces
+# faction tier prerequisites correctly. Stage 1 requires Friendly with
+# Six Breaths (3000), Stage 2 requires Honored (9000), Stage 3 requires
+# Revered (21000). Each stage also has prerequisite_quests pointing at
+# the previous stage. Proves the chain can't be skipped.
+func _scenario_seventh_breath_gates() -> void:
+	var qr: Node = get_node_or_null("/root/QuestRegistry")
+	var fr: Node = get_node_or_null("/root/FactionRegistry")
+	if qr == null or fr == null:
+		_findings.append("(skip seventh_breath_gates: registries missing)")
+		return
+	# Resolve the three quests in the chain
+	var apprentice = qr.get_quest(&"q_seventh_breath_apprentice")
+	var pilgrim    = qr.get_quest(&"q_seventh_breath_pilgrimage")
+	var unspoken   = qr.get_quest(&"q_seventh_breath_unspoken")
+	if apprentice == null or pilgrim == null or unspoken == null:
+		_fail("seventh_breath_gates", "one or more chain quests missing in registry")
+		return
+	# Stage 1 must require Friendly+ with Six Breaths
+	var s1_threshold: int = int(apprentice.min_faction_rep.get(&"six_breaths", 0))
+	# Stage 2 must require Honored+ with Six Breaths AND apprentice prerequisite
+	var s2_threshold: int = int(pilgrim.min_faction_rep.get(&"six_breaths", 0))
+	var s2_prereq: bool = &"q_seventh_breath_apprentice" in pilgrim.prerequisite_quests
+	# Stage 3 must require Revered+ with Six Breaths AND pilgrim prerequisite
+	var s3_threshold: int = int(unspoken.min_faction_rep.get(&"six_breaths", 0))
+	var s3_prereq: bool = &"q_seventh_breath_pilgrimage" in unspoken.prerequisite_quests
+	# Verify the rep wall: at 0 rep, stage 1 blocked
+	fr.set_rep(&"six_breaths", 0)
+	var s1_blocked_at_neutral: bool = not apprentice.meets_faction_requirements()
+	# At 3000 (Friendly), stage 1 passes but stage 2 still blocked
+	fr.set_rep(&"six_breaths", 3000)
+	var s1_passes_at_friendly: bool = apprentice.meets_faction_requirements()
+	var s2_blocked_at_friendly: bool = not pilgrim.meets_faction_requirements()
+	# At 21000 (Revered), all three pass the rep gate
+	fr.set_rep(&"six_breaths", 21000)
+	var s3_passes_at_revered: bool = unspoken.meets_faction_requirements()
+	# Cleanup
+	fr.set_rep(&"six_breaths", 0)
+	var ok: bool = (
+		s1_threshold == 3000 and s2_threshold == 9000 and s3_threshold == 21000
+		and s2_prereq and s3_prereq
+		and s1_blocked_at_neutral and s1_passes_at_friendly
+		and s2_blocked_at_friendly and s3_passes_at_revered
+	)
+	if ok:
+		_pass("seventh_breath_gates", "chain enforces Friendly->Honored->Revered + sequential prereqs")
+	else:
+		_fail("seventh_breath_gates", "s1=%d s2=%d s3=%d s2_prereq=%s s3_prereq=%s blocked0=%s pass3k=%s blocked3k=%s pass21k=%s" %
+			[s1_threshold, s2_threshold, s3_threshold, s2_prereq, s3_prereq,
+			 s1_blocked_at_neutral, s1_passes_at_friendly, s2_blocked_at_friendly, s3_passes_at_revered])
 
 func _scenario_hud_presence() -> void:
 	var huds := get_tree().get_nodes_in_group("hud")

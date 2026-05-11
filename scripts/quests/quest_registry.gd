@@ -684,5 +684,67 @@ func _register_faction_starter_quests() -> void:
 	sm_q2.faction_rep_changes = {&"druids": 700, &"inquisition": -400}
 	sm_q2.min_faction_rep = {&"druids": 3000}  # Friendly with Druids required
 
+	# ─── THE SEVENTH BREATH (hidden lore unlock) ────────────────────
+	# "Sun is the seventh and unspoken." Six Breaths public lore names
+	# six disciplines: Flame, Frost, Stone, Wind, Reed, Bone. The
+	# seventh is Marduk's own, hidden, taught only to those who have
+	# already learned to listen at the temple. Three-stage chain
+	# escalating from Honored to Revered gates. Reward is a title +
+	# achievement + a permanent flag that other systems can read to
+	# alter dialog (the temple masters will speak differently to
+	# someone who knows).
+	_register_seventh_breath_chain()
+
+func _register_seventh_breath_chain() -> void:
+	# Stage 1: Apprentice. The temple acknowledges the player. Gated
+	# at Friendly with Six Breaths so the player has to have done
+	# their starter quest first. Small reward, sets a flag.
+	var sb1 := _make(&"q_seventh_breath_apprentice", "What the Sixth Hears",
+		"The Sixth Master takes you aside. He says you breathe like someone who has already lost something. He asks if you would like to learn what the temple does not teach. He will not say more. Not yet.",
+		&"flame_master", 12,
+		[{"description": "Walk the temple at dawn (visit Lapis Bay temple landmark)", "kind": "examine", "target_id": "six_breaths_temple", "required_count": 1}],
+		1200, 200)
+	sb1.faction_rep_changes = {&"six_breaths": 300}
+	sb1.min_faction_rep = {&"six_breaths": 3000}  # Friendly required
+	sb1.sets_permanent_flag = &"seventh_breath_invited"
+
+	# Stage 2: Pilgrimage. The player must learn from each of the Six
+	# in turn. reach_zone objectives across the regions where each
+	# master teaches. Honored required because asking five other
+	# masters to vouch for you means the temple already trusts you.
+	var sb2 := _make(&"q_seventh_breath_pilgrimage", "The Six Names of Air",
+		"The temple asks you to sit with each of the Six in turn. Flame at the Pillar. Frost in the Bone Mountains. Stone in the Reed Cliffs. Wind on Lapis cliffs. Reed in the Wastes. Bone in the Highlands. None will explain why.",
+		&"flame_master", 25,
+		[
+			{"description": "Sit with the Flame Master", "kind": "reach_zone", "target_id": "flame_temple",     "required_count": 1},
+			{"description": "Sit with the Frost Master", "kind": "reach_zone", "target_id": "bone_mountains",  "required_count": 1},
+			{"description": "Sit with the Stone Master", "kind": "reach_zone", "target_id": "reed_cliffs",     "required_count": 1},
+			{"description": "Sit with the Wind Master",  "kind": "reach_zone", "target_id": "lapis_bay",       "required_count": 1},
+			{"description": "Sit with the Reed Master",  "kind": "reach_zone", "target_id": "the_reed_wastes", "required_count": 1},
+			{"description": "Sit with the Bone Master",  "kind": "reach_zone", "target_id": "shrieking_highlands", "required_count": 1},
+		],
+		3500, 800)
+	sb2.faction_rep_changes = {&"six_breaths": 800}
+	sb2.min_faction_rep = {&"six_breaths": 9000}  # Honored required
+	sb2.prerequisite_quests = [&"q_seventh_breath_apprentice"]
+	sb2.sets_permanent_flag = &"seventh_breath_pilgrimage_done"
+
+	# Stage 3: The Unspoken. The temple finally names the Seventh. The
+	# player walks alone into the Sun Gate's threshold and meets the
+	# Seventh Master, who is and is not Marduk himself. Revered with
+	# Six Breaths required because this isn't a lesson, it's a gift.
+	# Reward: title + permanent flag + a real ability slot. Other
+	# systems can read seventh_breath_known to alter Master dialog
+	# from formal to family.
+	var sb3 := _make(&"q_seventh_breath_unspoken", "The Seventh, and Unspoken",
+		"The Sixth Master tells you to walk the Sun Gate at noon. Alone. He says you will not find a master there. He says you will find a brother. He says: when the sun stops, listen.",
+		&"flame_master", 40,
+		[{"description": "Walk the Sun Gate at noon", "kind": "reach_zone", "target_id": "sun_gate", "required_count": 1}],
+		8000, 0)  # no gold; this isn't a transaction
+	sb3.faction_rep_changes = {&"six_breaths": 2000}
+	sb3.min_faction_rep = {&"six_breaths": 21000}  # Revered required
+	sb3.prerequisite_quests = [&"q_seventh_breath_pilgrimage"]
+	sb3.sets_permanent_flag = &"seventh_breath_known"
+
 func _register_starter_quests() -> void:
 	_register_starter_quests_v2()

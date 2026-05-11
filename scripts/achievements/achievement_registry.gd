@@ -239,6 +239,23 @@ func _register_story() -> void:
 		"Unlock the Demon class.",
 		Achievement.Category.STORY, Achievement.TriggerKind.ITEM_OBTAINED,
 		{"item_id": &"demon_class_unlocked"}, &"title_inheritor", 8000, 6000, "")
+	# Seventh Breath chain milestones. The chain itself is in
+	# QuestRegistry; achievements mark the moments. Hidden=true on the
+	# final one keeps the secret from the Codex until earned.
+	_make(&"seventh_breath_invited", "What the Sixth Hears",
+		"The temple acknowledges you. The first hint that there is a seventh breath.",
+		Achievement.Category.STORY, Achievement.TriggerKind.QUEST_COMPLETED,
+		{"quest_id": &"q_seventh_breath_apprentice"}, &"", 800, 200, "")
+	_make(&"seventh_breath_pilgrim", "The Six Names of Air",
+		"Sit with all six masters of the temple.",
+		Achievement.Category.STORY, Achievement.TriggerKind.QUEST_COMPLETED,
+		{"quest_id": &"q_seventh_breath_pilgrimage"}, &"title_pilgrim_of_six", 2500, 800, "")
+	_make(&"seventh_breath_known", "The Seventh, and Unspoken",
+		"Walk the Sun Gate at noon. Meet the brother who is and is not the king. Learn what the temple does not teach.",
+		Achievement.Category.STORY, Achievement.TriggerKind.QUEST_COMPLETED,
+		{"quest_id": &"q_seventh_breath_unspoken"}, &"title_seventh_breather", 12000, 0,
+		"The Sun is the seventh and unspoken. You no longer have to be told this. You are the telling.",
+		true)  # hidden until earned
 
 # ----------------------------------------------------------------
 # COLLECTION (rare items)
