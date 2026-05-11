@@ -635,6 +635,48 @@ func _input(event: InputEvent) -> void:
 		_toggle_lock_on()
 	elif InputMap.has_action("toggle_recall") and event.is_action_pressed("toggle_recall"):
 		_recall_to_marked_lodestone()
+	elif InputMap.has_action("inventory_sort") and event.is_action_pressed("inventory_sort"):
+		_sort_inventory()
+	elif InputMap.has_action("quest_focus_prev") and event.is_action_pressed("quest_focus_prev"):
+		_cycle_quest_focus(-1)
+	elif InputMap.has_action("quest_focus_next") and event.is_action_pressed("quest_focus_next"):
+		_cycle_quest_focus(1)
+
+# Inventory sort hotkey (Z): defers to Inventory.sort_and_stack() and
+# fires a toast so the player has feedback the key did something. The
+# heavy lifting (merge stacks, sort by rarity, normalize) lives on
+# Inventory so other call sites (vendor sell flow) can invoke the
+# same logic.
+func _sort_inventory() -> void:
+	var inv = get("inventory") if "inventory" in self else null
+	if inv == null or not inv.has_method("sort_and_stack"):
+		return
+	inv.sort_and_stack()
+	var juice = get_node_or_null("/root/Juice")
+	if juice and juice.has_method("toast"):
+		juice.toast("Inventory sorted.", Color(0.55, 0.95, 0.55), 1.6)
+	var ab = get_node_or_null("/root/AudioBus")
+	if ab and ab.has_method("play_cue"):
+		ab.play_cue(&"button", global_position, -12.0, 1.2)
+
+# Quest focus cycle: forward or backward through the active quest list.
+# The QuestTracker reads the focused quest from the player's
+# `_focused_quest_index` field, so we just bump it and trigger a refresh
+# via a custom signal. Wraps at the edges.
+signal quest_focus_changed(new_index: int)
+var _focused_quest_index: int = 0
+
+func _cycle_quest_focus(direction: int) -> void:
+	var qr = get_node_or_null("/root/QuestRegistry")
+	if qr == null or not qr.has_method("get_active_quests"):
+		return
+	var active: Array = qr.get_active_quests()
+	if active.size() <= 1:
+		return  # nothing to cycle
+	_focused_quest_index = (_focused_quest_index + direction) % active.size()
+	if _focused_quest_index < 0:
+		_focused_quest_index += active.size()
+	quest_focus_changed.emit(_focused_quest_index)
 
 # Recall key: warps to the player's marked recall lodestone. Pressing
 # this WHILE STANDING ON a lodestone marks that one as the recall stone
@@ -2778,22 +2820,53 @@ const LOCK_RANGE: float = 22.0
 const LOCK_FOV_DOT: float = 0.30  # cosine of half-angle the candidate must be within (camera-forward)
 
 func _toggle_lock_on() -> void:
+	# Three-state behavior:
+	#   1. No lock        -> acquire best in-view target
+	#   2. Locked, others -> cycle to NEXT in-view target (excluding current)
+	#   3. Locked, alone  -> clear lock
+	# Mirrors Souls/Sekiro Tab semantics: re-press cycles, no-cycle drops.
+	var candidates: Array[Node] = _gather_lock_candidates()
+	if candidates.is_empty():
+		# Truly no enemies in view. If we WERE locked, the target died
+		# or walked out of range — clear quietly. Otherwise deny.
+		if _lock_target and is_instance_valid(_lock_target):
+			_clear_lock()
+		else:
+			_play_deny_cue()
+		return
+	# Already locked: pick next candidate after the current one (sorted
+	# by FOV score so cycle reads as "rightward through the view").
 	if _lock_target and is_instance_valid(_lock_target):
+		var idx: int = candidates.find(_lock_target)
+		if idx >= 0 and candidates.size() > 1:
+			var next: Node = candidates[(idx + 1) % candidates.size()]
+			_set_lock(next)
+			return
+		if idx < 0:
+			# Current target moved out of FOV — switch to best candidate
+			_set_lock(candidates[0])
+			return
+		# idx >= 0 AND size == 1: only the current candidate exists, clear
 		_clear_lock()
 		return
+	# Fresh acquire: top of the sorted list = best score
+	_set_lock(candidates[0])
+
+# Returns enemies eligible for lock-on, sorted by FOV-alignment score
+# (highest first). Centralized so both fresh-acquire and cycle paths
+# read from the same candidate list, and a future "lock previous"
+# binding can reuse it.
+func _gather_lock_candidates() -> Array[Node]:
+	var out: Array[Node] = []
 	var cam_rig: Node3D = get_tree().get_first_node_in_group("camera_rig")
 	if cam_rig == null:
-		return
-	# Candidate enemies: anything in the 'enemy' group within LOCK_RANGE,
-	# preferring those most centered in the camera's view.
-	var cam_pos: Vector3 = cam_rig.global_position
+		return out
 	var cam_fwd: Vector3 = -cam_rig.global_transform.basis.z
 	cam_fwd.y = 0
 	if cam_fwd.length_squared() < 0.001:
-		return
+		return out
 	cam_fwd = cam_fwd.normalized()
-	var best: Node = null
-	var best_score: float = -INF
+	var scored: Array = []  # of {node, score}
 	for e in get_tree().get_nodes_in_group("enemy"):
 		if not is_instance_valid(e) or not (e is Node3D):
 			continue
@@ -2806,16 +2879,12 @@ func _toggle_lock_on() -> void:
 		var dot: float = cam_fwd.dot(dir_e)
 		if dot < LOCK_FOV_DOT:
 			continue
-		# Score prefers tight FOV alignment over raw distance:
-		# centered-far beats off-axis-near.
 		var score: float = dot - (dist / LOCK_RANGE) * 0.4
-		if score > best_score:
-			best_score = score
-			best = e
-	if best == null:
-		_play_deny_cue()
-		return
-	_set_lock(best)
+		scored.append({"node": e, "score": score})
+	scored.sort_custom(func(a, b): return float(a["score"]) > float(b["score"]))
+	for entry in scored:
+		out.append(entry["node"])
+	return out
 
 func _set_lock(target_node: Node) -> void:
 	_lock_target = target_node
@@ -3657,7 +3726,11 @@ func _drop_death_marker() -> void:
 	marker.add_child(lit)
 	var cs := CollisionShape3D.new()
 	var s2 := SphereShape3D.new()
-	s2.radius = 1.0
+	# 5m proximity pickup so players don't have to step EXACTLY on the
+	# marker. Reads as "souls answer your approach" rather than "find
+	# the pixel-perfect spot." The OmniLight already lit a 5m radius
+	# around the marker so the visual + pickup ranges now agree.
+	s2.radius = 5.0
 	cs.shape = s2
 	marker.add_child(cs)
 	marker.collision_layer = 16
@@ -3675,6 +3748,14 @@ func _drop_death_marker() -> void:
 			var ar2 = get_node_or_null("/root/AchievementRegistry")
 			if ar2 and ar2.has_method("unlock"):
 				ar2.unlock(&"a_recover_souls")
+			# Toast + audio sting so the recovery feels like a beat.
+			var juice = get_node_or_null("/root/Juice")
+			if juice and juice.has_method("toast"):
+				juice.toast("Souls reclaimed: %d xp" % int(recovered),
+					Color(0.55, 0.78, 1.0), 2.4)
+			var ab = get_node_or_null("/root/AudioBus")
+			if ab and ab.has_method("play_cue"):
+				ab.play_cue(&"lodestone", marker.global_position, -4.0, 1.5)
 			marker.queue_free()
 	)
 

@@ -142,6 +142,16 @@ func _fill_buffer(pb: AudioStreamGeneratorPlayback, name: StringName) -> void:
 		&"step_snow":     _gen_burst(pb, 60.0, 240.0, 0.10, 0.06)
 		&"step_dirt":     _gen_burst(pb, 80.0, 100.0, 0.06, 0.16)
 		&"step_water":    _gen_burst(pb, 130.0, 320.0, 0.08, 0.18)
+		# NPC voice-tone cues: short distinct audio sting per NPC type
+		# played when dialogue opens. Reads like a brief "voice-print"
+		# even though we have no real VO. Pitches/durations chosen so
+		# each cue is recognizable in 100ms.
+		&"voice_priest":   _gen_chirp(pb, 660.0, 880.0, 0.20)        # rising chime, holy
+		&"voice_merchant": _gen_burst(pb, 880.0, 660.0, 0.06, 0.18)  # bell ding
+		&"voice_soldier":  _gen_burst(pb, 110.0, 90.0, 0.10, 0.45)   # low drum thump
+		&"voice_peasant":  _gen_burst(pb, 320.0, 240.0, 0.08, 0.22)  # warm wood-knock
+		&"voice_scholar":  _gen_chirp(pb, 440.0, 660.0, 0.18)        # questioning rise
+		&"voice_pirate":   _gen_burst(pb, 220.0, 180.0, 0.10, 0.30)  # raspy growl
 		# Mount hoofbeat: heavier + lower than a footstep so it reads
 		# as a beast underfoot. Played in time with mount stride by the
 		# Player mount tick. Pitch-shift down on the AudioStreamPlayer

@@ -1139,6 +1139,12 @@ func _build_boss_bar() -> Control:
 func bind_boss(boss: Node) -> void:
 	if boss_bar and boss_bar.has_method("bind_to_boss"):
 		boss_bar.bind_to_boss(boss)
+	# Forward to CombatLog so phase + HP threshold transitions get
+	# permanent log lines ("⚠ Kazat — ENRAGED"). The log handles
+	# its own dedup via per-boss meta.
+	var cl: Node = $Root.get_node_or_null("CombatLog")
+	if cl and cl.has_method("bind_boss"):
+		cl.bind_boss(boss)
 
 func unbind_boss() -> void:
 	if boss_bar and boss_bar.has_method("hide_bar"):

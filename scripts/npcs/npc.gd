@@ -506,6 +506,34 @@ func _maybe_class_id_line() -> String:
 		sf.set_permanent(flag, true)
 	return String(_CLASS_ID_LINES[cid])
 
+# Resolve the voice-tone cue id by name pattern + faction. Returns one
+# of the &"voice_*" cues registered in AudioBus. Order matters — the
+# first match wins so you can override (e.g. "guard_priest" stays a
+# priest tone instead of degrading to soldier).
+func _voice_tone_cue() -> StringName:
+	var id_str: String = String(npc_id).to_lower()
+	if id_str.contains("priest") or id_str.contains("monk") or id_str.contains("oracle") or id_str.contains("sage"):
+		return &"voice_priest"
+	if id_str.contains("merchant") or id_str.contains("vendor") or id_str.contains("market") or id_str.contains("quartermaster"):
+		return &"voice_merchant"
+	if id_str.contains("guard") or id_str.contains("soldier") or id_str.contains("captain") or id_str.contains("general") or id_str.contains("inquisitor"):
+		return &"voice_soldier"
+	if id_str.contains("scholar") or id_str.contains("magus") or id_str.contains("storyteller") or id_str.contains("librarian"):
+		return &"voice_scholar"
+	if id_str.contains("pirate") or id_str.contains("sail") or id_str.contains("raider") or id_str.contains("hassu"):
+		return &"voice_pirate"
+	# Default: peasant (everyone else is a townsperson/villager)
+	return &"voice_peasant"
+
+func _play_voice_tone() -> void:
+	var ab: Node = get_node_or_null("/root/AudioBus")
+	if ab == null or not ab.has_method("play_cue"):
+		return
+	# Slight pitch variation per NPC instance so two priests next to
+	# each other don't sound identical. Hash by name for stable variance.
+	var pitch: float = 1.0 + (float(hash(npc_id) % 100) - 50.0) * 0.004
+	ab.play_cue(_voice_tone_cue(), global_position, -8.0, pitch)
+
 func _show_interact_prompt() -> void:
 	if _interact_prompt and is_instance_valid(_interact_prompt):
 		_interact_prompt.visible = true
@@ -543,6 +571,11 @@ func _open_dialogue() -> void:
 		# Try by display_name -> "c_<slug>" (storyteller, iddinu, belitu)
 		var slug: String = display_name.to_lower().replace(",", "").replace(" ", "_").split("_")[0]
 		cdx.unlock(StringName("c_" + slug))
+	# Voice-tone audio cue: short distinct sting that reads as the NPC
+	# "speaking up" when the dialogue opens. Picked from npc_id pattern
+	# (priest / merchant / soldier / etc.) so the same NPC kind always
+	# sounds the same. Falls through to peasant if no match.
+	_play_voice_tone()
 	# Branching dialogue path: if DialogueRegistry has a tree for this
 	# npc_id, instantiate the DialoguePanel and let it render the full
 	# Line/Choice tree (with faction-rep tags, gating, quest-start

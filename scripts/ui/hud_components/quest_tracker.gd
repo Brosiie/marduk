@@ -62,6 +62,14 @@ func _ready() -> void:
 			_registry.quest_completed.connect(_on_quest_changed)
 		if _registry.has_signal("quest_progress"):
 			_registry.quest_progress.connect(_on_progress)
+	# Listen for player focus-cycle key (`[` / `]`) so the tracker can
+	# repaint with the new focused quest.
+	var player := get_tree().get_first_node_in_group("player")
+	if player and player.has_signal("quest_focus_changed"):
+		player.quest_focus_changed.connect(_on_focus_changed)
+	refresh()
+
+func _on_focus_changed(_idx: int) -> void:
 	refresh()
 
 func refresh() -> void:
@@ -79,15 +87,30 @@ func refresh() -> void:
 		visible = false  # hide entirely when there's nothing to show
 		return
 	visible = true
-	# Pick a focused quest (the most recently accepted, for now)
-	var focused = active[0]
+	# Focused quest: read the player's _focused_quest_index so the
+	# `[` / `]` cycle keys actually drive what's shown here. Falls back
+	# to the most-recently-accepted (index 0) if the field isn't
+	# accessible. Index wraps if it overruns the active count.
+	var focus_idx: int = 0
+	var player := get_tree().get_first_node_in_group("player")
+	if player and "_focused_quest_index" in player:
+		focus_idx = int(player.get("_focused_quest_index"))
+	if focus_idx < 0 or focus_idx >= active.size():
+		focus_idx = 0
+	var focused = active[focus_idx]
 	var qname: String = ""
 	if typeof(focused) == TYPE_DICTIONARY:
 		qname = focused.get("display_name", "Quest")
 	else:
 		qname = focused.display_name if focused.has_method("get") else "Quest"
 	var header := Label.new()
-	header.text = qname
+	# Show "Quest Name  (2/4)" when multiple active quests exist so the
+	# player sees they CAN cycle with [ / ]. Hidden when there's only
+	# one quest active (no cycle target).
+	var header_text: String = qname
+	if active.size() > 1:
+		header_text = "%s  (%d/%d)" % [qname, focus_idx + 1, active.size()]
+	header.text = header_text
 	header.add_theme_font_size_override("font_size", 16)
 	header.add_theme_color_override("font_color", Color(1.0, 0.92, 0.55))
 	header.add_theme_color_override("font_outline_color", Color(0.20, 0.05, 0.05, 0.95))

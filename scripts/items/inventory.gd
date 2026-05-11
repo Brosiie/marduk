@@ -190,6 +190,67 @@ func aggregate_bonuses() -> Dictionary:
 		total["damage_pct"] += it.damage_bonus_pct
 	return total
 
+# Sort the bag in a canonical order: rarity descending (legendaries
+# bubble up), then item type, then display name. Stacks of the same
+# item merge as we go so the bag stays compact. Public API; called
+# from the inventory panel hotkey + can be invoked from script.
+#
+# Why we re-sort to a NEW array instead of mutating-in-place: bag is a
+# typed Resource array, and rearranging via index swaps would require
+# tracking the source-index of each stack to avoid double-merges when
+# items overlap. Building a fresh array is O(n log n) anyway and the
+# code reads cleanly.
+func sort_and_stack() -> void:
+	if bag.is_empty():
+		return
+	# First pass: merge stacks with the same item id (auto-stack). This
+	# undoes any "dropped + picked up later" splits without losing
+	# anything. Iterates the bag, keying by item id, summing counts,
+	# clamping to stack_size if any item ends up over its cap.
+	var by_id: Dictionary = {}  # StringName -> Stack
+	var ordered_ids: Array = []  # to keep deterministic insertion order
+	for s: Stack in bag:
+		if s.item == null:
+			continue
+		var iid: StringName = s.item.id
+		if not by_id.has(iid):
+			var fresh := Stack.new()
+			fresh.item = s.item
+			fresh.count = s.count
+			by_id[iid] = fresh
+			ordered_ids.append(iid)
+		else:
+			(by_id[iid] as Stack).count += s.count
+	# Second pass: split any over-cap stacks (e.g. stack_size=10 with 27
+	# in the merged stack -> 10/10/7).
+	var merged: Array = []
+	for iid in ordered_ids:
+		var s: Stack = by_id[iid]
+		var cap: int = max(1, s.item.stack_size)
+		while s.count > cap:
+			var split := Stack.new()
+			split.item = s.item
+			split.count = cap
+			s.count -= cap
+			merged.append(split)
+		merged.append(s)
+	# Third pass: sort by rarity desc, then item type, then name.
+	# Rarity goes desc so legendaries appear first. Within same rarity,
+	# weapons before armor before consumables (slot-as-int order).
+	merged.sort_custom(func(a, b):
+		var ar: int = int(a.item.rarity) if "rarity" in a.item else 0
+		var br: int = int(b.item.rarity) if "rarity" in b.item else 0
+		if ar != br:
+			return ar > br
+		var aslot: int = int(a.item.slot) if "slot" in a.item else 0
+		var bslot: int = int(b.item.slot) if "slot" in b.item else 0
+		if aslot != bslot:
+			return aslot < bslot
+		return String(a.item.display_name) < String(b.item.display_name)
+	)
+	bag = merged
+	inventory_changed.emit()
+
 func add_gold(amount: int) -> void:
 	gold = max(0, gold + amount)
 	gold_changed.emit(gold)

@@ -120,6 +120,11 @@ func _attach_signals() -> void:
 		cb.dps_spike.connect(_on_dps_spike)
 
 func _process(delta: float) -> void:
+	# Poll watched bosses for HP threshold crossings. Cheap: at most one
+	# or two bosses live at any time. Prune freed bosses from the list.
+	_watched_bosses = _watched_bosses.filter(func(b): return is_instance_valid(b))
+	for boss in _watched_bosses:
+		_check_boss_hp_thresholds(boss)
 	# Age out old lines (fade then remove)
 	var to_remove: Array[int] = []
 	for i in range(_lines.size()):
@@ -226,6 +231,80 @@ func _on_dps_spike(current_dps: float, session_avg: float) -> void:
 	var ratio: float = current_dps / max(session_avg, 0.01)
 	log_event("⚡ DPS SPIKE: %d (%.1fx avg)" % [int(round(current_dps)), ratio],
 		Color(1.0, 0.95, 0.30))
+
+# Boss binding hook: HUD.bind_boss calls into us so we can connect to
+# the boss's phase_changed signal + log enrage thresholds. Without
+# this, phase transitions only flashed the boss bar — no permanent
+# combat log record of "the boss entered phase 2 here."
+func bind_boss(boss: Node) -> void:
+	if boss == null or not is_instance_valid(boss):
+		return
+	if boss.has_signal("phase_changed") and not boss.phase_changed.is_connected(_on_boss_phase_changed):
+		boss.phase_changed.connect(_on_boss_phase_changed)
+	# Also watch HP drops for the canonical 66% / 33% / 25% callouts so
+	# bosses without explicit phases still get tier alerts. Connect once
+	# per binding; we track which thresholds have been crossed on the
+	# boss via a set meta so we don't double-log within one fight.
+	if not boss.has_meta("hp_thresholds_called"):
+		boss.set_meta("hp_thresholds_called", {})
+	# hp_changed isn't a signal EnemyBase emits; we poll via process
+	# instead. Track the boss in a per-frame check.
+	_watched_bosses.append(boss)
+
+var _watched_bosses: Array = []
+const _BOSS_HP_THRESHOLDS := [
+	{"pct": 0.66, "label": "PHASE 2", "color": Color(1.0, 0.85, 0.30)},
+	{"pct": 0.33, "label": "ENRAGED", "color": Color(0.95, 0.40, 0.20)},
+	{"pct": 0.10, "label": "DEATH-SCREAM", "color": Color(1.0, 0.20, 0.20)},
+]
+
+func _on_boss_phase_changed(idx: int, phase_name: String) -> void:
+	log_event("⚠ %s entered %s" % [_last_boss_name(), phase_name.to_upper()],
+		Color(1.0, 0.55, 0.20))
+
+# Tracker for the last boss bound, used to label phase + threshold lines
+# without the signal handler having to receive the boss as a parameter.
+var _last_boss: Node = null
+
+# Check the boss's HP against canonical threshold pcts (66/33/10) and
+# emit a log line the first time it crosses each. Stores a "called"
+# set as meta on the boss so re-entering the bar (multi-fight) reuses
+# the same gate, and so a phase that ALREADY published "PHASE 2" via
+# the explicit signal doesn't get a duplicate threshold log.
+func _check_boss_hp_thresholds(boss: Node) -> void:
+	if not ("hp" in boss) or not ("max_hp" in boss):
+		return
+	var hp: float = float(boss.get("hp"))
+	var max_hp: float = float(boss.get("max_hp"))
+	if max_hp <= 0.0 or hp <= 0.0:
+		return
+	var pct: float = hp / max_hp
+	var called: Dictionary = boss.get_meta("hp_thresholds_called", {})
+	var boss_label: String = String(boss.get("display_name")) if boss.has_method("get") else String(boss.name)
+	if boss_label == "":
+		boss_label = String(boss.name)
+	for th in _BOSS_HP_THRESHOLDS:
+		var th_pct: float = float(th["pct"])
+		var th_key: String = "%.2f" % th_pct
+		if called.get(th_key, false):
+			continue
+		if pct <= th_pct:
+			called[th_key] = true
+			boss.set_meta("hp_thresholds_called", called)
+			log_event("⚠ %s — %s" % [boss_label, th["label"]], th["color"])
+
+func _last_boss_name() -> String:
+	if _watched_bosses.is_empty():
+		return "Boss"
+	# Use the most recently bound boss (which is the engaged one).
+	var b = _watched_bosses[-1]
+	if not is_instance_valid(b):
+		return "Boss"
+	if b.has_method("get"):
+		var dn = b.get("display_name")
+		if dn != null and String(dn) != "":
+			return String(dn)
+	return String(b.name)
 
 func _on_kill_registered(target: Node, _killer: Node) -> void:
 	# Only log boss kills here; mob kills would spam the feed during
