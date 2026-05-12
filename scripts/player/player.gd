@@ -2197,9 +2197,13 @@ func _apply_character_rim() -> void:
 	var rim_shader: Shader = load("res://shaders/rim_pass.gdshader")
 	if rim_shader == null:
 		return
-	# Power 2.4 keeps the rim tight to the silhouette; strength 0.7
-	# keeps it readable without dominating the base material.
-	_apply_rim_recursive(mesh, rim_shader, color, 2.4, 0.7)
+	# Was 0.7 strength + 2.4 power: read on screen as a permanent yellow glow
+	# overlaying the entire silhouette ("character glowing yellow it looks
+	# weird"). The rim is meant to make the character readable against
+	# volumetric fog, not paint them gold. Cut to 0.22 strength + 5.0 power so
+	# the rim hugs the silhouette edge only. Class buff bursts re-spike this
+	# temporarily through _spawn_class_aura when an actual buff procs.
+	_apply_rim_recursive(mesh, rim_shader, color, 5.0, 0.22)
 
 func _apply_rim_recursive(node: Node, shader: Shader, color: Color, power: float, strength: float) -> void:
 	if node is MeshInstance3D:
@@ -3439,9 +3443,14 @@ func _tick_form(delta: float) -> void:
 			revert_form()
 
 func _read_input() -> void:
+	# raw.y is "forward positive": W (move_up) gives +1, S (move_down) gives -1.
+	# This pairs with `fwd = -basis.z` so `fwd * raw.y` resolves to: pressing W
+	# moves along the camera's forward axis, not against it. Inverting either
+	# the raw.y formula OR the basis (but not both) re-introduces the bug Bond
+	# reported as "movement is inverted." Keep both signs as-is.
 	var raw := Vector2(
 		Input.get_action_strength("move_right") - Input.get_action_strength("move_left"),
-		Input.get_action_strength("move_down") - Input.get_action_strength("move_up")
+		Input.get_action_strength("move_up") - Input.get_action_strength("move_down")
 	)
 	# Lazy-resolve camera_rig if it wasn't ready when player._ready ran.
 	# CameraRig adds itself to the "camera_rig" group in its _ready, but

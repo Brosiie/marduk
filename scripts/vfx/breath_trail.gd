@@ -26,22 +26,32 @@ var _mi: MeshInstance3D
 var _light: OmniLight3D
 
 func _ready() -> void:
+	# The torus is a slim sliver, NOT a fat donut. Old visual ("big ring
+	# appears for an animation") came from a near-flat full circle scaling
+	# uniformly. Now: stand the torus upright (edge facing the player) and
+	# sweep its yaw around the spawn pivot from -arc_half_deg to +arc_half_deg
+	# over the cast duration. The player sees a curved slash carving the air
+	# from one side to the other, not a donut blooming from the center.
 	_mi = MeshInstance3D.new()
 	var torus := TorusMesh.new()
 	torus.inner_radius = max(0.05, arc_radius - arc_thickness)
 	torus.outer_radius = arc_radius
-	torus.rings = 32
-	torus.ring_segments = 8
+	torus.rings = 24
+	torus.ring_segments = 6
 	_mi.mesh = torus
-	# Tilt the torus so it reads as a sword arc (lying on its side relative to
-	# the player's forward axis)
-	_mi.rotation.x = deg_to_rad(85.0)
+	# Pivot offset: shift the torus forward by arc_radius so the player sits
+	# at the SIDE of the donut, not its center. Rotating the parent around Y
+	# then sweeps that tangent edge across the screen.
+	_mi.position = Vector3(0, 0, -arc_radius)
+	# Stand the torus upright (face the rim, not the donut top) so the swing
+	# reads as a curved blade, not a halo on the floor.
+	_mi.rotation.x = deg_to_rad(90.0)
 	var mat := StandardMaterial3D.new()
 	mat.albedo_color = color
-	mat.albedo_color.a = 0.8
+	mat.albedo_color.a = 0.85
 	mat.emission_enabled = true
 	mat.emission = color
-	mat.emission_energy_multiplier = 2.5
+	mat.emission_energy_multiplier = 3.0
 	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
 	_mi.material_override = mat
@@ -51,11 +61,18 @@ func _ready() -> void:
 	_light.light_energy = 2.4
 	_light.omni_range = 5.0
 	add_child(_light)
-	# Animate: sweep + scale up + fade out
+	# Sweep arc: parent rotation goes from -half to +half over the duration.
+	# The torus rides the pivot so the leading edge traces a real arc across
+	# the player's front. Scale on Y only (so the slash grows in height) and
+	# fade alpha + light at the end.
+	var arc_half: float = deg_to_rad(angle_span_deg * 0.5)
+	rotation.y = -arc_half
+	_mi.scale = Vector3(1.0, 0.2, 1.0)
 	var tw := create_tween()
 	tw.set_parallel(true)
-	tw.tween_property(_mi, "scale", Vector3.ONE * 1.4, duration).set_trans(Tween.TRANS_CUBIC)
-	tw.tween_property(_mi, "modulate:a", 0.0, duration).set_delay(duration * 0.3)
+	tw.tween_property(self, "rotation:y", arc_half, duration).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	tw.tween_property(_mi, "scale", Vector3(1.0, 1.0, 1.0), duration * 0.4).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tw.tween_property(_mi, "modulate:a", 0.0, duration * 0.55).set_delay(duration * 0.45)
 	tw.tween_property(_light, "light_energy", 0.0, duration)
 	tw.set_parallel(false)
 	tw.tween_callback(queue_free)

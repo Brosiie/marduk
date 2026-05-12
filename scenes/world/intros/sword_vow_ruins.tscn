@@ -235,7 +235,12 @@ trigger_radius = 8.0
 [node name="Geometry" type="Node3D" parent="."]
 script = ExtResource("zone_composer")
 style_id = &"sword_vow_ruins"
-size = 80.0
+; Was 80.0 (half-extent 40). Player spawns at z=70 ("FAR SOUTH campfire at
+; spawn marker" per the layout doc), which sat 30m outside the prop zone.
+; Bond's "no terrain or trees" complaint was literal: he spawned in the void
+; south of the generated grove. Size 160 covers spawn-to-boss (z range -80
+; to +80) while staying inside the 180m floor.
+size = 160.0
 
 
 [node name="LoreRune_kazats_oath" type="Area3D" parent="."]
