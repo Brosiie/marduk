@@ -157,6 +157,7 @@ func _spawn_hitbox(ability: Ability, damage_mult: float) -> void:
 	hb.attacker_stats = owner_player.stats
 	hb.lifetime = max(0.10, ability.cast_time + 0.15)
 	hb.team = &"player"
+	hb.set_meta("attacker_node", owner_player)
 
 	var collider := CollisionShape3D.new()
 	hb.add_child(collider)

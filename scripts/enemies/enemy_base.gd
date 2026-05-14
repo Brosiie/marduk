@@ -44,6 +44,7 @@ signal died
 
 func _ready() -> void:
 	add_to_group("enemy")
+	_ensure_status_effects_holder()
 	_apply_faction_groups()
 	_apply_prestige_scaling()
 	_attach_nameplate()
@@ -303,6 +304,17 @@ func _attach_nameplate() -> void:
 	np.position = Vector3(0, 2.2, 0)
 	np.hostility = 3 if (self is BossBase) else 0
 	add_child(np)
+
+func _ensure_status_effects_holder() -> void:
+	if has_node("StatusEffectsHolder"):
+		var existing: Node = get_node("StatusEffectsHolder")
+		if "actor" in existing:
+			existing.actor = self
+		return
+	var holder := StatusEffectsHolder.new()
+	holder.name = "StatusEffectsHolder"
+	holder.actor = self
+	add_child(holder)
 
 func _apply_prestige_scaling() -> void:
 	# Scale stats by current cycle. Cycle 0 = 1x (no change), Cycle 1 = 2x, etc.

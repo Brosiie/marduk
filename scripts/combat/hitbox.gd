@@ -53,7 +53,7 @@ func _try_damage(target: Node) -> void:
 	# Battle Cry stack on top of the standard formula. The attacker
 	# (Player or any actor with get_outgoing_damage_mult) gets the say.
 	# Duck-typed so mobs/bosses without this method behave normally.
-	var attacker: Node = get_parent()
+	var attacker: Node = get_meta("attacker_node", get_parent())
 	if attacker and attacker.has_method("get_outgoing_damage_mult"):
 		result.damage *= attacker.get_outgoing_damage_mult()
 	if target.has_method("take_damage"):
@@ -119,6 +119,7 @@ func _apply_element_effect(target: Node, element: int, attacker: Node) -> void:
 			effect.id = &"burn"
 			effect.display_name = "Burn"
 			effect.kind = StatusEffect.Kind.BURN
+			effect.tint = Color(1.00, 0.35, 0.12)
 			effect.duration = 4.0
 			effect.tick_interval = 1.0
 			effect.damage_per_tick = 8.0
@@ -126,8 +127,9 @@ func _apply_element_effect(target: Node, element: int, attacker: Node) -> void:
 		Ability.DamageType.FROST:
 			effect = StatusEffect.new()
 			effect.id = &"slow"
-			effect.display_name = "Slow"
+			effect.display_name = "Frost Slow"
 			effect.kind = StatusEffect.Kind.SLOW
+			effect.tint = Color(0.55, 0.85, 1.00)
 			effect.duration = 3.0
 			effect.move_speed_mult = 0.55
 		Ability.DamageType.SHADOW:
@@ -135,13 +137,15 @@ func _apply_element_effect(target: Node, element: int, attacker: Node) -> void:
 			effect.id = &"weakness"
 			effect.display_name = "Weakness"
 			effect.kind = StatusEffect.Kind.WEAKNESS
+			effect.tint = Color(0.70, 0.25, 0.85)
 			effect.duration = 4.0
 			effect.damage_dealt_mult = 0.65
 		Ability.DamageType.HOLY:
 			effect = StatusEffect.new()
 			effect.id = &"mark"
-			effect.display_name = "Mark"
+			effect.display_name = "Holy Mark"
 			effect.kind = StatusEffect.Kind.MARK
+			effect.tint = Color(1.00, 0.70, 0.18)
 			effect.duration = 3.0
 			effect.damage_taken_mult = 1.25
 		Ability.DamageType.LIGHTNING:

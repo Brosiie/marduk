@@ -28,6 +28,8 @@ var _hp_fill_mat: StandardMaterial3D
 var _hp_flash: MeshInstance3D  # bright white overlay that pulses on damage
 var _hp_flash_mat: StandardMaterial3D
 var _target_ring: MeshInstance3D
+var _status_holder: Node = null
+var _status_nodes: Array[Node3D] = []
 var _camera_ref: Camera3D = null
 var _hp_pct: float = 1.0
 var _last_hp: float = -1.0
@@ -165,6 +167,7 @@ func _ready() -> void:
 	_target_ring.position = Vector3(0, -1.5, 0)  # under the actor's feet
 	_target_ring.visible = false
 	add_child(_target_ring)
+	_attach_status_holder()
 
 func _process(delta: float) -> void:
 	if actor == null or not is_instance_valid(actor):
@@ -260,3 +263,127 @@ func _read_actor_name() -> String:
 	#    "@CharacterBody3D@3184" leak engine internals into the HUD.
 	#    Returning "" tells the caller to hide the label.
 	return ""
+
+# --- Status effect icon row ---
+
+const STATUS_ICON_SIZE: float = 0.145
+const STATUS_ICON_GAP: float = 0.035
+const STATUS_ICON_MAX: int = 5
+const STATUS_ICON_TABLE := {
+	0: {"color": Color(1.00, 0.45, 0.20), "glyph": "B"},  # BURN
+	1: {"color": Color(0.55, 0.95, 0.40), "glyph": "P"},  # POISON
+	2: {"color": Color(0.85, 0.18, 0.20), "glyph": "B"},  # BLEED
+	3: {"color": Color(0.65, 0.85, 1.00), "glyph": "S"},  # SLOW
+	4: {"color": Color(0.95, 0.92, 0.40), "glyph": "!"},  # STUN
+	5: {"color": Color(0.35, 0.30, 0.40), "glyph": "?"},  # BLIND
+	6: {"color": Color(0.65, 0.30, 0.65), "glyph": "W"},  # WEAKNESS
+	7: {"color": Color(1.00, 0.65, 0.10), "glyph": "M"},  # MARK
+	8: {"color": Color(0.45, 0.95, 0.55), "glyph": "+"},  # REGEN
+	9: {"color": Color(0.65, 0.85, 1.00), "glyph": "F"},  # FROST_VULN
+	10: {"color": Color(1.00, 0.45, 0.20), "glyph": "I"}, # IGNITE_VULN
+}
+
+func _attach_status_holder() -> void:
+	if actor == null or not is_instance_valid(actor):
+		return
+	_status_holder = actor.get_node_or_null("StatusEffectsHolder") if actor is Node else null
+	if _status_holder == null:
+		return
+	if _status_holder.has_signal("effect_applied") and not _status_holder.effect_applied.is_connected(_on_status_effect_applied):
+		_status_holder.effect_applied.connect(_on_status_effect_applied)
+	if _status_holder.has_signal("effect_removed") and not _status_holder.effect_removed.is_connected(_on_status_effect_removed):
+		_status_holder.effect_removed.connect(_on_status_effect_removed)
+	_refresh_status_icons()
+
+func _on_status_effect_applied(_effect: StatusEffect, _stacks: int) -> void:
+	_refresh_status_icons()
+
+func _on_status_effect_removed(_effect: StatusEffect) -> void:
+	_refresh_status_icons()
+
+func _refresh_status_icons() -> void:
+	for n in _status_nodes:
+		if is_instance_valid(n):
+			n.queue_free()
+	_status_nodes.clear()
+	if _status_holder == null or not is_instance_valid(_status_holder):
+		return
+	var active_list: Array = _status_holder.get("active") if "active" in _status_holder else []
+	if active_list.is_empty():
+		return
+	var count: int = min(STATUS_ICON_MAX, active_list.size())
+	var total_width: float = count * STATUS_ICON_SIZE + max(0, count - 1) * STATUS_ICON_GAP
+	var start_x: float = -total_width * 0.5 + STATUS_ICON_SIZE * 0.5
+	for i in range(count):
+		var ae = active_list[active_list.size() - 1 - i]
+		var icon := _build_status_icon(ae)
+		icon.position = Vector3(start_x + float(i) * (STATUS_ICON_SIZE + STATUS_ICON_GAP), _status_icon_y(), 0.012)
+		add_child(icon)
+		_status_nodes.append(icon)
+
+func _status_icon_y() -> float:
+	return -0.43 if hostility == 3 else -0.27
+
+func _build_status_icon(ae) -> Node3D:
+	var root := Node3D.new()
+	root.name = "StatusIcon_%s" % String(ae.effect.id)
+	var entry: Dictionary = STATUS_ICON_TABLE.get(int(ae.effect.kind), {"color": Color(0.6, 0.6, 0.6), "glyph": "?"})
+	var color: Color = ae.effect.tint if ae.effect.tint != Color.WHITE else entry["color"]
+	var bg := MeshInstance3D.new()
+	bg.name = "Back"
+	var quad := QuadMesh.new()
+	quad.size = Vector2(STATUS_ICON_SIZE, STATUS_ICON_SIZE)
+	bg.mesh = quad
+	var mat := StandardMaterial3D.new()
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.albedo_color = Color(color.r * 0.35, color.g * 0.35, color.b * 0.35, 0.88)
+	mat.emission_enabled = true
+	mat.emission = color
+	mat.emission_energy_multiplier = 0.85
+	mat.no_depth_test = true
+	bg.material_override = mat
+	root.add_child(bg)
+	var rim := MeshInstance3D.new()
+	rim.name = "Rim"
+	var rim_mesh := QuadMesh.new()
+	rim_mesh.size = Vector2(STATUS_ICON_SIZE + 0.02, STATUS_ICON_SIZE + 0.02)
+	rim.mesh = rim_mesh
+	var rim_mat := StandardMaterial3D.new()
+	rim_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	rim_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	rim_mat.albedo_color = Color(color.r, color.g, color.b, 0.45)
+	rim_mat.emission_enabled = true
+	rim_mat.emission = color
+	rim_mat.emission_energy_multiplier = 1.25
+	rim_mat.no_depth_test = true
+	rim.material_override = rim_mat
+	rim.position.z = -0.001
+	root.add_child(rim)
+	var glyph := Label3D.new()
+	glyph.name = "Glyph"
+	glyph.text = String(entry["glyph"])
+	glyph.font_size = 18
+	glyph.pixel_size = 0.004
+	glyph.fixed_size = true
+	glyph.no_depth_test = true
+	glyph.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	glyph.outline_size = 5
+	glyph.outline_modulate = Color(0, 0, 0, 0.92)
+	glyph.modulate = color.lightened(0.55)
+	glyph.position = Vector3(-0.006, -0.018, 0.006)
+	root.add_child(glyph)
+	if ae.stacks > 1:
+		var stack := Label3D.new()
+		stack.text = "x%d" % int(ae.stacks)
+		stack.font_size = 12
+		stack.pixel_size = 0.003
+		stack.fixed_size = true
+		stack.no_depth_test = true
+		stack.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+		stack.outline_size = 4
+		stack.outline_modulate = Color(0, 0, 0, 0.95)
+		stack.modulate = Color(1.0, 0.94, 0.62)
+		stack.position = Vector3(STATUS_ICON_SIZE * 0.20, -STATUS_ICON_SIZE * 0.22, 0.008)
+		root.add_child(stack)
+	return root

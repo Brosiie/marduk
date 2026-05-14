@@ -219,6 +219,7 @@ var _player_staggered_until: float = 0.0
 
 func _ready() -> void:
 	add_to_group("player")
+	_ensure_status_effects_holder()
 	if not stats:
 		stats = PlayerStats.new()
 		stats.recompute_derived()
@@ -449,6 +450,17 @@ func _auto_accept_prologue(class_id: StringName) -> void:
 				return
 	if qr.accept_quest(quest_id):
 		print("[Player] auto-accepted prologue quest %s" % quest_id)
+
+func _ensure_status_effects_holder() -> void:
+	if has_node("StatusEffectsHolder"):
+		var existing: Node = get_node("StatusEffectsHolder")
+		if "actor" in existing:
+			existing.actor = self
+		return
+	var holder := StatusEffectsHolder.new()
+	holder.name = "StatusEffectsHolder"
+	holder.actor = self
+	add_child(holder)
 
 # Walk the scene to find a Geometry node carrying style_id (the
 # ZoneComposer convention). Returns the StringName style_id or &"".
@@ -1189,6 +1201,7 @@ func _cast_ability_slot(slot: int) -> void:
 	hb.attacker_stats = stats
 	hb.lifetime = 0.20
 	hb.team = &"player"
+	hb.set_meta("attacker_node", self)
 	var collider := CollisionShape3D.new()
 	hb.add_child(collider)
 	# +mesh.basis.z (not -basis.z) because Mixamo meshes are +Z-forward

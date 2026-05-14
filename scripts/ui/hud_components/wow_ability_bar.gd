@@ -40,6 +40,7 @@ var _t: float = 0.0
 # to one rebuild per unique ability per session, kit changes maybe 5
 # times in a 30-min playthrough, so cache stays under 20 entries.
 var _icon_cache: Dictionary = {}
+var _last_cd_active: Array[bool] = []
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -69,6 +70,7 @@ func _ready() -> void:
 		var slot := _make_slot(i)
 		row.add_child(slot)
 		_slot_nodes.append(slot)
+		_last_cd_active.append(false)
 
 	_player = get_tree().get_first_node_in_group("player")
 	_paint_all()
@@ -180,6 +182,43 @@ func _make_slot(idx: int) -> Control:
 	cd_lbl.visible = false
 	s.add_child(cd_lbl)
 
+	var ready := Control.new()
+	ready.name = "ReadyPulse"
+	ready.anchor_right = 1.0
+	ready.anchor_bottom = 1.0
+	ready.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	ready.visible = false
+	ready.pivot_offset = SLOT_PX * 0.5
+	ready.draw.connect(_draw_ready_pulse.bind(ready))
+	s.add_child(ready)
+
+	var proc := Control.new()
+	proc.name = "ProcGlow"
+	proc.anchor_right = 1.0
+	proc.anchor_bottom = 1.0
+	proc.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	proc.visible = false
+	proc.draw.connect(_draw_proc_glow.bind(proc))
+	s.add_child(proc)
+
+	var proc_lbl := Label.new()
+	proc_lbl.name = "ProcLabel"
+	proc_lbl.text = "CHAIN"
+	proc_lbl.add_theme_font_size_override("font_size", 10)
+	proc_lbl.add_theme_color_override("font_color", Color(0.45, 0.90, 1.00, 1))
+	proc_lbl.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.95))
+	proc_lbl.add_theme_constant_override("outline_size", 3)
+	proc_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	proc_lbl.anchor_left = 0.0
+	proc_lbl.anchor_top = 0.0
+	proc_lbl.anchor_right = 1.0
+	proc_lbl.anchor_bottom = 0.0
+	proc_lbl.offset_top = -16.0
+	proc_lbl.offset_bottom = 0.0
+	proc_lbl.visible = false
+	proc_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	s.add_child(proc_lbl)
+
 	# Hotkey badge bottom-right. Sits inside a dark pill background so
 	# the text reads on every icon color (no more 'Q' invisible against
 	# yellow holy abilities).
@@ -223,6 +262,7 @@ func _process(delta: float) -> void:
 		_t = 0.0
 		_paint_all()
 	_update_cooldowns()
+	_update_proc_highlights()
 
 func _paint_all() -> void:
 	if _player == null:
@@ -315,6 +355,8 @@ func _update_cooldowns() -> void:
 			total = max(0.05, float(kit[i].get("cooldown", 1.0)))
 		var pie: Control = s.get_node_or_null("CDPie")
 		if remaining > 0.05:
+			if i < _last_cd_active.size():
+				_last_cd_active[i] = true
 			cd.visible = true
 			cd_lbl.visible = true
 			cd_lbl.text = ("%.1f" % remaining) if remaining < 10.0 else ("%d" % int(remaining))
@@ -331,11 +373,85 @@ func _update_cooldowns() -> void:
 				pie.set_meta("cd_pct", pct)
 				pie.queue_redraw()
 		else:
+			if i < _last_cd_active.size() and _last_cd_active[i] and i < kit.size() and not kit[i].is_empty():
+				_trigger_ready_flash(i, _read_class_color())
+			if i < _last_cd_active.size():
+				_last_cd_active[i] = false
 			cd.visible = false
 			cd_lbl.visible = false
 			cd.anchor_top = 0.0  # reset for next use
 			if pie:
 				pie.visible = false
+
+func _trigger_ready_flash(slot_idx: int, color: Color) -> void:
+	if slot_idx < 0 or slot_idx >= _slot_nodes.size():
+		return
+	var pulse: Control = _slot_nodes[slot_idx].get_node_or_null("ReadyPulse")
+	if pulse == null:
+		return
+	pulse.visible = true
+	pulse.modulate = Color(1, 1, 1, 1)
+	pulse.scale = Vector2(1.18, 1.18)
+	pulse.set_meta("pulse_color", color.lightened(0.35))
+	pulse.queue_redraw()
+	var tw := pulse.create_tween()
+	tw.tween_property(pulse, "scale", Vector2.ONE, 0.34).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tw.parallel().tween_property(pulse, "modulate:a", 0.0, 0.42).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	tw.tween_callback(func():
+		if is_instance_valid(pulse):
+			pulse.visible = false
+	)
+
+func _update_proc_highlights() -> void:
+	if _player == null or not "_ability_kit" in _player:
+		return
+	var kit: Array = _player._ability_kit
+	var now: float = Time.get_ticks_msec() / 1000.0
+	var last_id: StringName = _player.last_ability_id if "last_ability_id" in _player else &""
+	var last_time: float = float(_player.last_ability_time) if "last_ability_time" in _player else -999.0
+	var cooldowns: Array = _player._ability_cooldowns if "_ability_cooldowns" in _player else []
+	for i in range(_slot_nodes.size()):
+		var should_pulse := false
+		if i < kit.size() and not kit[i].is_empty():
+			var k: Dictionary = kit[i]
+			var chain_pred: StringName = StringName(k.get("chain_predecessor", &""))
+			var chain_window: float = float(k.get("chain_window", 0.0))
+			var off_cd := true
+			if i < cooldowns.size():
+				off_cd = float(cooldowns[i]) <= now
+			if chain_pred != &"" and chain_pred == last_id and chain_window > 0.0 and off_cd:
+				should_pulse = (now - last_time) <= chain_window
+		_set_proc_slot(i, should_pulse)
+
+func _set_proc_slot(slot_idx: int, active: bool) -> void:
+	if slot_idx < 0 or slot_idx >= _slot_nodes.size():
+		return
+	var slot: Control = _slot_nodes[slot_idx]
+	var glow: Control = slot.get_node_or_null("ProcGlow")
+	var label: Label = slot.get_node_or_null("ProcLabel")
+	if glow:
+		glow.visible = active
+		if active:
+			glow.set_meta("phase", fmod(Time.get_ticks_msec() / 1000.0, TAU))
+			glow.queue_redraw()
+	if label:
+		label.visible = active
+
+func _draw_ready_pulse(pulse: Control) -> void:
+	var color: Color = pulse.get_meta("pulse_color", FRAME_GOLD_BRIGHT)
+	var rect := Rect2(Vector2(3, 3), pulse.size - Vector2(6, 6))
+	pulse.draw_rect(rect, Color(color.r, color.g, color.b, 0.25), false, 6.0)
+	pulse.draw_rect(rect.grow(-5), Color(color.r, color.g, color.b, 0.75), false, 2.0)
+	pulse.draw_circle(pulse.size * 0.5, 12.0, Color(color.r, color.g, color.b, 0.18))
+
+func _draw_proc_glow(proc: Control) -> void:
+	var phase: float = float(proc.get_meta("phase", 0.0))
+	var pulse: float = 0.5 + 0.5 * sin(phase * 5.0)
+	var color := Color(0.35, 0.85, 1.00, 0.50 + pulse * 0.30)
+	var rect := Rect2(Vector2(2, 2), proc.size - Vector2(4, 4))
+	proc.draw_rect(rect, Color(color.r, color.g, color.b, 0.16 + pulse * 0.10), false, 5.0)
+	proc.draw_rect(rect.grow(-4), color, false, 2.0)
+	proc.draw_circle(proc.size * 0.5, 23.0 + pulse * 7.0, Color(color.r, color.g, color.b, 0.08))
 
 # Procedural icon: 64x64 image rendered with multiple compositing
 # passes, vertical gradient body (lit from above), corner vignette,
