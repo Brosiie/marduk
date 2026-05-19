@@ -99,6 +99,23 @@ func _ready() -> void:
 	if player.has_signal("perfect_dodge_triggered"):
 		if not player.perfect_dodge_triggered.is_connected(_on_perfect_dodge):
 			player.perfect_dodge_triggered.connect(_on_perfect_dodge)
+	# Achievement unlock celebration. AchievementRegistry already emits
+	# on every unlock and combat_log writes a one-liner, but there's no
+	# big screen banner. Now toasts with the gold trophy glyph + audio
+	# sting so the moment feels earned. The combat_log line still fires
+	# for the persistent feed.
+	var ar: Node = get_node_or_null("/root/AchievementRegistry")
+	if ar and ar.has_signal("achievement_unlocked"):
+		if not ar.achievement_unlocked.is_connected(_on_achievement_unlocked):
+			ar.achievement_unlocked.connect(_on_achievement_unlocked)
+	# Codex entry unlocks (first kill of a new mob type, lore rune found,
+	# lodestone attuned). Quieter than achievements — small mint-blue
+	# toast, no audio sting — so the discovery feed reads as ambient
+	# rather than celebratory.
+	var cr: Node = get_node_or_null("/root/CodexRegistry")
+	if cr and cr.has_signal("entry_unlocked"):
+		if not cr.entry_unlocked.is_connected(_on_codex_entry_unlocked):
+			cr.entry_unlocked.connect(_on_codex_entry_unlocked)
 		_refresh_all()
 		_apply_resource_theme()
 		_apply_prestige_badge()
@@ -985,6 +1002,43 @@ func _on_perfect_dodge() -> void:
 	var ab: Node = get_node_or_null("/root/AudioBus")
 	if ab and ab.has_method("play_cue") and player:
 		ab.play_cue(&"parry", player.global_position, -6.0, 1.3)
+
+# Achievement unlock: big gold trophy toast + audio sting. The achievement
+# resource carries a display_name; falls back to a generic line if the
+# shape is unfamiliar (some achievements ship as Dictionary, others as
+# Achievement resources).
+func _on_achievement_unlocked(a) -> void:
+	var name: String = ""
+	if a != null:
+		if "display_name" in a and a.display_name != "":
+			name = a.display_name
+		elif a.has_method("get"):
+			name = String(a.get("display_name") if a.get("display_name") != null else "")
+	if name == "":
+		name = "Achievement Unlocked"
+	var juice: Node = get_node_or_null("/root/Juice")
+	if juice:
+		if juice.has_method("toast"):
+			juice.toast("★  %s" % name, Color(1.00, 0.75, 0.20), 4.0)
+		if juice.has_method("flash"):
+			juice.flash(Color(1.0, 0.85, 0.45), 0.15, 0.35)
+	var ab: Node = get_node_or_null("/root/AudioBus")
+	if ab and ab.has_method("play_cue") and player:
+		ab.play_cue(&"victory", player.global_position, -10.0, 1.4)
+
+# Codex entry discovery: smaller mint toast, no audio sting. Reads as
+# "you noticed a new thing" rather than "you accomplished something."
+func _on_codex_entry_unlocked(entry) -> void:
+	var name: String = ""
+	if entry is Dictionary:
+		name = String(entry.get("display_name", entry.get("name", "")))
+	elif entry and "display_name" in entry:
+		name = String(entry.display_name)
+	if name == "":
+		return
+	var juice: Node = get_node_or_null("/root/Juice")
+	if juice and juice.has_method("toast"):
+		juice.toast("Codex: %s" % name, Color(0.55, 0.85, 1.00), 2.4)
 
 # Toast the equip rejection reason (e.g., "Mages cannot wield greatswords",
 # "Requires level 12", "Armor type Plate exceeds your class cap of Mail").
