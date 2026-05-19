@@ -91,6 +91,14 @@ func _ready() -> void:
 	if player.inventory and player.inventory.has_signal("equip_blocked"):
 		if not player.inventory.equip_blocked.is_connected(_on_equip_blocked):
 			player.inventory.equip_blocked.connect(_on_equip_blocked)
+	# Perfect-dodge feedback. Player emits this on the late i-frame slice
+	# dodge that earns a riposte buff. The buff was applied silently;
+	# now the HUD acknowledges the moment with a "PERFECT DODGE" toast +
+	# a brief screen flash so the player feels the cinematic Sekiro-
+	# style reward.
+	if player.has_signal("perfect_dodge_triggered"):
+		if not player.perfect_dodge_triggered.is_connected(_on_perfect_dodge):
+			player.perfect_dodge_triggered.connect(_on_perfect_dodge)
 		_refresh_all()
 		_apply_resource_theme()
 		_apply_prestige_badge()
@@ -964,6 +972,20 @@ func _on_faction_tier_changed(faction_id: StringName, new_tier: String, old_tier
 func _tier_index(tier_name: String) -> int:
 	const ORDER := {"Hated": -3, "Hostile": -2, "Unfriendly": -1, "Neutral": 0, "Friendly": 1, "Honored": 2, "Revered": 3}
 	return int(ORDER.get(tier_name, 0))
+
+# Perfect dodge feedback: cyan-mint toast + brief screen flash + audio
+# sting. The riposte buff itself is already applied in player.gd; this
+# is purely the player-facing acknowledgement that "you nailed it."
+func _on_perfect_dodge() -> void:
+	var juice: Node = get_node_or_null("/root/Juice")
+	if juice:
+		if juice.has_method("toast"):
+			juice.toast("PERFECT DODGE", Color(0.55, 1.00, 0.75), 1.8)
+		if juice.has_method("flash"):
+			juice.flash(Color(0.55, 1.0, 0.75), 0.12, 0.30)
+	var ab: Node = get_node_or_null("/root/AudioBus")
+	if ab and ab.has_method("play_cue") and player:
+		ab.play_cue(&"parry", player.global_position, -6.0, 1.3)
 
 # Toast the equip rejection reason (e.g., "Mages cannot wield greatswords",
 # "Requires level 12", "Armor type Plate exceeds your class cap of Mail").
