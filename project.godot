@@ -22,6 +22,7 @@ config/icon="res://icon.svg"
 [autoload]
 
 CombatBus="*res://scripts/combat/combat_bus.gd"
+CombatFeedback="*res://scripts/combat/combat_feedback.gd"
 AppearanceRegistry="*res://scripts/player/appearance_registry.gd"
 GlyphRegistry="*res://scripts/items/glyph_registry.gd"
 SaveFlags="*res://scripts/save_flags.gd"

@@ -1,10 +1,16 @@
 extends Node
-class_name CombatFeedback
 
 # Visual / haptic / audio response to combat events.
 # Hit-stop frames, camera shake, floating damage numbers, screen flash on crit.
-# Feeds off the global "combat_bus" autoload signals (not yet implemented; for now
-# you can call these methods directly from Hitbox._try_damage).
+#
+# Registered as the CombatFeedback autoload in project.godot. On _ready it
+# subscribes to CombatBus signals (hit_landed, kill_registered, perfect_parry,
+# stance_broken) and routes them to the register_* handlers below. Bond
+# experience: every hit now nudges the camera, crits stop time briefly,
+# kills flash "DEFEATED" and shake harder.
+#
+# class_name removed because autoload + class_name with the same identifier
+# shadows the singleton lookup in Godot 4.
 
 signal floating_text_request(text: String, position: Vector3, color: Color, scale: float)
 signal screen_shake_request(strength: float, duration: float)
@@ -21,8 +27,60 @@ var _shake_origin: Transform3D
 var _hit_stop_remaining: float = 0.0
 
 func _ready() -> void:
+	# Subscribe to CombatBus so every hit/kill/parry/stance-break routes
+	# through our register_* methods. CombatBus is loaded earlier in the
+	# autoload chain (per project.godot order) so it's always present
+	# by the time we _ready.
+	var bus: Node = get_node_or_null("/root/CombatBus")
+	if bus:
+		if bus.has_signal("hit_landed") and not bus.hit_landed.is_connected(_on_hit_landed):
+			bus.hit_landed.connect(_on_hit_landed)
+		if bus.has_signal("kill_registered") and not bus.kill_registered.is_connected(_on_kill_registered):
+			bus.kill_registered.connect(_on_kill_registered)
+		if bus.has_signal("perfect_parry") and not bus.perfect_parry.is_connected(register_perfect_parry):
+			bus.perfect_parry.connect(register_perfect_parry)
+		if bus.has_signal("stance_broken") and not bus.stance_broken.is_connected(register_stance_break):
+			bus.stance_broken.connect(register_stance_break)
+	# Camera path support stays for the rare case where this is also
+	# instanced as a scene node with an explicit @export.
 	if camera_path:
 		_camera = get_node_or_null(camera_path)
+
+# Translate CombatBus.hit_landed (which carries the typed Result + Ability)
+# into register_hit's flat args (damage, position, crit). The bus doesn't
+# expose a perfect-window flag yet; register_hit's was_perfect path is
+# reached only by direct calls (e.g., a parry counter would invoke this
+# class manually with was_perfect=true).
+func _on_hit_landed(target: Node, result, _ability) -> void:
+	if target == null or not (target is Node3D):
+		return
+	var pos: Vector3 = (target as Node3D).global_position + Vector3(0, 1.2, 0)
+	register_hit(float(result.damage), pos, bool(result.crit), false)
+
+func _on_kill_registered(target: Node, killer: Node) -> void:
+	if target == null or not (target is Node3D):
+		return
+	register_kill(killer, (target as Node3D).global_position + Vector3(0, 1.4, 0))
+
+# Late-resolve the camera from the camera_rig group if @export wasn't set.
+# Allows the autoload to find whatever camera the current scene installed
+# without per-scene wiring. Cached after first hit.
+func _ensure_camera() -> void:
+	if _camera and is_instance_valid(_camera):
+		return
+	var rig: Node = get_tree().get_first_node_in_group("camera_rig") if get_tree() else null
+	if rig == null:
+		return
+	# Common pattern: CameraRig has a SpringArm3D child with a Camera3D leaf.
+	for cam in rig.get_children():
+		if cam is Camera3D:
+			_camera = cam as Camera3D
+			return
+		# Recurse one level for SpringArm3D -> Camera3D
+		for sub in cam.get_children():
+			if sub is Camera3D:
+				_camera = sub as Camera3D
+				return
 
 func _process(delta: float) -> void:
 	# Hit stop: pause physics briefly for impact emphasis. Gated on the
@@ -109,10 +167,20 @@ func _slomo_enabled() -> bool:
 	return float(gs.hit_stop) > 0.0
 
 func camera_shake(strength: float, duration: float) -> void:
+	_ensure_camera()  # autoload path: resolve camera from active scene
 	if not _camera:
+		return
+	# Respect the accessibility slider: GameSettings.screen_shake scales
+	# [0..1]. Setting it to 0 fully disables shake while leaving hit-stop
+	# + floating numbers intact for players sensitive to motion.
+	var gs: Node = get_node_or_null("/root/GameSettings")
+	var scale: float = 1.0
+	if gs and "screen_shake" in gs:
+		scale = float(gs.screen_shake)
+	if scale <= 0.0:
 		return
 	if _shake_remaining <= 0.0:
 		_shake_origin = _camera.transform
-	_shake_strength = max(_shake_strength, strength)
+	_shake_strength = max(_shake_strength, strength * scale)
 	_shake_remaining = max(_shake_remaining, duration)
 	screen_shake_request.emit(strength, duration)
