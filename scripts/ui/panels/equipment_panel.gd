@@ -126,4 +126,21 @@ func _paint_slot(slot: Control, item: Item, slot_name: StringName) -> void:
 		icon.texture = atlas.get_icon_for_item(item)
 	else:
 		icon.texture = item.icon
-	slot.tooltip_text = "%s\n%s" % [item.display_name, item.description]
+	# Tooltip: name + affixes if any + description. Affix lines surface
+	# the rolled bonuses so an equipped "Heavy Trial Blade of Precision"
+	# reads its actual stat layout, not just the base item description.
+	var t_lines: Array[String] = [item.display_name]
+	var reg: Node = get_node_or_null("/root/AffixRegistry")
+	if reg and reg.has_method("get_affix"):
+		for affix_id in item.prefix_affixes:
+			var a = reg.get_affix(affix_id)
+			if a != null:
+				t_lines.append("%s: %s" % [a.name_part, a.format_tooltip()])
+		for affix_id in item.suffix_affixes:
+			var a = reg.get_affix(affix_id)
+			if a != null:
+				t_lines.append("%s: %s" % [a.name_part.lstrip("of ").capitalize(), a.format_tooltip()])
+	if item.description != "":
+		t_lines.append("")
+		t_lines.append(item.description)
+	slot.tooltip_text = "\n".join(t_lines)

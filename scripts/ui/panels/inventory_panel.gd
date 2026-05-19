@@ -229,6 +229,18 @@ func _compose_tooltip(item: Item) -> String:
 	for b in bonus_lines:
 		lines.append(b)
 
+	# Affix lines: every rolled prefix + suffix with its bonus text.
+	# The base bonuses above come from the item's own @export fields; the
+	# affix block here is the procedural roll layered on top by LootTable.
+	# Player sees, for "Heavy Trial Blade of Precision":
+	#   Heavy:        +8 Str, +5% Damage
+	#   of Precision: +6% Crit Chance, +12% Crit Multiplier
+	var affix_lines: Array[String] = _format_affix_lines(item)
+	if not affix_lines.is_empty():
+		lines.append("")  # spacer
+		for a in affix_lines:
+			lines.append(a)
+
 	# Class restriction
 	if item.class_restriction.size() > 0:
 		var class_names: Array[String] = []
@@ -289,6 +301,31 @@ func _format_bonuses(item: Item) -> Array[String]:
 		while i < line_bits.size():
 			out.append("  ".join(line_bits.slice(i, min(i + 3, line_bits.size()))))
 			i += 3
+	return out
+
+# List every rolled affix on the item with its tooltip. Both arrays
+# (prefix_affixes + suffix_affixes) hold Affix IDs; the registry resolves
+# each to an Affix resource that knows its bonus dict and can format
+# its own tooltip line. Returns empty list when the item has no rolled
+# affixes (junk/basic drops, base shop items, soulbound canonical items
+# like Heaven that skip the rolling step).
+func _format_affix_lines(item: Item) -> Array[String]:
+	var out: Array[String] = []
+	if item.prefix_affixes.is_empty() and item.suffix_affixes.is_empty():
+		return out
+	var reg: Node = get_node_or_null("/root/AffixRegistry")
+	if reg == null or not reg.has_method("get_affix"):
+		return out
+	for affix_id in item.prefix_affixes:
+		var a = reg.get_affix(affix_id)
+		if a == null:
+			continue
+		out.append("%s: %s" % [a.name_part, a.format_tooltip()])
+	for affix_id in item.suffix_affixes:
+		var a = reg.get_affix(affix_id)
+		if a == null:
+			continue
+		out.append("%s: %s" % [a.name_part.lstrip("of ").capitalize(), a.format_tooltip()])
 	return out
 
 # Build the diff section against the currently-equipped item in the same
