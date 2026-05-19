@@ -91,6 +91,14 @@ func _ready() -> void:
 	if player.inventory and player.inventory.has_signal("equip_blocked"):
 		if not player.inventory.equip_blocked.is_connected(_on_equip_blocked):
 			player.inventory.equip_blocked.connect(_on_equip_blocked)
+	# Druid form changed (Wolf / Bear / Raven / Serpent / Tiamat-spawn
+	# dragon shapeshift, or revert to human). Signal fired on transform
+	# but had no listener. Bond shapeshifts and now sees a toast naming
+	# the form so the moment feels announced rather than just a mesh
+	# swap.
+	if player.has_signal("form_changed"):
+		if not player.form_changed.is_connected(_on_form_changed):
+			player.form_changed.connect(_on_form_changed)
 	# Class changed (Sacrifice Ritual walk-back, skill refund rebuild).
 	# Re-applies the resource theme so the bar fill/label retint to the
 	# new class, and re-runs _refresh_all so the level / HP / mana bars
@@ -1063,6 +1071,24 @@ func _on_achievement_unlocked(a) -> void:
 	var ab: Node = get_node_or_null("/root/AudioBus")
 	if ab and ab.has_method("play_cue") and player:
 		ab.play_cue(&"victory", player.global_position, -10.0, 1.4)
+
+# Druid form change. Form is a Transformation resource with a
+# display_name ("Wolf", "Bear-form", "Tiamat-Spawn") or null when
+# reverting. Toast lime-green for the shapeshift cue + heavier when
+# entering the dragon form which is the capstone.
+func _on_form_changed(form) -> void:
+	var juice: Node = get_node_or_null("/root/Juice")
+	if juice == null or not juice.has_method("toast"):
+		return
+	if form == null:
+		juice.toast("Returned to mortal form.", Color(0.85, 0.85, 0.85), 1.6)
+		return
+	var name: String = String(form.display_name) if "display_name" in form and form.display_name != "" else "Form"
+	# Dragon form deserves a stronger cue (Tiamat-spawn is the capstone)
+	var is_dragon: bool = "id" in form and (form.id == &"dragon" or form.id == &"tiamat_spawn")
+	var dur: float = 3.5 if is_dragon else 2.2
+	var color: Color = Color(0.85, 0.30, 0.45) if is_dragon else Color(0.55, 0.95, 0.45)
+	juice.toast("Form: %s" % name, color, dur)
 
 # Class changed: refresh bar theme + stats so the resource label
 # repaints to the new class's STANCE/RAGE/BLOOD/etc and all derived
