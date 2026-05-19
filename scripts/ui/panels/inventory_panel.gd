@@ -142,7 +142,76 @@ func _make_slot() -> Control:
 	qty.add_theme_font_size_override("font_size", 11)
 	qty.modulate = Color(1, 1, 0.6)
 	slot.add_child(qty)
+	# Click handling. Routes through _on_slot_input on the panel so the
+	# slot stays a dumb display while equip/consume logic lives where
+	# it has access to inventory + player + audio. Until this commit,
+	# inventory slots had no input handler at all and the player had no
+	# way to equip items from the bag (auto-equip on pickup only fires
+	# for weapons; armor/rings/consumables were stranded).
+	slot.gui_input.connect(_on_slot_input.bind(slot))
+	slot.mouse_filter = Control.MOUSE_FILTER_PASS
 	return slot
+
+# Per-slot input router. Left-click = equip equippable items OR consume
+# consumables. Right-click = discard (drops one unit on the ground at
+# the player's feet). Other inputs fall through to the engine's tooltip
+# layer.
+func _on_slot_input(event: InputEvent, slot: Control) -> void:
+	if not (event is InputEventMouseButton) or not event.pressed:
+		return
+	if not "item" in slot:
+		return
+	var item = slot.item
+	if item == null:
+		return
+	var mb := event as InputEventMouseButton
+	if mb.button_index == MOUSE_BUTTON_LEFT:
+		_try_use_or_equip(item)
+	elif mb.button_index == MOUSE_BUTTON_RIGHT:
+		_try_discard(item)
+
+func _try_use_or_equip(item) -> void:
+	if not _player or not _player.inventory:
+		return
+	# Consumables: trigger their use path. Heal potions, mana potions,
+	# scrolls, etc. Player.use_potion handles HP + mana + status grants
+	# and returns true if a consumption fired. On true, decrement the
+	# stack so the player can see the count drop.
+	if item.slot == Item.Slot.NONE and (item.heal_amount > 0.0 or item.mana_amount > 0.0 or item.grants_status != null):
+		var used: bool = false
+		if _player.has_method("use_potion"):
+			used = _player.use_potion(item)
+		if used and _player.inventory.has_method("remove_item"):
+			_player.inventory.remove_item(item, 1)
+		refresh()
+		return
+	# Equippables: route through Inventory.equip with the player's class
+	# def so can_equip gates work + equip_blocked toast (added in HUD)
+	# fires for invalid attempts.
+	if item.slot == Item.Slot.NONE:
+		return
+	var class_def = _player.stats.class_def if _player.stats else null
+	var prev = _player.inventory.equip(item, -1, class_def)
+	# If equip succeeded, the picked-up item moves bag -> equipped slot;
+	# the displaced item (if any) returns to bag. Refresh the panel so
+	# the row layout reflects the swap.
+	refresh()
+	# Audio: gear-on cue at +20% pitch for the satisfying "click"
+	var ab: Node = get_node_or_null("/root/AudioBus")
+	if ab and ab.has_method("play_cue") and prev != null:
+		ab.play_cue(&"pickup", _player.global_position, -10.0, 1.3)
+
+func _try_discard(item) -> void:
+	if not _player or not _player.inventory:
+		return
+	if item.is_soulbound or item.is_quest_item:
+		var juice: Node = get_node_or_null("/root/Juice")
+		if juice and juice.has_method("toast"):
+			juice.toast("Cannot discard %s." % item.display_name, Color(0.95, 0.55, 0.30), 2.0)
+		return
+	if _player.inventory.has_method("remove_item"):
+		_player.inventory.remove_item(item, 1)
+	refresh()
 
 func _paint_slot(slot: Control, item: Item, qty: int) -> void:
 	var icon: TextureRect = slot.get_node("Icon")
