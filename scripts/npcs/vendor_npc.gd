@@ -392,7 +392,9 @@ func _sell(item: Item, price: int, btn: Button, name_lbl: Label, _starting_qty: 
 	# to manual stack decrement.
 	var removed: bool = false
 	if p.inventory.has_method("remove_item"):
-		removed = p.inventory.remove_item(item, 1)
+		# remove_item takes item_id (StringName), not the Item resource.
+		# Returns count actually removed (1 = success for our single unit).
+		removed = (p.inventory.remove_item(item.id, 1) > 0)
 	else:
 		for stack in p.inventory.bag:
 			if stack and stack.item == item and stack.count > 0:

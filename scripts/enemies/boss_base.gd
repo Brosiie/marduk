@@ -615,7 +615,7 @@ func _begin_pattern(p: BossAttackPattern, now: float) -> void:
 	# re-stamps start_time on each call. Once-per-engagement is the
 	# achievable behavior; even if the boss resets, current_boss_fight
 	# entry just gets refreshed.
-	_notify_achievement_engaged()
+	_notify_achievement_engaged(p)
 	# Spawn the danger-zone telegraph decal so the player can read the
 	# attack BEFORE it lands. Removed when execute begins.
 	_spawn_telegraph(p)
@@ -626,33 +626,37 @@ func _begin_pattern(p: BossAttackPattern, now: float) -> void:
 # the time-attack, so we guard with _achievement_engaged_fired).
 var _achievement_engaged_fired: bool = false
 
-func _notify_achievement_engaged() -> void:
+func _notify_achievement_engaged(pat: BossAttackPattern) -> void:
 	if _achievement_engaged_fired:
 		return
 	_achievement_engaged_fired = true
-	var p: Node = get_tree().get_first_node_in_group("player") if get_tree() else null
-	if p == null:
-		return
-	var tracker: Node = p.get_node_or_null("AchievementTracker")
-	if tracker and tracker.has_method("on_boss_engaged"):
-		tracker.on_boss_engaged(self)
+	var ply: Node = get_tree().get_first_node_in_group("player") if get_tree() else null
+	if ply != null:
+		var tracker: Node = ply.get_node_or_null("AchievementTracker")
+		if tracker and tracker.has_method("on_boss_engaged"):
+			tracker.on_boss_engaged(self)
 	# Announce windup so HUD + camera can react. Camera rig tightens
 	# the spring length during this window for the cinematic threat
-	# read.
-	windup_started.emit(p.id, p.windup_seconds)
+	# read. Was emitting p.id / p.windup_seconds where p was the player
+	# (no such fields on CharacterBody3D) — a shadowed-variable bug
+	# that silently no-op'd this signal forever. Now takes the attack
+	# pattern as a parameter and uses its real fields.
+	if pat:
+		windup_started.emit(pat.id, pat.windup_seconds)
 	# Procedural breath ramp: spike intensity during windup so even an
 	# anim-less boss READS as tensing for the strike. Falls back to
 	# idle 1.0 after windup_seconds. Targets the MobMesh's breath
 	# child if present (attached by EnemyBase._install_procedural_breath).
-	_ramp_breath_intensity_for_windup(p.windup_seconds)
+	if pat:
+		_ramp_breath_intensity_for_windup(pat.windup_seconds)
 	# Pattern-specific audio sting, different shapes get different
 	# tonal cues so the player can READ THE INCOMING ATTACK from
 	# audio alone. Pitch + volume tuned so the sting sits under the
 	# music but above ambient. Layers with the existing telegraph
 	# sound id field (left for designer overrides).
 	var ab: Node = get_node_or_null("/root/AudioBus")
-	if ab and ab.has_method("play_cue"):
-		match p.shape:
+	if ab and ab.has_method("play_cue") and pat:
+		match pat.shape:
 			BossAttackPattern.Shape.LEAP:
 				# Low rumble, boss is COMING DOWN ON YOU
 				ab.play_cue(&"thunder", global_position, -4.0, 0.55)

@@ -685,6 +685,61 @@ func _input(event: InputEvent) -> void:
 		_cycle_quest_focus(-1)
 	elif InputMap.has_action("quest_focus_next") and event.is_action_pressed("quest_focus_next"):
 		_cycle_quest_focus(1)
+	# Potion hotkeys (6/7/8 by default): scan the bag for the best-tier
+	# potion of the matching kind and consume it. Bindings exist in
+	# key_bindings.gd but nothing consumed them — Bond would press 6
+	# expecting an HP refill and get nothing.
+	elif event.is_action_pressed("use_health_potion"):
+		_use_potion_by_kind(&"hp")
+	elif event.is_action_pressed("use_mana_potion"):
+		_use_potion_by_kind(&"mana")
+	elif event.is_action_pressed("use_stamina_potion"):
+		_use_potion_by_kind(&"stamina")
+
+# Potion quick-use: scan the bag for the best-tier potion matching the
+# requested kind, consume one unit via use_potion. Kind is one of:
+#   &"hp"      -> items with heal_amount > 0
+#   &"mana"    -> items with mana_amount > 0
+#   &"stamina" -> items carrying the restore_stamina unique_tag
+# "Best tier" = highest heal/mana value (or any restore_stamina item
+# for stamina since the value scaling isn't on a single field).
+# Plays the deny cue + a "no potion" toast when the bag is empty so the
+# player knows the hotkey landed.
+func _use_potion_by_kind(kind: StringName) -> void:
+	if inventory == null:
+		return
+	var best: Item = null
+	var best_value: float = 0.0
+	for s in inventory.bag:
+		if s == null or s.item == null or s.count <= 0:
+			continue
+		var it: Item = s.item
+		var v: float = 0.0
+		match kind:
+			&"hp":
+				v = it.heal_amount
+			&"mana":
+				v = it.mana_amount
+			&"stamina":
+				if &"restore_stamina" in it.unique_tags:
+					v = 1.0  # any stamina potion qualifies; first one wins
+		if v > best_value:
+			best_value = v
+			best = it
+	if best == null:
+		_play_deny_cue()
+		var juice: Node = get_node_or_null("/root/Juice")
+		if juice and juice.has_method("toast"):
+			var label: String = ""
+			match kind:
+				&"hp":      label = "health"
+				&"mana":    label = "mana"
+				&"stamina": label = "stamina"
+				_:          label = String(kind)
+			juice.toast("No %s potion in bag." % label, Color(0.85, 0.45, 0.30), 1.6)
+		return
+	if use_potion(best) and inventory.has_method("remove_item"):
+		inventory.remove_item(best.id, 1)
 
 # Inventory sort hotkey (Z): defers to Inventory.sort_and_stack() and
 # fires a toast so the player has feedback the key did something. The

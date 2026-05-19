@@ -66,9 +66,17 @@ func _ready() -> void:
 	_define(&"toggle_pause",        _key(KEY_ESCAPE))
 	_define(&"open_chat",           _key(KEY_ENTER))   # multiplayer
 	_define(&"toggle_walk",         _key(KEY_CAPSLOCK))
-	# Combat utility
-	_define(&"swap_weapons", _key(KEY_X))
-	_define(&"sheath_weapon", _key(KEY_Z))
+	# Mount + pet + recall
+	_define(&"toggle_mount",        _key(KEY_G))
+	_define(&"toggle_pet",          _key(KEY_H))
+	_define(&"toggle_recall",       _key(KEY_N))   # N for "navigate home"
+	# Quest focus cycle (used by quest_tracker to highlight the active goal)
+	_define(&"quest_focus_prev",    _key(KEY_COMMA))
+	_define(&"quest_focus_next",    _key(KEY_PERIOD))
+	# Inventory hotkey
+	_define(&"inventory_sort",      _key(KEY_Z))   # was sheath_weapon (dead binding)
+	# Combat utility, kept for forward compat with planned sheath/swap UI
+	_define(&"swap_weapons",        _key(KEY_X))
 
 	load_bindings()
 

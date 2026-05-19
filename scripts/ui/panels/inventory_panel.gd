@@ -198,7 +198,7 @@ func _try_use_or_equip(item) -> void:
 		if _player.has_method("use_potion"):
 			used = _player.use_potion(item)
 		if used and _player.inventory.has_method("remove_item"):
-			_player.inventory.remove_item(item, 1)
+			_player.inventory.remove_item(item.id, 1)
 		refresh()
 		return
 	# Equippables: route through Inventory.equip with the player's class
@@ -226,7 +226,7 @@ func _try_discard(item) -> void:
 			juice.toast("Cannot discard %s." % item.display_name, Color(0.95, 0.55, 0.30), 2.0)
 		return
 	if _player.inventory.has_method("remove_item"):
-		_player.inventory.remove_item(item, 1)
+		_player.inventory.remove_item(item.id, 1)
 	refresh()
 
 func _paint_slot(slot: Control, item: Item, qty: int) -> void:
