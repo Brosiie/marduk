@@ -185,7 +185,7 @@ func load_slot(slot: int, player) -> bool:
 			# duplication on repeated load_slot calls in the same run.
 			inv.bag.clear()
 			var registry: Node = get_node_or_null("/root/ItemRegistry")
-			# Bag: list of {"id": "...", "count": N}
+			# Bag: list of {"id": "...", "count": N, optional affix arrays}
 			var bag_data: Array = cfg.get_value("inventory", "bag_item_ids", [])
 			for entry in bag_data:
 				if typeof(entry) != TYPE_DICTIONARY:
@@ -194,10 +194,11 @@ func load_slot(slot: int, player) -> bool:
 				var qty: int = int(entry.get("count", 1))
 				if iid == &"" or registry == null:
 					continue
-				var item: Item = registry.get_item(iid)
-				if item:
+				var base: Item = registry.get_item(iid)
+				if base:
+					var item: Item = _rehydrate_affixes(base, entry)
 					inv.add_item(item, qty)
-			# Equipped: list of {"slot": int, "id": "..."}
+			# Equipped: list of {"slot": int, "id": "...", optional affix arrays}
 			var equip_data: Array = cfg.get_value("inventory", "equipped_item_ids", [])
 			for entry in equip_data:
 				if typeof(entry) != TYPE_DICTIONARY:
@@ -206,8 +207,9 @@ func load_slot(slot: int, player) -> bool:
 				var slot_idx: int = int(entry.get("slot", -1))
 				if iid == &"" or registry == null:
 					continue
-				var item: Item = registry.get_item(iid)
-				if item:
+				var base: Item = registry.get_item(iid)
+				if base:
+					var item: Item = _rehydrate_affixes(base, entry)
 					inv.equip(item, slot_idx, player.stats.class_def if player.stats else null)
 			# Refresh derived stats now that gear is restored
 			if player.stats.has_method("recompute_derived"):
@@ -247,14 +249,57 @@ func _strings_to_stringnames(arr: Array) -> Array[StringName]:
 func _bag_to_ids(inv: Inventory) -> Array:
 	var out: Array = []
 	for s in inv.bag:
-		out.append({"id": String(s.item.id), "count": s.count})
+		out.append({
+			"id": String(s.item.id),
+			"count": s.count,
+			# Affix arrays carry the rolled prefix/suffix IDs. Without
+			# this, reloading wiped every "Heavy Bronze Sword of Cleaving"
+			# back to a vanilla Bronze Sword. Saving as plain Array of
+			# String so ConfigFile's serializer handles it cleanly.
+			"prefix_affixes": _stringnames_to_strings(s.item.prefix_affixes),
+			"suffix_affixes": _stringnames_to_strings(s.item.suffix_affixes),
+			"display_name": s.item.display_name,
+		})
 	return out
 
 func _equipped_to_ids(inv: Inventory) -> Array:
 	var out: Array = []
 	for slot in inv.equipped.keys():
-		out.append({"slot": slot, "id": String(inv.equipped[slot].item.id)})
+		var it = inv.equipped[slot].item
+		out.append({
+			"slot": slot,
+			"id": String(it.id),
+			"prefix_affixes": _stringnames_to_strings(it.prefix_affixes),
+			"suffix_affixes": _stringnames_to_strings(it.suffix_affixes),
+			"display_name": it.display_name,
+		})
 	return out
+
+# Rebuild an item instance carrying the rolled affixes from a save entry.
+# Returns the base item unchanged when the save predates affixes (legacy
+# saves stored only id + count), so old saves still load cleanly.
+func _rehydrate_affixes(base: Item, entry: Dictionary) -> Item:
+	var prefix_data: Array = entry.get("prefix_affixes", [])
+	var suffix_data: Array = entry.get("suffix_affixes", [])
+	if prefix_data.is_empty() and suffix_data.is_empty():
+		return base
+	var copy: Item = base.duplicate(true)
+	copy.prefix_affixes.clear()
+	copy.suffix_affixes.clear()
+	for s in prefix_data:
+		copy.prefix_affixes.append(StringName(s))
+	for s in suffix_data:
+		copy.suffix_affixes.append(StringName(s))
+	# Saved display_name takes priority so even if AffixRegistry has
+	# changed between sessions, the player sees the name they earned.
+	var saved_name: String = String(entry.get("display_name", ""))
+	if saved_name != "":
+		copy.display_name = saved_name
+	else:
+		var reg: Node = get_node_or_null("/root/AffixRegistry")
+		if reg and reg.has_method("format_item_name"):
+			copy.display_name = reg.format_item_name(copy)
+	return copy
 
 # ─────── Migration framework ───────
 #
