@@ -51,15 +51,21 @@ func _ready() -> void:
 	_define(&"cam_rotate_right", _key(KEY_RIGHT))
 	_define(&"zoom_in", _mouse(MOUSE_BUTTON_WHEEL_UP))
 	_define(&"zoom_out", _mouse(MOUSE_BUTTON_WHEEL_DOWN))
-	# UI / menus
-	_define(&"open_inventory", _key(KEY_I))
-	_define(&"open_skill_tree", _key(KEY_K))
-	_define(&"open_character", _key(KEY_C))    # opens character sheet AND is dodge by default; settings can rebind
-	_define(&"open_quest_log", _key(KEY_J))
-	_define(&"open_map", _key(KEY_M))
-	_define(&"open_settings", _key(KEY_ESCAPE))
-	_define(&"open_chat", _key(KEY_ENTER))     # multiplayer
-	_define(&"toggle_walk", _key(KEY_CAPSLOCK))
+	# UI / menus. Naming MUST match the listener side
+	# (hud.gd._unhandled_input + menu_panel HOTKEY_TO_TAB), which uses the
+	# toggle_* convention. The previous open_* names were defined but
+	# never listened for — pressing I/K/T/etc. did nothing because the
+	# action name didn't match the consumer.
+	_define(&"toggle_inventory",    _key(KEY_I))
+	_define(&"toggle_skills",       _key(KEY_K))
+	_define(&"toggle_character",    _key(KEY_T))   # was C, but C is dodge default; T is character-sheet convention
+	_define(&"toggle_quests",       _key(KEY_J))
+	_define(&"toggle_map",          _key(KEY_M))
+	_define(&"toggle_achievements", _key(KEY_Y))
+	_define(&"toggle_codex",        _key(KEY_L))
+	_define(&"toggle_pause",        _key(KEY_ESCAPE))
+	_define(&"open_chat",           _key(KEY_ENTER))   # multiplayer
+	_define(&"toggle_walk",         _key(KEY_CAPSLOCK))
 	# Combat utility
 	_define(&"swap_weapons", _key(KEY_X))
 	_define(&"sheath_weapon", _key(KEY_Z))
