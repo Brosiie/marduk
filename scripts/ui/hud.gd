@@ -116,6 +116,14 @@ func _ready() -> void:
 	if cr and cr.has_signal("entry_unlocked"):
 		if not cr.entry_unlocked.is_connected(_on_codex_entry_unlocked):
 			cr.entry_unlocked.connect(_on_codex_entry_unlocked)
+	# Tattoo glyph earned. The glyph system (Inkstone Sage) lets
+	# characters earn permanent marks for milestones (100 kills of X,
+	# survive Y, etc). The earn signal had no listener — the glyph was
+	# saved to the character but Bond never knew he'd earned it.
+	var gr: Node = get_node_or_null("/root/GlyphRegistry")
+	if gr and gr.has_signal("glyph_earned"):
+		if not gr.glyph_earned.is_connected(_on_glyph_earned):
+			gr.glyph_earned.connect(_on_glyph_earned)
 		_refresh_all()
 		_apply_resource_theme()
 		_apply_prestige_badge()
@@ -1025,6 +1033,29 @@ func _on_achievement_unlocked(a) -> void:
 	var ab: Node = get_node_or_null("/root/AudioBus")
 	if ab and ab.has_method("play_cue") and player:
 		ab.play_cue(&"victory", player.global_position, -10.0, 1.4)
+
+# Tattoo glyph earned: dramatic, since glyphs are permanent character
+# marks. Deep red-orange toast + heartbeat-style flash, audio sting at
+# the parry pitch. Reads as "you carved something into yourself" not
+# "you found a new collectible."
+func _on_glyph_earned(glyph, _char_id: String) -> void:
+	var name: String = ""
+	if glyph != null:
+		if "display_name" in glyph and glyph.display_name != "":
+			name = glyph.display_name
+		elif "glyph_id" in glyph:
+			name = String(glyph.glyph_id).capitalize().replace("_", " ")
+	if name == "":
+		name = "a new glyph"
+	var juice: Node = get_node_or_null("/root/Juice")
+	if juice:
+		if juice.has_method("toast"):
+			juice.toast("✦ Glyph earned: %s" % name, Color(0.95, 0.55, 0.30), 4.5)
+		if juice.has_method("flash"):
+			juice.flash(Color(0.95, 0.55, 0.30), 0.18, 0.55)
+	var ab: Node = get_node_or_null("/root/AudioBus")
+	if ab and ab.has_method("play_cue") and player:
+		ab.play_cue(&"parry", player.global_position, -8.0, 0.85)
 
 # Codex entry discovery: smaller mint toast, no audio sting. Reads as
 # "you noticed a new thing" rather than "you accomplished something."
