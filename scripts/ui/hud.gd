@@ -91,6 +91,15 @@ func _ready() -> void:
 	if player.inventory and player.inventory.has_signal("equip_blocked"):
 		if not player.inventory.equip_blocked.is_connected(_on_equip_blocked):
 			player.inventory.equip_blocked.connect(_on_equip_blocked)
+	# Class changed (Sacrifice Ritual walk-back, skill refund rebuild).
+	# Re-applies the resource theme so the bar fill/label retint to the
+	# new class, and re-runs _refresh_all so the level / HP / mana bars
+	# pick up the new class's baseline. Signal was firing at three call
+	# sites but wasn't even declared on Player until now — silent no-op
+	# meant the HUD never updated after walking back from Demon.
+	if player.has_signal("class_changed"):
+		if not player.class_changed.is_connected(_on_class_changed):
+			player.class_changed.connect(_on_class_changed)
 	# Perfect-dodge feedback. Player emits this on the late i-frame slice
 	# dodge that earns a riposte buff. The buff was applied silently;
 	# now the HUD acknowledges the moment with a "PERFECT DODGE" toast +
@@ -134,6 +143,17 @@ func _ready() -> void:
 	if tr and tr.has_signal("title_unlocked"):
 		if not tr.title_unlocked.is_connected(_on_title_unlocked):
 			tr.title_unlocked.connect(_on_title_unlocked)
+	# Prestige completion. The biggest moment in the game outside
+	# Lucifer's gate: the Champion's Cycle reset that boosts every
+	# enemy +1 difficulty tier permanently. Prestige.prestige_completed
+	# emitted on every ascension but had zero listeners. Big celebratory
+	# banner + multi-second screen flash + audio victory chord, AND
+	# re-apply the prestige badge so the corner widget reflects the
+	# new cycle number without waiting for the next _refresh_all.
+	var pr: Node = get_node_or_null("/root/Prestige")
+	if pr and pr.has_signal("prestige_completed"):
+		if not pr.prestige_completed.is_connected(_on_prestige_completed):
+			pr.prestige_completed.connect(_on_prestige_completed)
 		_refresh_all()
 		_apply_resource_theme()
 		_apply_prestige_badge()
@@ -1043,6 +1063,33 @@ func _on_achievement_unlocked(a) -> void:
 	var ab: Node = get_node_or_null("/root/AudioBus")
 	if ab and ab.has_method("play_cue") and player:
 		ab.play_cue(&"victory", player.global_position, -10.0, 1.4)
+
+# Class changed: refresh bar theme + stats so the resource label
+# repaints to the new class's STANCE/RAGE/BLOOD/etc and all derived
+# values pick up the post-change class baseline.
+func _on_class_changed(_class_def) -> void:
+	_apply_resource_theme()
+	_refresh_all()
+
+# Prestige ascension: the biggest cinematic short of Lucifer's gate.
+# Full-screen gold flash, "CHAMPION'S CYCLE N" banner that hangs for
+# 6 seconds, deep victory chord. Then refresh the prestige badge so
+# the HUD corner reflects the new cycle immediately.
+func _on_prestige_completed(new_level: int) -> void:
+	var juice: Node = get_node_or_null("/root/Juice")
+	if juice:
+		if juice.has_method("flash"):
+			juice.flash(Color(1.0, 0.85, 0.40), 0.35, 0.80)
+		if juice.has_method("toast"):
+			juice.toast("CHAMPION'S CYCLE %d" % new_level, Color(1.0, 0.85, 0.40), 6.0)
+		if juice.has_method("shake"):
+			juice.shake(0.30, 0.50)
+	var ab: Node = get_node_or_null("/root/AudioBus")
+	if ab and ab.has_method("play_cue") and player:
+		ab.play_cue(&"victory", player.global_position, -2.0, 0.85)
+	# Badge updates from SaveFlags via _apply_prestige_badge
+	_apply_prestige_badge()
+	_refresh_all()
 
 # Title unlock: gold serif-feeling toast (no audio on top of the
 # achievement sting that usually fires alongside — the title is the

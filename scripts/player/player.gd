@@ -203,6 +203,13 @@ signal resource_changed(current: float, max_value: float, mechanic: StringName)
 signal form_changed(form: Transformation)
 signal died
 signal item_collected(item: Item, quantity: int)
+# Fired when the player's class_def changes at runtime: skill-tree
+# refunds rebuild the kit (slots cleared until repurchased), and the
+# Sacrifice Ritual walk-back swaps Demon -> pre-Lucifer class. Three
+# call sites used `emit_signal("class_changed", ...)` already but the
+# signal wasn't declared — has_signal returned false and the emit
+# silently dropped. Declared here so HUD + ability bar refresh.
+signal class_changed(class_def)
 # Player posture: symmetric to boss posture. Each hit taken adds
 # posture; full = brief stagger (1.0s). Decays passively. HUD
 # subscribes to draw a meter below the HP bar.
