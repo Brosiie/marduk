@@ -6,6 +6,7 @@
 
 [ext_resource type="Script" path="res://scripts/world/spawn/zone_composer.gd" id="ZoneComposer_babilim"]
 [ext_resource type="Script" path="res://scripts/world/spawn/refugee_spawner.gd" id="refugee_spawner_script"]
+[ext_resource type="Script" path="res://scripts/npcs/vendor_npc.gd" id="vendor_npc_script"]
 
 ; Auto-generated placeholder for Babilim, the Iron Crown.
 ; Drop real environment art under MeshRoot; lighting/atmosphere already tuned.
@@ -133,3 +134,40 @@ metadata/fled_from = "druids"
 [node name="RefugeeMarker_inq_1" type="Marker3D" parent="RefugeeSpawner_crown_druid"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 14, 0.7, 10)
 metadata/fled_from = "inquisition"
+
+; ── Babilim Vendors (3 districts: Foundry, Apothecary, Court Tailor) ──
+; Each vendor has max_rarity=3 (RARE) reflecting the city's mid-tier
+; goods. Placed around the central plaza at three cardinal points so the
+; player encounters each as they explore. Position pattern mirrors
+; Ashurim (offset NPCs from spawn), scaled out for Babilim's larger
+; layout.
+
+; Crown Foundry: weapons + offhand. Slot_affinity 1 = WEAPON_MAIN.
+[node name="Bel_Smith" type="CharacterBody3D" parent="." groups=["npc", "vendor"]]
+script = ExtResource("vendor_npc_script")
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -15, 0.0, 10)
+npc_id = &"peasant_male"
+display_name = "Bel-Ituru, Crown Smith"
+slot_affinity = 1
+max_rarity = 3
+greeting = "Crown steel only. None of that Black Sail saltwater iron. You want a blade, you pay for a blade. Don't haggle. Babilim doesn't haggle."
+
+; Babilim Apothecary: general goods + potions. slot_affinity=-1 (any).
+[node name="Naditu_Apothecary" type="CharacterBody3D" parent="." groups=["npc", "vendor"]]
+script = ExtResource("vendor_npc_script")
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.0, 14)
+npc_id = &"peasant_female"
+display_name = "Naditu, Apothecary"
+slot_affinity = -1
+max_rarity = 3
+greeting = "Tinctures, charms, the kind of dust that keeps a fever from killing you. Inquisition tried to close me once. I'm still here. They aren't."
+
+; Anunnaki Court Tailor: armor. slot_affinity 4 = CHEST.
+[node name="Mar_Tailor" type="CharacterBody3D" parent="." groups=["npc", "vendor"]]
+script = ExtResource("vendor_npc_script")
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 15, 0.0, 10)
+npc_id = &"peasant_male"
+display_name = "Mar-Ishtar, Court Tailor"
+slot_affinity = 4
+max_rarity = 3
+greeting = "The Anunnaki court wears silk over plate. Form follows lineage. If you can pay, I can dress you like you belong."

@@ -8,6 +8,11 @@ class_name VendorNPC
 
 @export var shop_id: StringName = &""             # ShopkeeperRegistry key
 @export var slot_affinity: int = -1               # filter pool when no shop_id; -1 = any
+@export var max_rarity: int = 2                   # Item.Rarity ceiling for stock rolls.
+                                                  # Default 2 = COMMON (starter-town vendors).
+                                                  # Set to 3 (RARE) for Babilim-tier shops,
+                                                  # 4 (VERY_RARE) for late-game faction halls.
+                                                  # Affixes still roll on top of the base item.
 
 func _ready() -> void:
 	# Vendors are anchored at their stalls -- override wander_radius BEFORE
@@ -201,7 +206,11 @@ func _roll_stock() -> Array:
 	for it in pool:
 		if it == null:
 			continue
-		if it.rarity > 2:    # only junk/basic/common
+		# max_rarity caps the stock tier per vendor: starter towns stock
+		# COMMON (2), Babilim hubs stock RARE (3), late-game factions
+		# could go higher. Junk/basic always pass since they're under the
+		# floor.
+		if it.rarity > max_rarity:
 			continue
 		if it.unique_drop_source != &"":
 			continue
