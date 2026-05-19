@@ -6,6 +6,7 @@
 [ext_resource type="Shader" path="res://shaders/toon.gdshader" id="4_toon"]
 [ext_resource type="Script" path="res://scripts/enemies/master_sapum.gd" id="5_sapum"]
 [ext_resource type="Script" path="res://scripts/world/spawn/spawner.gd" id="6_spawner"]
+[ext_resource type="Script" path="res://scripts/world/spawn/zone_composer.gd" id="zone_composer"]
 
 ; Whisper Shrine — Assassin intro arena.
 ; Hidden temple-courtyard built into a cliff cleft. Black-stone floor with
@@ -192,3 +193,13 @@ position = Vector3(0, 0.1, -4)
 ; ── World Environment ───────────────────────────────────────────
 [node name="WorldEnv" type="WorldEnvironment" parent="."]
 environment = SubResource("env")
+
+; ── Procedural prop scatter ──────────────────────────────────────
+; ZoneComposer fills the underground shrine corridor with stone columns,
+; lit braziers, kneeling-statue ring, and reflecting pools per
+; _build_whisper_shrine(). Size 50 keeps props inside the 90m floor area
+; without overrunning the boss platform at z=-4.
+[node name="Geometry" type="Node3D" parent="."]
+script = ExtResource("zone_composer")
+style_id = &"whisper_shrine"
+size = 50.0

@@ -6,6 +6,7 @@
 [ext_resource type="Shader" path="res://shaders/toon.gdshader" id="4_toon"]
 [ext_resource type="Script" path="res://scripts/enemies/sahirum_witch_burner.gd" id="5_sahirum"]
 [ext_resource type="Script" path="res://scripts/world/spawn/spawner.gd" id="6_spawner"]
+[ext_resource type="Script" path="res://scripts/world/spawn/zone_composer.gd" id="zone_composer"]
 
 ; Coven Glen — Chaos Druid intro arena.
 ; Wound-corrupted clearing in the Verdant Wound. Bog-soft floor with
@@ -196,3 +197,12 @@ position = Vector3(0, 0.1, -5)
 ; ── World Environment ───────────────────────────────────────────
 [node name="WorldEnv" type="WorldEnvironment" parent="."]
 environment = SubResource("env")
+
+; ── Procedural prop scatter ──────────────────────────────────────
+; ZoneComposer fills the bog clearing with broken stone-circle remnants,
+; sickly-violet vine patches, Druid totem stumps, and Wound-corrupted
+; flora per _build_coven_glen(). Size 60 covers the 100m floor center.
+[node name="Geometry" type="Node3D" parent="."]
+script = ExtResource("zone_composer")
+style_id = &"coven_glen"
+size = 60.0

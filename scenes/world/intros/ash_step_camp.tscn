@@ -7,6 +7,7 @@
 [ext_resource type="Script" path="res://scripts/enemies/hassu_the_hooked.gd" id="5_hassu"]
 [ext_resource type="Script" path="res://scripts/world/spawn/spawner.gd" id="6_spawner"]
 [ext_resource type="Script" path="res://scripts/world/lore_rune.gd" id="lore_rune_script"]
+[ext_resource type="Script" path="res://scripts/world/spawn/zone_composer.gd" id="zone_composer"]
 
 ; Ash-Step Camp — Berserker intro arena.
 ; Volcanic ash plain east of the Bone Mountains. Broken pillar to one side
@@ -156,6 +157,16 @@ position = Vector3(0, 0.1, -6)
 ; ── World Environment ────────────────────────────────────────────
 [node name="WorldEnv" type="WorldEnvironment" parent="."]
 environment = SubResource("env")
+
+; ── Procedural prop scatter ──────────────────────────────────────
+; ZoneComposer reads `style_id` and fills the central 60m square with
+; burned grass, palisade gate, torches, broken weapons, boss dais, and
+; ambient crows + ash motes from _build_ash_step_camp(). Without this
+; Geometry node the arena was bare floor + boss only.
+[node name="Geometry" type="Node3D" parent="."]
+script = ExtResource("zone_composer")
+style_id = &"ash_step_camp"
+size = 60.0
 
 [node name="LoreRune_hassus_promise" type="Area3D" parent="."]
 script = ExtResource("lore_rune_script")

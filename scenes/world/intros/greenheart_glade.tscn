@@ -6,6 +6,7 @@
 [ext_resource type="Shader" path="res://shaders/toon.gdshader" id="4_toon"]
 [ext_resource type="Script" path="res://scripts/enemies/glade_terror.gd" id="5_terror"]
 [ext_resource type="Script" path="res://scripts/world/spawn/spawner.gd" id="6_spawner"]
+[ext_resource type="Script" path="res://scripts/world/spawn/zone_composer.gd" id="zone_composer"]
 
 ; Greenheart Glade — Ranger intro arena.
 ; A clearing in the deep wood. Moss-soft floor, ringed by tall conifer trunks.
@@ -219,3 +220,12 @@ position = Vector3(0, 0.1, -6)
 ; ── World Environment ───────────────────────────────────────────
 [node name="WorldEnv" type="WorldEnvironment" parent="."]
 environment = SubResource("env")
+
+; ── Procedural prop scatter ──────────────────────────────────────
+; ZoneComposer fills the woodland clearing with conifer trunks, moss
+; floor tufts, stumps, ferns, and the Glade Terror's stalk-perches per
+; _build_greenheart_glade(). Size 70 covers spawn-to-boss (z=14 to z=-22).
+[node name="Geometry" type="Node3D" parent="."]
+script = ExtResource("zone_composer")
+style_id = &"greenheart_glade"
+size = 70.0

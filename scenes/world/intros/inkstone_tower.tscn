@@ -6,6 +6,7 @@
 [ext_resource type="Shader" path="res://shaders/toon.gdshader" id="4_toon"]
 [ext_resource type="Script" path="res://scripts/enemies/tower_warden.gd" id="5_warden"]
 [ext_resource type="Script" path="res://scripts/world/spawn/spawner.gd" id="6_spawner"]
+[ext_resource type="Script" path="res://scripts/world/spawn/zone_composer.gd" id="zone_composer"]
 
 ; Inkstone Tower — Mage intro arena.
 ; Top floor of the Inkstone Sanctum. A circular library room with bookshelves
@@ -351,3 +352,12 @@ omni_range = 12.0
 ; ── World Environment ───────────────────────────────────────────
 [node name="WorldEnv" type="WorldEnvironment" parent="."]
 environment = SubResource("env")
+
+; ── Procedural prop scatter ──────────────────────────────────────
+; ZoneComposer fills the library room with bookshelves around the wall
+; perimeter, floating candles in slow orbits, and the central glyph-floor
+; sigil per _build_inkstone_tower(). Size 40 fits the compact 60m floor.
+[node name="Geometry" type="Node3D" parent="."]
+script = ExtResource("zone_composer")
+style_id = &"inkstone_tower"
+size = 40.0
