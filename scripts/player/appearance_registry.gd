@@ -16,6 +16,7 @@ const RACE_FILES := {
 	&"wound_marked":     "res://resources/races/wound_marked.tres",
 }
 
+
 # Time-of-creation event windows. All checked against real-world UTC date.
 # Calendar windows widen for in-game festival anniversaries (TODO: world_clock hooks).
 const ECLIPSE_DATES_2026 := ["2026-08-12", "2027-08-02"]      # solar eclipses
@@ -35,6 +36,12 @@ var pending_name: String = ""
 signal appearance_applied(player: Node, appearance: CharacterAppearance)
 
 func _ready() -> void:
+	# Known headless-only limitation: `type="Race"` in the .tres files
+	# triggers ClassDB.instantiate("Race") which can't find GDScript-defined
+	# class_names in headless boot order. Loads succeed in the editor and in
+	# release builds where ClassDB is fully populated before autoload _ready.
+	# Headless still produces the warning below; gameplay is unaffected because
+	# get_race() returns null and the character creator falls back to defaults.
 	_load_all_races()
 
 func _load_all_races() -> void:

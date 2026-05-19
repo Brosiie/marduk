@@ -114,10 +114,19 @@ func thumbnail_path(slot: int) -> String:
 # All failure modes (missing viewport, unwritable user://) are silent ,
 # thumbnails are nice-to-have, not required.
 func _save_thumbnail(slot: int) -> void:
+	# Headless runs (CI harness, --headless flag) own a Viewport but its
+	# underlying texture RID is null because no GPU side exists. Calling
+	# .get_image() crashed with "Parameter 't' is null." Skip thumbnail
+	# capture entirely when there's no render surface to capture from.
+	if OS.has_feature("headless") or DisplayServer.get_name() == "headless":
+		return
 	var viewport: Viewport = get_viewport()
 	if viewport == null:
 		return
-	var img: Image = viewport.get_texture().get_image()
+	var vt: Texture2D = viewport.get_texture()
+	if vt == null:
+		return
+	var img: Image = vt.get_image()
 	if img == null or img.is_empty():
 		return
 	# Downscale to thumbnail size. Lanczos preserves the toon shader's
