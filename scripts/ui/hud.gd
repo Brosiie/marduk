@@ -9,7 +9,9 @@ class_name HUD
 @onready var mana_bar: ProgressBar = $Root/Bars/ManaBar
 @onready var xp_bar: ProgressBar = $Root/Bars/XPBar
 @onready var level_label: Label = $Root/Bars/LevelLabel
+@onready var gold_label: Label = $Root/Bars/GoldLabel if has_node("Root/Bars/GoldLabel") else null
 @onready var resource_label: Label = $Root/Bars/ResourceLabel if has_node("Root/Bars/ResourceLabel") else null
+var _last_gold: int = -1
 @onready var prestige_badge: Label = $Root/Bars/PrestigeBadge if has_node("Root/Bars/PrestigeBadge") else null
 @onready var ascend_prompt: Label = $Root/AscendPrompt if has_node("Root/AscendPrompt") else null
 
@@ -225,6 +227,16 @@ func _process(_delta: float) -> void:
 		var need := float(player.stats.xp_to_next_level())
 		xp_bar.max_value = max(1.0, need)
 		xp_bar.value = player.stats.xp
+		# Gold counter: polled here rather than signal-driven because
+		# stats.gold is a bare int that vendor + quest paths increment
+		# directly. Cheaper than threading a setter through every caller,
+		# and the HUD already ticks XP each frame anyway. Cached compare
+		# avoids set_text every frame.
+		if gold_label and "gold" in player.stats:
+			var g: int = int(player.stats.gold)
+			if g != _last_gold:
+				_last_gold = g
+				gold_label.text = "%d gold" % g
 
 func _refresh_all() -> void:
 	if not player or not player.stats:
