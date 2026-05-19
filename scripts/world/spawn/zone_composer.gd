@@ -282,6 +282,14 @@ const DECOR_PATTERNS := [
 	"flag",         # banners, pennants, cloth shouldn't block player
 	"rubble_small", # tiny debris
 	"sword_shield_broken",  # half-buried sword in path (stepping on it is fine)
+	"floor_tile",   # decorative ornamented paving stones sitting on top of
+	                # the actual ground plane. Their trimesh colliders trap
+	                # the player on the bumpy ornament face — the harness
+	                # caught the player blocked at z=68.64 with normal
+	                # (-0.21, 0.38, 0.90), the slope of a tile's relief. The
+	                # parent floor at y=0 carries the real collision.
+	"floor_dirt",   # same story for dirt grid tiles used in ash_step_camp
+	                # and other dirt-floored zones. Decor only.
 ]
 
 # Returns true if `asset` is considered decor (walk-through). Case-
