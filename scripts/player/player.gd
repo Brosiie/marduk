@@ -468,6 +468,21 @@ func _ensure_status_effects_holder() -> void:
 	holder.name = "StatusEffectsHolder"
 	holder.actor = self
 	add_child(holder)
+	# Combat scar tracking: ScarManager listens for heavy hits taken
+	# (>=25% max HP per hit) and spawns visible scar meshes anchored to
+	# the body. The class existed + Player.take_damage already calls
+	# scar_mgr.record_hit_taken on `get_node("ScarManager")`, but no
+	# scene actually created the manager — so the lookup returned null
+	# and scars never accumulated. Spawn it here next to the status
+	# holder so the lifecycle stays paired.
+	if not has_node("ScarManager"):
+		var scar_script: GDScript = load("res://scripts/player/scar_manager.gd")
+		if scar_script:
+			var sm: Node = scar_script.new()
+			sm.name = "ScarManager"
+			if "owner_player" in sm:
+				sm.owner_player = self
+			add_child(sm)
 
 # Walk the scene to find a Geometry node carrying style_id (the
 # ZoneComposer convention). Returns the StringName style_id or &"".

@@ -134,13 +134,17 @@ func _fire_arrow() -> void:
 	var cs := CollisionShape3D.new()
 	cs.shape = sphere
 	arrow.add_child(cs)
-	# Position at archer's bow height, aim at target chest
+	# Position at archer's bow height, aim at target chest. The arrow has
+	# to enter the tree BEFORE look_at() — Godot 4's look_at requires
+	# is_inside_tree() and silently bailed (returning identity transform)
+	# when called pre-attach. Two errors per shot got logged; reordering
+	# clears them. Setting transform.origin first preserves the start_pos
+	# during the brief moment before look_at runs.
 	var start_pos: Vector3 = global_position + Vector3(0, 1.2, 0)
 	var aim_pos: Vector3 = target.global_position + Vector3(0, 1.0, 0)
-	arrow.global_position = start_pos
-	# Look_at + face along z axis
-	arrow.look_at(aim_pos, Vector3.UP)
 	get_tree().current_scene.add_child(arrow)
+	arrow.global_position = start_pos
+	arrow.look_at(aim_pos, Vector3.UP)
 	# Drive movement via a Tween: linear travel for `arrow_lifetime` seconds
 	var dir: Vector3 = (aim_pos - start_pos).normalized()
 	var travel: float = arrow_speed * arrow_lifetime
