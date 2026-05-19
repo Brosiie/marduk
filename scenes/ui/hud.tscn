@@ -34,6 +34,13 @@ max_value = 120.0
 value = 120.0
 modulate = Color(1, 0.4, 0.4, 1)
 
+[node name="ResourceLabel" type="Label" parent="Root/Bars"]
+text = "Mana"
+theme_override_font_sizes/font_size = 11
+theme_override_colors/font_color = Color(0.78, 0.85, 1.00, 1)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 0.9)
+theme_override_constants/outline_size = 2
+
 [node name="ManaBar" type="ProgressBar" parent="Root/Bars"]
 custom_minimum_size = Vector2(280, 14)
 max_value = 30.0

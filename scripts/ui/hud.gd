@@ -1120,6 +1120,10 @@ func _apply_resource_theme() -> void:
 		_apply_bar_style(mana_bar, fill_color, fill_color.lightened(0.3), fill_color.darkened(0.5))
 	if resource_label:
 		resource_label.text = theme["label"]
+		# Match the label color to the bar fill so STANCE reads pale
+		# silver, RAGE reads red, BLOOD reads crimson, etc. Lightened
+		# slightly + outline already in the .tscn keeps it readable.
+		resource_label.add_theme_color_override("font_color", (theme["color"] as Color).lightened(0.25))
 
 # --- Pickup toasts ---
 # A small VBox stacked top-right that scrolls up and fades. Each new
