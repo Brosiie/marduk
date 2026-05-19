@@ -145,6 +145,7 @@ func _run() -> void:
 	await _scenario_music_tiamat_floor()
 	await _scenario_npc_roster_registration()
 	await _scenario_refugee_day_night()
+	await _scenario_affix_rolls()
 
 	_finish()
 
@@ -2143,6 +2144,63 @@ func _pass(check: String, detail: String) -> void:
 func _fail(check: String, detail: String) -> void:
 	_fails.append("[FAIL] %s: %s" % [check, detail])
 	print("[PlaytestBot][FAIL] %s: %s" % [check, detail])
+
+func _scenario_affix_rolls() -> void:
+	# Verifies the AffixRegistry-driven loot rolling system:
+	#   - rarity COMMON yields 1 affix
+	#   - rarity RARE yields 2 (1 prefix + 1 suffix)
+	#   - rarity VERY_RARE yields 3
+	#   - rarity LEGENDARY yields 4
+	#   - bonuses dict has at least one stat field
+	#   - format_item_name produces a string that contains the base name
+	var reg: Node = get_node_or_null("/root/AffixRegistry")
+	if reg == null:
+		_fail("affix_registry_present", "AffixRegistry autoload missing")
+		return
+	if not reg.has_method("roll_for_rarity"):
+		_fail("affix_registry_api", "roll_for_rarity not exposed")
+		return
+	# Cook a throwaway item resource for the roll. Don't depend on the
+	# ItemRegistry having a specific item by ID; the affix system only
+	# needs rarity + item_level off the base item.
+	var ItemScript: GDScript = load("res://scripts/items/item.gd")
+	var test_item: Resource = ItemScript.new()
+	test_item.id = &"test_affix_item"
+	test_item.display_name = "Trial Blade"
+	test_item.item_level = 30  # high enough to unlock all tiered affixes
+	var expectations := [
+		{"rarity": 2, "expected": 1, "label": "common"},
+		{"rarity": 3, "expected": 2, "label": "rare"},
+		{"rarity": 4, "expected": 3, "label": "very_rare"},
+		{"rarity": 5, "expected": 4, "label": "legendary"},
+	]
+	var all_ok := true
+	for e in expectations:
+		var rolled: Array = reg.roll_for_rarity(test_item, int(e["rarity"]), test_item.item_level)
+		if rolled.size() != int(e["expected"]):
+			_fail("affix_count_%s" % e["label"], "got %d affixes, expected %d at rarity %d" % [rolled.size(), int(e["expected"]), int(e["rarity"])])
+			all_ok = false
+			continue
+		# Every rolled affix should have non-empty bonuses dict
+		for a in rolled:
+			if a == null or (a.bonuses as Dictionary).is_empty():
+				_fail("affix_bonuses_empty_%s" % e["label"], "rolled affix '%s' has no bonuses" % str(a.id if a else "<null>"))
+				all_ok = false
+	if all_ok:
+		_pass("affix_rolls", "common/rare/very_rare/legendary roll counts match the design table (1/2/3/4)")
+	# Stamp affix IDs onto the test item and verify format_item_name composes correctly
+	var rolled3: Array = reg.roll_for_rarity(test_item, 3, test_item.item_level)
+	for a in rolled3:
+		if int(a.kind) == 0:
+			test_item.prefix_affixes.append(a.id)
+		else:
+			test_item.suffix_affixes.append(a.id)
+	if reg.has_method("format_item_name"):
+		var name: String = reg.format_item_name(test_item)
+		if name.find("Trial Blade") < 0:
+			_fail("affix_name_format", "formatted name '%s' lost the base name" % name)
+		else:
+			_pass("affix_name_format", "formatted='%s' (base 'Trial Blade' preserved with affixes)" % name)
 
 func _finish() -> void:
 	print("\n========================================")

@@ -29,13 +29,13 @@ func roll(prestige_level: int = 0) -> Array[Item]:
 
 	# Guaranteed drops
 	for it in guaranteed_drops:
-		results.append(it)
+		results.append(_with_affixes(it))
 
 	# Boss guarantee: at least one VERY_RARE in the result
 	if guarantees_very_rare:
 		var vr := _pick_first_of_rarity(Item.Rarity.VERY_RARE)
 		if vr:
-			results.append(vr)
+			results.append(_with_affixes(vr))
 
 	# Roll the chance gate (with prestige amplification)
 	var effective_chance: float = min(1.0, base_drop_chance * (1.0 + float(prestige_level)))
@@ -56,7 +56,7 @@ func roll(prestige_level: int = 0) -> Array[Item]:
 		for e: Entry in entries:
 			acc += e.weight
 			if r <= acc:
-				results.append(e.item)
+				results.append(_with_affixes(e.item))
 				break
 
 	return results
@@ -66,3 +66,40 @@ func _pick_first_of_rarity(rarity: int) -> Item:
 		if e.item and e.item.rarity == rarity:
 			return e.item
 	return null
+
+# Duplicate the base item and stamp rolled affixes onto the copy. The
+# ItemRegistry's base Item stays untouched so every drop carries its own
+# independent affix roll. Skips rolling for JUNK/BASIC rarity (those drop
+# without affixes by design), and for soulbound/quest items so Heaven,
+# prologue items, etc. stay canonical.
+func _with_affixes(base: Item) -> Item:
+	if base == null:
+		return base
+	if int(base.rarity) < int(Item.Rarity.COMMON):
+		return base
+	if base.is_soulbound or base.is_quest_item:
+		return base
+	var ml: SceneTree = Engine.get_main_loop() as SceneTree
+	if ml == null or ml.root == null:
+		return base
+	var reg: Node = ml.root.get_node_or_null("AffixRegistry")
+	if reg == null or not reg.has_method("roll_for_rarity"):
+		return base
+	var rolled: Array = reg.roll_for_rarity(base, int(base.rarity), base.item_level)
+	if rolled.is_empty():
+		return base
+	var copy: Item = base.duplicate(true) as Item
+	for affix in rolled:
+		if affix == null:
+			continue
+		# Affix.Kind.PREFIX = 0, SUFFIX = 1
+		if int(affix.kind) == 0:
+			copy.prefix_affixes.append(affix.id)
+		else:
+			copy.suffix_affixes.append(affix.id)
+	# Recompute display_name so the tooltip / inventory shows the affixed
+	# name like "Burning Bronze Sword of Cleaving" instead of the base
+	# "Bronze Sword".
+	if reg.has_method("format_item_name"):
+		copy.display_name = reg.format_item_name(copy)
+	return copy

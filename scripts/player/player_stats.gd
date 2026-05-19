@@ -187,12 +187,92 @@ func apply_all_skill_effects() -> void:
 			for _r in range(ranks):
 				class_def.skill_tree._apply_effect(node, self)
 
-func recompute_derived() -> void:
+func apply_equipment_bonuses(inventory) -> void:
+	# Layers equipped items' stat bonuses (base item + rolled affixes) onto
+	# the player's stat fields. Called from recompute_derived after the
+	# attribute + skill passes have set the baseline. Skips silently if
+	# inventory has nothing equipped or AffixRegistry isn't reachable;
+	# combat falls back to base + skill totals only.
+	if inventory == null:
+		return
+	if not "equipped" in inventory:
+		return
+	var equipped: Dictionary = inventory.equipped
+	if equipped.is_empty():
+		return
+	var reg: Node = null
+	var ml: SceneTree = Engine.get_main_loop() as SceneTree
+	if ml and ml.root:
+		reg = ml.root.get_node_or_null("AffixRegistry")
+	# Accumulate every item's base bonuses + its rolled affix bonuses, then
+	# write the totals onto self in one pass. Doing it in two passes keeps
+	# the math auditable and lets aggregate_bonuses() share the helper.
+	var sum := {
+		"hp_bonus": 0.0, "mana_bonus": 0.0,
+		"strength_bonus": 0.0, "dexterity_bonus": 0.0,
+		"intellect_bonus": 0.0, "vitality_bonus": 0.0,
+		"armor_bonus": 0.0, "magic_resist_bonus": 0.0,
+		"crit_chance_bonus": 0.0, "crit_multiplier_bonus": 0.0,
+		"damage_bonus_pct": 0.0, "attack_speed_bonus": 0.0,
+		"move_speed_bonus": 0.0,
+	}
+	for stack in equipped.values():
+		var it = stack.item
+		if it == null:
+			continue
+		# Base item stats
+		sum["hp_bonus"] += it.hp_bonus
+		sum["mana_bonus"] += it.mana_bonus
+		sum["strength_bonus"] += it.strength_bonus
+		sum["dexterity_bonus"] += it.dexterity_bonus
+		sum["intellect_bonus"] += it.intellect_bonus
+		sum["vitality_bonus"] += it.vitality_bonus
+		sum["armor_bonus"] += it.armor_bonus
+		sum["magic_resist_bonus"] += it.magic_resist_bonus
+		sum["crit_chance_bonus"] += it.crit_chance_bonus
+		sum["crit_multiplier_bonus"] += it.crit_multiplier_bonus
+		sum["damage_bonus_pct"] += it.damage_bonus_pct
+		sum["attack_speed_bonus"] += it.attack_speed_bonus
+		sum["move_speed_bonus"] += it.move_speed_bonus
+		# Rolled affix stats (if AffixRegistry is up)
+		if reg and reg.has_method("get_affix"):
+			var ids: Array = []
+			ids.append_array(it.prefix_affixes)
+			ids.append_array(it.suffix_affixes)
+			for aid in ids:
+				var a = reg.get_affix(aid)
+				if a == null:
+					continue
+				for field in a.bonuses:
+					var v: float = float(a.bonuses[field])
+					if sum.has(field):
+						sum[field] += v
+	# Stamp the accumulated totals onto the matching PlayerStats fields.
+	max_hp += sum["hp_bonus"]
+	max_mana += sum["mana_bonus"]
+	strength += sum["strength_bonus"]
+	dexterity += sum["dexterity_bonus"]
+	intellect += sum["intellect_bonus"]
+	vitality += sum["vitality_bonus"]
+	armor += sum["armor_bonus"]
+	magic_resist += sum["magic_resist_bonus"]
+	crit_chance += sum["crit_chance_bonus"]
+	crit_multiplier += sum["crit_multiplier_bonus"]
+	# damage_bonus_pct + attack_speed_bonus + move_speed_bonus aren't
+	# direct fields on PlayerStats yet (damage_calc reads them from a
+	# different path). Stash them on the resource so a future damage_calc
+	# refactor can read them in one place.
+	set_meta("equipment_damage_bonus_pct", sum["damage_bonus_pct"])
+	set_meta("equipment_attack_speed_bonus", sum["attack_speed_bonus"])
+	set_meta("equipment_move_speed_bonus", sum["move_speed_bonus"])
+
+func recompute_derived(inventory = null) -> void:
 	if not class_def:
 		return
 	recompute_base()
 	apply_attribute_bonuses()
 	apply_all_skill_effects()
+	apply_equipment_bonuses(inventory)
 	# Clamp current pools to new maxes; full-heal on first compute
 	hp = clamp(hp if hp > 0 else max_hp, 0.0, max_hp)
 	mana = clamp(mana if mana > 0 else max_mana, 0.0, max_mana)

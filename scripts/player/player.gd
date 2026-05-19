@@ -222,7 +222,14 @@ func _ready() -> void:
 	_ensure_status_effects_holder()
 	if not stats:
 		stats = PlayerStats.new()
-		stats.recompute_derived()
+		stats.recompute_derived(inventory)
+	# Reactive equipment->stats wiring. Any equip/unequip recomputes the
+	# derived totals (base + attributes + skills + gear + affixes) so the
+	# player sees the new bonuses immediately. Without this the affix
+	# stat rolls would only matter at next level-up.
+	if inventory and inventory.has_signal("equipment_changed"):
+		if not inventory.equipment_changed.is_connected(_on_equipment_changed):
+			inventory.equipment_changed.connect(_on_equipment_changed)
 	# Run-stats timers: stamp the start of the run + first life so the
 	# DeathScreen can show elapsed times. _life_started_at is also reset
 	# in _respawn so each life gets its own clock.
@@ -2943,6 +2950,24 @@ func _set_lock(target_node: Node) -> void:
 
 func _on_lock_target_died() -> void:
 	_clear_lock()
+
+# Equipment changed: re-derive all stats so equipped item + affix bonuses
+# kick in (or come off) immediately. Clamps current HP/mana to the new
+# maxes so a +HP roll on the new chest plate snaps the bar up rather
+# than waiting for the next regen tick.
+func _on_equipment_changed(_slot: int, _item) -> void:
+	if not stats:
+		return
+	var hp_before: float = stats.hp
+	var mana_before: float = stats.mana
+	if stats.has_method("recompute_derived"):
+		stats.recompute_derived(inventory)
+	stats.hp = clamp(hp_before, 0.0, stats.max_hp)
+	stats.mana = clamp(mana_before, 0.0, stats.max_mana)
+	if has_signal("hp_changed"):
+		emit_signal("hp_changed", stats.hp, stats.max_hp)
+	if has_signal("mana_changed"):
+		emit_signal("mana_changed", stats.mana, stats.max_mana)
 
 func _clear_lock() -> void:
 	_lock_target = null
