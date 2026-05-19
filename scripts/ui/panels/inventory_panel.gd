@@ -17,6 +17,22 @@ var _hover_label: Label = null
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_PASS
 	_player = get_tree().get_first_node_in_group("player")
+	# Live refresh: subscribe to Inventory's mutation signals so the
+	# panel updates without the player having to close + reopen. Without
+	# this, picking up a quest reward while the panel is open left the
+	# bag visually stale until next interaction.
+	if _player and _player.inventory:
+		var inv = _player.inventory
+		if inv.has_signal("inventory_changed") and not inv.inventory_changed.is_connected(refresh):
+			inv.inventory_changed.connect(refresh)
+		if inv.has_signal("equipment_changed") and not inv.equipment_changed.is_connected(_on_equipment_changed):
+			inv.equipment_changed.connect(_on_equipment_changed)
+
+# Equipment changes touch BOTH the equipped panel area AND the bag
+# (returned items go back to bag). Refresh the whole inventory panel
+# so both halves stay in sync.
+func _on_equipment_changed(_slot: int, _item) -> void:
+	refresh()
 
 	# Polished frame matching the rest of the HUD, gold filigree
 	# border + drop shadow + dark slate bg. Was a bare VBoxContainer
