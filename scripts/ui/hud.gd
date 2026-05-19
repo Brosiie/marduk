@@ -65,6 +65,14 @@ func _ready() -> void:
 	if player.stats:
 		player.stats.leveled_up.connect(_on_level_up)
 		player.stats.max_level_reached.connect(_on_max_level)
+		# Surface attribute + skill point awards as toasts. The signals
+		# already fire on every level-up but went unconsumed, so Bond was
+		# silently accruing points and could only discover them by opening
+		# the character or skill panels and noticing the "unspent" counter.
+		if player.stats.has_signal("attribute_points_awarded"):
+			player.stats.attribute_points_awarded.connect(_on_attribute_points_awarded)
+		if player.stats.has_signal("skill_points_awarded"):
+			player.stats.skill_points_awarded.connect(_on_skill_points_awarded)
 		_refresh_all()
 		_apply_resource_theme()
 		_apply_prestige_badge()
@@ -876,6 +884,28 @@ func _on_level_up(lvl: int) -> void:
 			ar.unlock(&"a_level_5")
 		if lvl >= 10:
 			ar.unlock(&"a_level_10")
+
+# Surface the +N attribute-points award as its own toast a beat after
+# the level-up banner so the two cues don't pile on top of each other.
+# Color matches the character panel's primary attribute swatch (red-
+# orange) so the player learns "this is where these go" without a
+# tutorial pointer.
+func _on_attribute_points_awarded(amount: int) -> void:
+	if amount <= 0:
+		return
+	var juice: Node = get_node_or_null("/root/Juice")
+	if juice and juice.has_method("toast"):
+		juice.toast("+%d attribute points  (T)" % amount, Color(0.95, 0.65, 0.30), 2.8)
+
+# Same pattern for skill points; cyan-blue matches the skill tree
+# panel chrome. "(K)" hint points at the rebindable key in case the
+# player hasn't memorized it yet.
+func _on_skill_points_awarded(amount: int) -> void:
+	if amount <= 0:
+		return
+	var juice: Node = get_node_or_null("/root/Juice")
+	if juice and juice.has_method("toast"):
+		juice.toast("+%d skill point%s  (K)" % [amount, "s" if amount > 1 else ""], Color(0.55, 0.85, 1.00), 2.8)
 
 func _spawn_levelup_column(at_player: Node3D) -> void:
 	var p := GPUParticles3D.new()
