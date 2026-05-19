@@ -181,10 +181,35 @@ func _open_shop_panel() -> void:
 	hdr.add_theme_font_size_override("font_size", 22)
 	hdr.modulate = Color(1.0, 0.85, 0.55)
 	v.add_child(hdr)
-	# Stock items
+	# === BUY section ===
+	var buy_hdr := Label.new()
+	buy_hdr.text = "— BUY —"
+	buy_hdr.add_theme_font_size_override("font_size", 14)
+	buy_hdr.modulate = Color(0.95, 0.85, 0.55)
+	v.add_child(buy_hdr)
 	var stock := _roll_stock()
 	for item in stock:
 		v.add_child(_stock_row(item))
+	# === SELL section ===
+	# Closes the economy loop. Vendor panel header said "sell items back
+	# at half price" since day one but no code ran — Bond's Kazat drop
+	# had nowhere to go. Pulls the player's bag, lists each non-soulbound
+	# item with a Sell button. Sell price = sell_value (already the half-
+	# price baseline that buys reference *2 to set the buy price).
+	var sell_hdr := Label.new()
+	sell_hdr.text = "— SELL —"
+	sell_hdr.add_theme_font_size_override("font_size", 14)
+	sell_hdr.modulate = Color(0.55, 0.95, 0.55)
+	v.add_child(sell_hdr)
+	var sell_rows := _build_sell_rows()
+	if sell_rows.is_empty():
+		var empty := Label.new()
+		empty.text = "(bag empty)"
+		empty.modulate = Color(0.65, 0.65, 0.65)
+		v.add_child(empty)
+	else:
+		for row in sell_rows:
+			v.add_child(row)
 	# Close button
 	var close_btn := Button.new()
 	close_btn.text = "Close (Esc)"
@@ -306,6 +331,97 @@ func _stock_row(item: Item) -> Control:
 	buy_btn.pressed.connect(_buy.bind(item, price, buy_btn))
 	row.add_child(buy_btn)
 	return row
+
+# Build a Control row per sellable item in the player's bag. Iterates
+# Inventory.bag, skips soulbound + quest items (never sellable), shows
+# icon + name + price + Sell button per row. Stacks are reduced one
+# unit per click so the player can choose to keep some.
+func _build_sell_rows() -> Array:
+	var out: Array = []
+	var p: Node = get_tree().get_first_node_in_group("player") if get_tree() else null
+	if p == null or not ("inventory" in p) or p.inventory == null:
+		return out
+	if not ("bag" in p.inventory):
+		return out
+	for stack in p.inventory.bag:
+		if stack == null or stack.item == null:
+			continue
+		var it = stack.item
+		if it.is_soulbound or it.is_quest_item:
+			continue
+		out.append(_sell_row(it, int(stack.count)))
+	return out
+
+func _sell_row(item: Item, qty: int) -> Control:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 8)
+	var icon_rect := TextureRect.new()
+	icon_rect.custom_minimum_size = Vector2(40, 40)
+	icon_rect.expand_mode = TextureRect.EXPAND_FIT_WIDTH_PROPORTIONAL
+	icon_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	var atlas := get_node_or_null("/root/IconAtlas")
+	if atlas and atlas.has_method("get_icon_for_item"):
+		icon_rect.texture = atlas.get_icon_for_item(item)
+	row.add_child(icon_rect)
+	var name_lbl := Label.new()
+	# Affixed name comes through automatically since display_name was set
+	# at drop-time by LootTable._with_affixes.
+	name_lbl.text = "%s%s" % [item.display_name, ("  ×%d" % qty) if qty > 1 else ""]
+	name_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(name_lbl)
+	var price: int = max(1, int(item.sell_value))
+	var price_lbl := Label.new()
+	price_lbl.text = "%d gold" % price
+	price_lbl.modulate = Color(0.85, 0.75, 0.30)
+	row.add_child(price_lbl)
+	var sell_btn := Button.new()
+	sell_btn.text = "Sell"
+	sell_btn.pressed.connect(_sell.bind(item, price, sell_btn, name_lbl, qty))
+	row.add_child(sell_btn)
+	return row
+
+# Removes one unit of `item` from the player's inventory and credits
+# `price` gold. If the stack had >1, re-renders the name label to show
+# the new count; if it was the last one, disables the button so the
+# row visually reflects "sold out" without rebuilding the whole panel.
+func _sell(item: Item, price: int, btn: Button, name_lbl: Label, _starting_qty: int) -> void:
+	var p: Node = get_tree().get_first_node_in_group("player") if get_tree() else null
+	if p == null or not ("inventory" in p) or p.inventory == null:
+		return
+	# Remove from bag (one unit). Uses remove_item if present, falls back
+	# to manual stack decrement.
+	var removed: bool = false
+	if p.inventory.has_method("remove_item"):
+		removed = p.inventory.remove_item(item, 1)
+	else:
+		for stack in p.inventory.bag:
+			if stack and stack.item == item and stack.count > 0:
+				stack.count -= 1
+				if stack.count <= 0:
+					p.inventory.bag.erase(stack)
+				removed = true
+				break
+	if not removed:
+		return
+	# Credit gold
+	if "stats" in p and p.stats and "gold" in p.stats:
+		p.stats.gold += price
+	# Audio + visual feedback
+	var ab: Node = get_node_or_null("/root/AudioBus")
+	if ab and ab.has_method("play_cue"):
+		ab.play_cue(&"pickup", p.global_position, -8.0, 1.2)
+	# Re-count this stack so the row stays honest about remaining qty.
+	var remaining: int = 0
+	for stack in p.inventory.bag:
+		if stack and stack.item == item:
+			remaining += stack.count
+			break
+	if remaining <= 0:
+		btn.disabled = true
+		btn.text = "Sold"
+		name_lbl.modulate = Color(0.5, 0.5, 0.5)
+	else:
+		name_lbl.text = "%s  ×%d" % [item.display_name, remaining]
 
 func _buy(item: Item, price: int, btn: Button) -> void:
 	var p := get_tree().get_first_node_in_group("player") if get_tree() else null
