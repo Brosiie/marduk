@@ -219,7 +219,46 @@ func _roll_stock() -> Array:
 		filtered.append(it)
 	# Shuffle and take up to 8
 	filtered.shuffle()
-	return filtered.slice(0, min(8, filtered.size()))
+	var picked: Array = filtered.slice(0, min(8, filtered.size()))
+	# Roll affixes on the stock so vendor wares feel as varied as drops.
+	# Without this pass every "Bronze Sword" in every shop would look
+	# identical. With it: Bel-Ituru's stock can show "Heavy Bronze Sword
+	# of Cleaving" sitting next to a plain Bronze Sword (if the affix
+	# roll yielded nothing). Re-rolls on each shop open so the rotation
+	# loop feels alive.
+	var affixed: Array = []
+	for base in picked:
+		affixed.append(_apply_vendor_affixes(base))
+	return affixed
+
+# Duplicate the base item, roll affixes via AffixRegistry, stamp them
+# onto the copy, recompute display_name. Same pattern as LootTable but
+# operating at vendor-stock-roll time. Returns the base item unchanged
+# for rarity < COMMON or when AffixRegistry isn't reachable.
+func _apply_vendor_affixes(base):
+	if base == null:
+		return base
+	if int(base.rarity) < 2:  # JUNK + BASIC: skip
+		return base
+	if base.is_soulbound or base.is_quest_item:
+		return base
+	var reg: Node = get_node_or_null("/root/AffixRegistry")
+	if reg == null or not reg.has_method("roll_for_rarity"):
+		return base
+	var rolled: Array = reg.roll_for_rarity(base, int(base.rarity), base.item_level)
+	if rolled.is_empty():
+		return base
+	var copy = base.duplicate(true)
+	for a in rolled:
+		if a == null:
+			continue
+		if int(a.kind) == 0:
+			copy.prefix_affixes.append(a.id)
+		else:
+			copy.suffix_affixes.append(a.id)
+	if reg.has_method("format_item_name"):
+		copy.display_name = reg.format_item_name(copy)
+	return copy
 
 func _stock_row(item: Item) -> Control:
 	var row := HBoxContainer.new()
