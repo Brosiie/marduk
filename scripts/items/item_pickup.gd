@@ -59,6 +59,12 @@ func _ready() -> void:
 		# get bigger/brighter columns. Common items get nothing, just the
 		# OmniLight; epics+ get unmistakable beacons.
 		_spawn_rarity_column(item.rarity)
+		# Floating world-space name label. Shows the item's display_name
+		# (which now includes rolled affix words like "Heavy Trial Blade of
+		# Precision" per the affix system). Tinted to rarity, billboarded
+		# so it always faces the camera, gated on the show_floating_loot_text
+		# setting so accessibility-minded players can hide it.
+		_spawn_name_label()
 	# Pickup hookups
 	body_entered.connect(_on_body_entered)
 	_initial_y = position.y
@@ -233,6 +239,38 @@ func _rarity_glow(rarity: int) -> Color:
 		5: return Color(1.00, 0.65, 0.10)  # LEGENDARY
 		6: return Color(1.00, 0.95, 0.55)  # HEAVEN
 	return Color.WHITE
+
+# World-space name label floating above the drop. Reads display_name
+# (which carries any rolled affix words from LootTable._with_affixes)
+# and tints it to the rarity glow color. Junk + Basic skip the label
+# so the world doesn't drown in vendor-trash text; everything green and
+# above gets named. Setting `show_floating_loot_text=false` hides all
+# of them (the existing settings toggle finally has a consumer).
+func _spawn_name_label() -> void:
+	if item == null:
+		return
+	if int(item.rarity) < 2:  # JUNK + BASIC: no label
+		return
+	var settings: Node = get_node_or_null("/root/GameSettings")
+	if settings and "show_floating_loot_text" in settings and not bool(settings.show_floating_loot_text):
+		return
+	var lbl := Label3D.new()
+	lbl.name = "NameLabel"
+	lbl.text = item.display_name
+	lbl.font_size = 24
+	lbl.pixel_size = 0.0035
+	lbl.fixed_size = true
+	lbl.no_depth_test = true
+	lbl.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	lbl.outline_size = 6
+	lbl.outline_modulate = Color(0, 0, 0, 0.95)
+	# Tint to the rarity glow so green/blue/purple/gold reads at a glance
+	var tint: Color = _rarity_glow(item.rarity)
+	# Pull brightness up slightly so the text reads against dark backgrounds
+	lbl.modulate = tint.lightened(0.20)
+	# Sits just above the mesh + slow bobs with the parent body
+	lbl.position = Vector3(0, 1.3, 0)
+	add_child(lbl)
 
 # Particle pillar rising from the drop. Higher rarity = taller, brighter
 # column so the player spots loot from across the courtyard. Common
