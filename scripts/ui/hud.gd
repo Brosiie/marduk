@@ -73,6 +73,14 @@ func _ready() -> void:
 			player.stats.attribute_points_awarded.connect(_on_attribute_points_awarded)
 		if player.stats.has_signal("skill_points_awarded"):
 			player.stats.skill_points_awarded.connect(_on_skill_points_awarded)
+	# Faction tier-up toast. FactionRegistry already broadcasts every
+	# crossing of a tier boundary (Neutral -> Friendly, Friendly -> Honored,
+	# etc.) but only TiamatRegistry subscribed. Bond used to hit Honored
+	# with Crown and not see anything change; now the HUD acknowledges
+	# the breakthrough with a tier-colored toast.
+	var fr: Node = get_node_or_null("/root/FactionRegistry")
+	if fr and fr.has_signal("tier_changed") and not fr.tier_changed.is_connected(_on_faction_tier_changed):
+		fr.tier_changed.connect(_on_faction_tier_changed)
 		_refresh_all()
 		_apply_resource_theme()
 		_apply_prestige_badge()
@@ -906,6 +914,36 @@ func _on_skill_points_awarded(amount: int) -> void:
 	var juice: Node = get_node_or_null("/root/Juice")
 	if juice and juice.has_method("toast"):
 		juice.toast("+%d skill point%s  (K)" % [amount, "s" if amount > 1 else ""], Color(0.55, 0.85, 1.00), 2.8)
+
+# Surface a faction tier crossing. Uses FactionRegistry's own tier
+# color palette so Hated reads red, Friendly reads green, Revered reads
+# the gold-purple Crown color, etc. Tier DOWN (loss) gets a different
+# tone so the player feels the difference between progress + setback.
+func _on_faction_tier_changed(faction_id: StringName, new_tier: String, old_tier: String) -> void:
+	var juice: Node = get_node_or_null("/root/Juice")
+	if juice == null or not juice.has_method("toast"):
+		return
+	# Resolve faction display name + tier color from the registry so the
+	# toast reads "Crown: Honored" rather than "crown_id: Honored".
+	var fr: Node = get_node_or_null("/root/FactionRegistry")
+	var faction_label: String = String(faction_id).capitalize().replace("_", " ")
+	if fr and fr.has_method("get_faction"):
+		var f = fr.get_faction(faction_id)
+		if f and "display_name" in f and f.display_name != "":
+			faction_label = f.display_name
+	var color: Color = Color(0.85, 0.85, 0.85)
+	if fr and "TIER_COLORS" in fr:
+		color = (fr.TIER_COLORS as Dictionary).get(new_tier, color)
+	# Tier-up vs tier-down arrows make the direction unmissable.
+	var arrow: String = "↑" if _tier_index(new_tier) > _tier_index(old_tier) else "↓"
+	juice.toast("%s %s: %s" % [arrow, faction_label, new_tier], color, 3.2)
+
+# Helper for direction comparison. Falls back to 0 for unknown tiers so
+# a future tier addition doesn't accidentally classify everything as a
+# downgrade.
+func _tier_index(tier_name: String) -> int:
+	const ORDER := {"Hated": -3, "Hostile": -2, "Unfriendly": -1, "Neutral": 0, "Friendly": 1, "Honored": 2, "Revered": 3}
+	return int(ORDER.get(tier_name, 0))
 
 func _spawn_levelup_column(at_player: Node3D) -> void:
 	var p := GPUParticles3D.new()
