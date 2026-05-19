@@ -124,6 +124,16 @@ func _ready() -> void:
 	if gr and gr.has_signal("glyph_earned"):
 		if not gr.glyph_earned.is_connected(_on_glyph_earned):
 			gr.glyph_earned.connect(_on_glyph_earned)
+	# Title unlock. TitleRegistry awards display titles tied to
+	# achievements (e.g., "the Mortal Returned" for Walk-Back-from-
+	# Lucifer, "the Hammer" for 100 hammer kills, etc.). Title is saved
+	# to SaveFlags but had no on-screen acknowledgement. Toasted as a
+	# rare prestige cue with the gold "the" prefix the in-game lore
+	# uses for these epithets.
+	var tr: Node = get_node_or_null("/root/TitleRegistry")
+	if tr and tr.has_signal("title_unlocked"):
+		if not tr.title_unlocked.is_connected(_on_title_unlocked):
+			tr.title_unlocked.connect(_on_title_unlocked)
 		_refresh_all()
 		_apply_resource_theme()
 		_apply_prestige_badge()
@@ -1033,6 +1043,22 @@ func _on_achievement_unlocked(a) -> void:
 	var ab: Node = get_node_or_null("/root/AudioBus")
 	if ab and ab.has_method("play_cue") and player:
 		ab.play_cue(&"victory", player.global_position, -10.0, 1.4)
+
+# Title unlock: gold serif-feeling toast (no audio on top of the
+# achievement sting that usually fires alongside — the title is the
+# epithet AT the achievement, not a separate cinematic). Reads as
+# "you now bear this name" rather than "you accomplished a thing."
+func _on_title_unlocked(title_id: StringName) -> void:
+	var tr: Node = get_node_or_null("/root/TitleRegistry")
+	if tr == null or not tr.has_method("get_title"):
+		return
+	var t = tr.get_title(title_id)
+	if t == null:
+		return
+	var name: String = String(t.display_name) if "display_name" in t and t.display_name != "" else String(title_id)
+	var juice: Node = get_node_or_null("/root/Juice")
+	if juice and juice.has_method("toast"):
+		juice.toast("Title earned: %s" % name, Color(1.00, 0.85, 0.45), 4.5)
 
 # Tattoo glyph earned: dramatic, since glyphs are permanent character
 # marks. Deep red-orange toast + heartbeat-style flash, audio sting at
