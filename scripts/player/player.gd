@@ -644,7 +644,17 @@ func _input(event: InputEvent) -> void:
 	elif event.is_action_pressed("toggle_pet"):
 		toggle_pet()
 	elif event.is_action_pressed("lock_on"):
-		_toggle_lock_on()
+		# Plain Tab = toggle. Shift+Tab = cycle to next enemy. Ctrl+Tab =
+		# cycle backward. Bond's UX call: "locking on target should be a
+		# toggle button." So Tab is no longer state-aware: it always flips
+		# the lock on/off. Cycling moves to dedicated modifier combos so
+		# the player always knows what plain Tab will do.
+		if event is InputEventKey and (event as InputEventKey).shift_pressed:
+			_cycle_lock_target(1)
+		elif event is InputEventKey and (event as InputEventKey).ctrl_pressed:
+			_cycle_lock_target(-1)
+		else:
+			_toggle_lock_on()
 	elif InputMap.has_action("toggle_recall") and event.is_action_pressed("toggle_recall"):
 		_recall_to_marked_lodestone()
 	elif InputMap.has_action("inventory_sort") and event.is_action_pressed("inventory_sort"):
@@ -2837,37 +2847,46 @@ const LOCK_RANGE: float = 22.0
 const LOCK_FOV_DOT: float = 0.30  # cosine of half-angle the candidate must be within (camera-forward)
 
 func _toggle_lock_on() -> void:
-	# Three-state behavior:
-	#   1. No lock        -> acquire best in-view target
-	#   2. Locked, others -> cycle to NEXT in-view target (excluding current)
-	#   3. Locked, alone  -> clear lock
-	# Mirrors Souls/Sekiro Tab semantics: re-press cycles, no-cycle drops.
-	var candidates: Array[Node] = _gather_lock_candidates()
-	if candidates.is_empty():
-		# Truly no enemies in view. If we WERE locked, the target died
-		# or walked out of range — clear quietly. Otherwise deny.
-		if _lock_target and is_instance_valid(_lock_target):
-			_clear_lock()
-		else:
-			_play_deny_cue()
-		return
-	# Already locked: pick next candidate after the current one (sorted
-	# by FOV score so cycle reads as "rightward through the view").
+	# Pure toggle. Bond's UX: "locking on target should be a toggle button."
+	#   Locked   -> clear
+	#   Unlocked -> acquire best in-view target (or play deny cue if none)
+	# Cycling between targets moved to _cycle_lock_target() bound to
+	# Shift+Tab / Ctrl+Tab so plain Tab does ONE predictable thing.
 	if _lock_target and is_instance_valid(_lock_target):
-		var idx: int = candidates.find(_lock_target)
-		if idx >= 0 and candidates.size() > 1:
-			var next: Node = candidates[(idx + 1) % candidates.size()]
-			_set_lock(next)
-			return
-		if idx < 0:
-			# Current target moved out of FOV — switch to best candidate
-			_set_lock(candidates[0])
-			return
-		# idx >= 0 AND size == 1: only the current candidate exists, clear
 		_clear_lock()
 		return
-	# Fresh acquire: top of the sorted list = best score
+	var candidates: Array[Node] = _gather_lock_candidates()
+	if candidates.is_empty():
+		_play_deny_cue()
+		return
 	_set_lock(candidates[0])
+
+func _cycle_lock_target(direction: int) -> void:
+	# Cycle through in-view enemies. direction = +1 right/forward, -1 left/back.
+	# Called by Shift+Tab (forward) and Ctrl+Tab (backward). If not currently
+	# locked, this acquires the best target instead of no-op'ing, so the
+	# modifier always does something useful.
+	var candidates: Array[Node] = _gather_lock_candidates()
+	if candidates.is_empty():
+		_play_deny_cue()
+		return
+	if not (_lock_target and is_instance_valid(_lock_target)):
+		_set_lock(candidates[0])
+		return
+	var idx: int = candidates.find(_lock_target)
+	if idx < 0:
+		# Current target rotated out of FOV; jump to best in-view candidate.
+		_set_lock(candidates[0])
+		return
+	if candidates.size() == 1:
+		# Only the current target is in view; cycling has nothing to land on.
+		# Stay locked rather than dropping, since the player explicitly asked
+		# to keep facing this enemy.
+		return
+	var next_idx: int = (idx + direction) % candidates.size()
+	if next_idx < 0:
+		next_idx += candidates.size()
+	_set_lock(candidates[next_idx])
 
 # Returns enemies eligible for lock-on, sorted by FOV-alignment score
 # (highest first). Centralized so both fresh-acquire and cycle paths

@@ -40,7 +40,7 @@ const _CATEGORIES := [
 		"actions": [
 			{"action": "attack_basic", "label": "Basic Attack"},
 			{"action": "block",        "label": "Block / Parry"},
-			{"action": "lock_on",      "label": "Lock-on Toggle"},
+			{"action": "lock_on",      "label": "Lock-on Toggle  (Shift+Tab cycle next, Ctrl+Tab cycle back)"},
 			{"action": "ability_1",    "label": "Ability 1"},
 			{"action": "ability_2",    "label": "Ability 2"},
 			{"action": "ability_3",    "label": "Ability 3"},

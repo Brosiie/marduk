@@ -1,9 +1,14 @@
 extends Node
 class_name LockOn
 
-# Tab/middle-mouse to lock onto the nearest enemy in front of the camera.
-# Player rotation, camera, and abilities can use the lock target as their facing reference.
-# Releasing lock returns control to free-cam mode.
+# Tab is a TOGGLE: press to lock, press again to release. No state-aware
+# overload, the key does the same thing every time. Cycling between enemies
+# moves to Shift+Tab (with Ctrl+Tab as the backward cycle) so the toggle
+# semantics on plain Tab stay clean. Middle-mouse also toggles.
+# Bond's UX call: "locking on target should be a toggle button."
+#
+# Player rotation, camera, and abilities use current_target as their facing
+# reference while locked. Releasing returns control to free-cam mode.
 
 signal lock_acquired(target: Node3D)
 signal lock_released
@@ -21,14 +26,19 @@ func _ready() -> void:
 		_camera = get_node_or_null(camera_path)
 
 func _input(event: InputEvent) -> void:
-	if event is InputEventKey and event.pressed:
+	if event is InputEventKey and event.pressed and not event.echo:
 		if event.keycode == KEY_TAB:
-			# Tab while unlocked: acquire. Tab while locked: cycle to next target.
-			# Shift+Tab while locked: cycle backward.
-			if current_target and is_instance_valid(current_target):
-				cycle_target(-1 if event.shift_pressed else 1)
+			# Plain Tab = toggle. Shift+Tab = cycle forward through enemies.
+			# Ctrl+Tab = cycle backward. The cycle commands ONLY work when a
+			# target is already locked; otherwise they acquire (so the player
+			# never gets a no-op from pressing a cycle modifier).
+			if event.shift_pressed or event.ctrl_pressed:
+				if current_target and is_instance_valid(current_target):
+					cycle_target(-1 if event.ctrl_pressed else 1)
+				else:
+					acquire()
 			else:
-				acquire()
+				toggle()
 		elif event.keycode == KEY_ESCAPE and current_target:
 			release()
 	elif event is InputEventMouseButton and event.pressed:
