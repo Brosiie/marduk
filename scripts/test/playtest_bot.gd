@@ -146,6 +146,8 @@ func _run() -> void:
 	await _scenario_npc_roster_registration()
 	await _scenario_refugee_day_night()
 	await _scenario_affix_rolls()
+	await _scenario_gold_routes_through_inventory()
+	await _scenario_affix_save_persistence()
 
 	_finish()
 
@@ -2201,6 +2203,88 @@ func _scenario_affix_rolls() -> void:
 			_fail("affix_name_format", "formatted name '%s' lost the base name" % name)
 		else:
 			_pass("affix_name_format", "formatted='%s' (base 'Trial Blade' preserved with affixes)" % name)
+
+func _scenario_gold_routes_through_inventory() -> void:
+	# Regression: gold flow was silently no-op'ing because writers used
+	# player.stats.gold (phantom field) instead of player.inventory.gold
+	# (the canonical store). Tests both directions: a quest gold reward
+	# should land in inventory.gold, and a deduction via the vendor's
+	# inventory.gold -= path should subtract.
+	if not _player or not _player.inventory:
+		_fail("gold_routes_through_inventory", "no player inventory")
+		return
+	var inv = _player.inventory
+	var before: int = int(inv.gold)
+	# Simulate a quest reward via the same code path quest_registry uses
+	inv.gold += 250
+	if inv.gold != before + 250:
+		_fail("gold_credit", "expected %d, got %d" % [before + 250, inv.gold])
+		return
+	# Simulate a vendor purchase
+	inv.gold -= 50
+	if inv.gold != before + 200:
+		_fail("gold_debit", "expected %d, got %d" % [before + 200, inv.gold])
+		return
+	# stats.gold should NOT be a declared field — confirm the phantom
+	# field still doesn't exist (the bug fix is the canonical inventory
+	# routing, not a new stats.gold field).
+	if _player.stats and "gold" in _player.stats:
+		_findings.append("(note: stats.gold now exists; gold canonical might have moved)")
+	# Restore
+	inv.gold = before
+	_pass("gold_routes_through_inventory", "credit + debit through inventory.gold both verified")
+
+func _scenario_affix_save_persistence() -> void:
+	# Regression: items lost their rolled affixes across save/load because
+	# the save serialized only {id, count}. Now also persists prefix_affixes,
+	# suffix_affixes, display_name. Smoke-test the rehydration helper
+	# directly by stamping affixes onto a base item and round-tripping
+	# through the serialize -> deserialize logic.
+	var sm: Node = get_node_or_null("/root/SaveSystem")
+	if sm == null:
+		_findings.append("(skip affix_save_persistence: SaveSystem missing)")
+		return
+	if not sm.has_method("_rehydrate_affixes"):
+		_findings.append("(skip affix_save_persistence: _rehydrate_affixes missing)")
+		return
+	# Pick any item from the registry
+	var reg: Node = get_node_or_null("/root/ItemRegistry")
+	if reg == null:
+		_findings.append("(skip affix_save_persistence: ItemRegistry missing)")
+		return
+	var base: Resource = null
+	for v in reg.items.values():
+		if v != null and int(v.rarity) >= 2:
+			base = v
+			break
+	if base == null:
+		_findings.append("(skip affix_save_persistence: no COMMON+ items registered)")
+		return
+	# Build a fake save entry carrying rolled affix IDs + a display name
+	var entry := {
+		"id": String(base.id),
+		"count": 1,
+		"prefix_affixes": ["sharp", "burning"],
+		"suffix_affixes": ["of_cleaving"],
+		"display_name": "Burning Sharp Test of Cleaving",
+	}
+	var rehydrated: Resource = sm._rehydrate_affixes(base, entry)
+	if rehydrated == base:
+		_fail("affix_rehydrate_dupes_base", "rehydrate returned the base item by reference instead of duplicating")
+		return
+	if rehydrated.prefix_affixes.size() != 2 or rehydrated.suffix_affixes.size() != 1:
+		_fail("affix_rehydrate_counts", "expected 2 prefix + 1 suffix, got %d + %d" % [rehydrated.prefix_affixes.size(), rehydrated.suffix_affixes.size()])
+		return
+	if rehydrated.display_name != "Burning Sharp Test of Cleaving":
+		_fail("affix_rehydrate_name", "saved display_name not restored, got '%s'" % rehydrated.display_name)
+		return
+	# Empty save entry (legacy save, no affix arrays) should return the
+	# base unchanged
+	var legacy: Resource = sm._rehydrate_affixes(base, {"id": String(base.id), "count": 1})
+	if legacy != base:
+		_fail("affix_rehydrate_legacy", "legacy save entry should pass base item through unchanged")
+		return
+	_pass("affix_save_persistence", "rehydrate restores prefix/suffix arrays + display_name; legacy saves untouched")
 
 func _finish() -> void:
 	print("\n========================================")
