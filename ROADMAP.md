@@ -46,14 +46,14 @@ Deliverable: 5-10 minute playable demo. Ronin only. One zone, one fight, one cut
 
 Goal: all 6 starting classes playable through their intro + first 5 levels.
 
-- [ ] Author all 6 intro zones (placeholder geometry OK)
-- [ ] One signature ability per class wired into AbilityRunner
-- [ ] All 6 mini-boss encounters with distinct mechanics
-- [ ] Skill tree visual (Q opens skill panel, can spend points)
-- [ ] Ashurim convergence scene (Storyteller dialogue with class-specific lines)
-- [ ] Iron Crown Outskirts: open zone with mob waves, level 6-12
-- [ ] Save/load fully wired (slot select on title screen)
-- [ ] Pause menu
+- [x] Author all 6 intro zones (placeholder geometry OK) — all 6 wired through ZoneComposer
+- [x] One signature ability per class wired into AbilityRunner — all 9 class kits in player.gd
+- [x] All 6 mini-boss encounters with distinct mechanics — Kazat/Hassu/Sapum/GladeTerror/Warden/Sahirum
+- [x] Skill tree visual (Q opens skill panel, can spend points) — skill_tree_panel.tscn in hud
+- [x] Ashurim convergence scene (Storyteller dialogue with class-specific lines) — all 9 class greetings
+- [x] Iron Crown Outskirts: open zone with mob waves, level 6-12 — patrol-tower road, geographic mob gradient (lvl 6 south -> lvl 12 north), 3-way warp (Ashurim/Babilim/Reed Wastes)
+- [x] Save/load fully wired (slot select on title screen) — save_slot_picker
+- [x] Pause menu — pause_menu.tscn instanced in hud
 
 Deliverable: full prologue, 30-60 minute experience per class.
 

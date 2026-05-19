@@ -76,6 +76,15 @@ script = ExtResource("warp_")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.5, 30)
 target_scene_path = "res://scenes/world/intros/sword_vow_ruins.tscn"
 label = "Return to Sword-Vow Ruins (V)"
+
+; North gate. Phase 2 deliverable: the road out of Ashurim toward Babilim,
+; with mob-wave Outskirts in between. Player walks here, crosses, fights
+; through the level 6-12 gradient, arrives at the Iron Crown.
+[node name="WarpToOutskirts" type="Area3D" parent="."]
+script = ExtResource("warp_")
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.5, -30)
+target_scene_path = "res://scenes/world/regions/iron_crown_outskirts.tscn"
+label = "To the Iron Crown Road (V)"
 [node name="Lodestone" type="Area3D" parent="."]
 script = ExtResource("lodestone_ashurim_plaza")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -6, 0.5, 26)

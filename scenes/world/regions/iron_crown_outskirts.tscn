@@ -1,0 +1,230 @@
+[gd_scene load_steps=12 format=3 uid="uid://bironcrown1outskirts"]
+
+[ext_resource type="Script" path="res://scripts/world/warp_portal.gd" id="warp_"]
+[ext_resource type="Script" path="res://scripts/world/lodestone.gd" id="lodestone_ico"]
+[ext_resource type="Script" path="res://scripts/world/spawn/spawner.gd" id="spawner_"]
+
+; Iron Crown Outskirts. The road from Ashurim to Babilim.
+; "Caravan brigands, escaped temple-slaves, the occasional minor demon that
+; slipped through a thinning seal." -- world_map.gd
+;
+; Layout (north -> south, Babilim at north, Ashurim at south):
+;   z=-90  Babilim warp + watchtower + lvl 10-12 mob spawn (demons + temple-marked)
+;   z=-60  patrol tower
+;   z=-30  patrol tower + lvl 8-9 mob spawn (mixed)
+;   z=  0  patrol tower + Reed Wastes side-warp (east) + Lodestone
+;   z=+30  patrol tower + lvl 7-8 mob spawn (brigands + temple-marked)
+;   z=+60  patrol tower
+;   z=+90  Ashurim warp + watchtower + PlayerSpawn + lvl 6-7 mob spawn (brigands only)
+;
+; Geographic difficulty gradient: weakest mobs at the Ashurim border (south),
+; strongest near Babilim (north). Walking the road north is the difficulty
+; curve.
+;
+; Atmosphere: dust-gold sky, distant Babilim torchlight glowing on the
+; northern horizon, drifting trail-dust, single warm directional from
+; behind the city (so silhouettes face the player as they ride north).
+
+[sub_resource type="Environment" id="Env_ico"]
+background_mode = 1
+background_color = Color(0.4800, 0.4000, 0.3000, 1)
+ambient_light_source = 2
+ambient_light_color = Color(0.5500, 0.4600, 0.3800, 1)
+ambient_light_energy = 0.65
+fog_enabled = true
+fog_light_color = Color(0.6500, 0.5200, 0.3800, 1)
+fog_density = 0.0140
+fog_aerial_perspective = 0.55
+tonemap_mode = 2
+tonemap_exposure = 1.05
+glow_enabled = true
+glow_intensity = 0.55
+glow_hdr_threshold = 1.00
+
+[sub_resource type="PlaneMesh" id="Ground_ico"]
+size = Vector2(80, 220)
+
+[sub_resource type="StandardMaterial3D" id="GroundMat_ico"]
+albedo_color = Color(0.4400, 0.3600, 0.2600, 1)
+roughness = 0.95
+metallic = 0.0
+
+[sub_resource type="BoxShape3D" id="Ground_shape_ico"]
+size = Vector3(80, 0.4, 220)
+
+[sub_resource type="StandardMaterial3D" id="TowerMat_ico"]
+albedo_color = Color(0.3200, 0.2800, 0.2200, 1)
+roughness = 0.92
+
+[sub_resource type="CylinderShape3D" id="TowerShape_ico"]
+radius = 1.2
+height = 8.0
+
+[sub_resource type="CylinderMesh" id="TowerMesh_ico"]
+top_radius = 1.0
+bottom_radius = 1.4
+height = 8.0
+
+[node name="IronCrownOutskirts" type="Node3D"]
+metadata/region_id = "iron_crown_outskirts"
+metadata/level_min = 6
+metadata/level_max = 12
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("Env_ico")
+
+; Warm low-angle sun from the north (Babilim's direction). The road faces
+; the city; pilgrims walk INTO the light. Silhouettes get a rim.
+[node name="Sun" type="DirectionalLight3D" parent="."]
+transform = Transform3D(0.9397, 0.0000, -0.3420, 0.1170, 0.9397, 0.3214, 0.3214, -0.3420, 0.8830, 0, 30, 0)
+light_color = Color(1.0000, 0.7800, 0.5500, 1)
+light_energy = 1.10
+shadow_enabled = true
+
+[node name="Ground" type="MeshInstance3D" parent="."]
+mesh = SubResource("Ground_ico")
+material_override = SubResource("GroundMat_ico")
+
+[node name="GroundBody" type="StaticBody3D" parent="Ground"]
+collision_layer = 1
+
+[node name="GroundShape" type="CollisionShape3D" parent="Ground/GroundBody"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.2, 0)
+shape = SubResource("Ground_shape_ico")
+
+; ── Player spawn (south, just past the Ashurim warp's arrival point) ──
+[node name="PlayerSpawn" type="Marker3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 88)
+
+; ── Patrol towers (six along the road, alternating sides) ──
+[node name="TowerS1" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -6, 4, 60)
+[node name="Mesh" type="MeshInstance3D" parent="TowerS1"]
+mesh = SubResource("TowerMesh_ico")
+material_override = SubResource("TowerMat_ico")
+[node name="Col" type="CollisionShape3D" parent="TowerS1"]
+shape = SubResource("TowerShape_ico")
+[node name="Brazier" type="OmniLight3D" parent="TowerS1"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 4.5, 0)
+light_color = Color(1.00, 0.55, 0.20)
+light_energy = 2.2
+omni_range = 12.0
+
+[node name="TowerS2" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6, 4, 30)
+[node name="Mesh" type="MeshInstance3D" parent="TowerS2"]
+mesh = SubResource("TowerMesh_ico")
+material_override = SubResource("TowerMat_ico")
+[node name="Col" type="CollisionShape3D" parent="TowerS2"]
+shape = SubResource("TowerShape_ico")
+[node name="Brazier" type="OmniLight3D" parent="TowerS2"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 4.5, 0)
+light_color = Color(1.00, 0.55, 0.20)
+light_energy = 2.0
+omni_range = 11.0
+
+[node name="TowerMid" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -6, 4, 0)
+[node name="Mesh" type="MeshInstance3D" parent="TowerMid"]
+mesh = SubResource("TowerMesh_ico")
+material_override = SubResource("TowerMat_ico")
+[node name="Col" type="CollisionShape3D" parent="TowerMid"]
+shape = SubResource("TowerShape_ico")
+[node name="Brazier" type="OmniLight3D" parent="TowerMid"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 4.5, 0)
+light_color = Color(1.00, 0.55, 0.20)
+light_energy = 2.2
+omni_range = 12.0
+
+[node name="TowerN1" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6, 4, -30)
+[node name="Mesh" type="MeshInstance3D" parent="TowerN1"]
+mesh = SubResource("TowerMesh_ico")
+material_override = SubResource("TowerMat_ico")
+[node name="Col" type="CollisionShape3D" parent="TowerN1"]
+shape = SubResource("TowerShape_ico")
+[node name="Brazier" type="OmniLight3D" parent="TowerN1"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 4.5, 0)
+light_color = Color(1.00, 0.55, 0.20)
+light_energy = 2.0
+omni_range = 11.0
+
+[node name="TowerN2" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -6, 4, -60)
+[node name="Mesh" type="MeshInstance3D" parent="TowerN2"]
+mesh = SubResource("TowerMesh_ico")
+material_override = SubResource("TowerMat_ico")
+[node name="Col" type="CollisionShape3D" parent="TowerN2"]
+shape = SubResource("TowerShape_ico")
+[node name="Brazier" type="OmniLight3D" parent="TowerN2"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 4.5, 0)
+light_color = Color(1.00, 0.55, 0.20)
+light_energy = 2.0
+omni_range = 11.0
+
+; ── Mob spawners: geographic difficulty gradient ──
+; South band (lvl 6-7): brigands only, lowest threat
+[node name="SpawnerSouth" type="Marker3D" parent="."]
+script = ExtResource("spawner_")
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 70)
+mob_pool = [&"caravan_brigand"]
+initial_count = 2
+max_concurrent = 3
+respawn_seconds = 80.0
+disturb_radius = 10.0
+
+; Mid-south band (lvl 7-8): brigands + temple-marked
+[node name="SpawnerMidSouth" type="Marker3D" parent="."]
+script = ExtResource("spawner_")
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 30)
+mob_pool = [&"caravan_brigand", &"escaped_temple_slave"]
+initial_count = 2
+max_concurrent = 3
+respawn_seconds = 90.0
+disturb_radius = 10.0
+
+; Mid-north band (lvl 8-9): mixed three-pool, first demon encounter
+[node name="SpawnerMidNorth" type="Marker3D" parent="."]
+script = ExtResource("spawner_")
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, -30)
+mob_pool = [&"caravan_brigand", &"escaped_temple_slave", &"minor_demon"]
+initial_count = 2
+max_concurrent = 3
+respawn_seconds = 100.0
+disturb_radius = 11.0
+
+; North band (lvl 10-12): demons + temple-marked, demonic incursion belt
+[node name="SpawnerNorth" type="Marker3D" parent="."]
+script = ExtResource("spawner_")
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, -70)
+mob_pool = [&"minor_demon", &"escaped_temple_slave"]
+initial_count = 2
+max_concurrent = 3
+respawn_seconds = 110.0
+disturb_radius = 11.0
+
+; ── Lodestone at mid-road junction (Reed Wastes side-warp lives here too) ──
+[node name="Lodestone" type="Area3D" parent="."]
+script = ExtResource("lodestone_ico")
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4, 0.5, 0)
+lodestone_id = &"iron_crown_road"
+display_name = "Iron Crown Road"
+
+; ── Warps: 3 connections (Ashurim south, Babilim north, Reed Wastes east) ──
+[node name="WarpToAshurim" type="Area3D" parent="."]
+script = ExtResource("warp_")
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.5, 100)
+target_scene_path = "res://scenes/world/regions/ashurim.tscn"
+label = "Back to Ashurim (V)"
+
+[node name="WarpToBabilim" type="Area3D" parent="."]
+script = ExtResource("warp_")
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.5, -100)
+target_scene_path = "res://scenes/world/regions/babilim.tscn"
+label = "Enter Babilim (V)"
+
+[node name="WarpToReedWastes" type="Area3D" parent="."]
+script = ExtResource("warp_")
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 30, 0.5, 0)
+target_scene_path = "res://scenes/world/regions/the_reed_wastes.tscn"
+label = "East to the Reed Wastes (V)"
