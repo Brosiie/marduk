@@ -243,13 +243,12 @@ func _process(_delta: float) -> void:
 		var need := float(player.stats.xp_to_next_level())
 		xp_bar.max_value = max(1.0, need)
 		xp_bar.value = player.stats.xp
-		# Gold counter: polled here rather than signal-driven because
-		# stats.gold is a bare int that vendor + quest paths increment
-		# directly. Cheaper than threading a setter through every caller,
-		# and the HUD already ticks XP each frame anyway. Cached compare
-		# avoids set_text every frame.
-		if gold_label and "gold" in player.stats:
-			var g: int = int(player.stats.gold)
+		# Gold counter polls inventory.gold (the canonical, save-persisted
+		# store). Vendor + quest + faction paths all write here; the
+		# previous polling target (stats.gold) was a phantom field that
+		# silently no-op'd. Cached compare avoids set_text every frame.
+		if gold_label and player.inventory:
+			var g: int = int(player.inventory.gold)
 			if g != _last_gold:
 				_last_gold = g
 				gold_label.text = "%d gold" % g

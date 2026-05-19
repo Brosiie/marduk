@@ -184,8 +184,13 @@ func _grant_tier_milestone_reward(faction_id: StringName, new_tier: String) -> v
 	if tree == null:
 		return
 	var player: Node = tree.get_first_node_in_group("player")
-	if player and "stats" in player and player.stats and "gold" in player.stats:
-		player.stats.gold += amount
+	# Faction-tier-up gold bonus. Old guard checked "gold in stats" but
+	# PlayerStats never declared gold — value silently dropped. Routes
+	# through Inventory.gold which is the canonical save-persisted store.
+	if player and "inventory" in player and player.inventory and amount > 0:
+		player.inventory.gold += amount
+		if player.inventory.has_signal("gold_changed"):
+			player.inventory.gold_changed.emit(player.inventory.gold)
 	# Big toast announces the milestone + the reward
 	var juice: Node = get_node_or_null("/root/Juice")
 	if juice:

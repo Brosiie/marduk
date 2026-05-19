@@ -715,8 +715,11 @@ func _on_refund_pressed(btn: Button) -> void:
 	if stats == null or stats.node_ranks.is_empty():
 		return
 	var cost: int = _refund_cost()
-	# Gold gate first
-	var gold: int = int(stats.gold) if "gold" in stats else 0
+	# Gold lives on Inventory (canonical, save-persisted). stats.gold was
+	# the legacy path that silently returned 0 because the field wasn't
+	# declared on PlayerStats — refund flow could go infinite-credit.
+	var inv = player.inventory if player and "inventory" in player else null
+	var gold: int = int(inv.gold) if inv else 0
 	if gold < cost:
 		var juice = get_node_or_null("/root/Juice")
 		if juice and juice.has_method("toast"):
@@ -732,8 +735,11 @@ func _on_refund_pressed(btn: Button) -> void:
 			juice2.toast("Refund all skills for %dg?  Click again to confirm." % cost,
 				Color(0.95, 0.85, 0.30), 3.5)
 		return
-	# Confirmed: spend gold, refund, refresh entire panel.
-	stats.gold -= cost
+	# Confirmed: spend gold (from inventory), refund, refresh entire panel.
+	if inv:
+		inv.gold -= cost
+		if inv.has_signal("gold_changed"):
+			inv.gold_changed.emit(inv.gold)
 	var refunded: int = stats.refund_all_skill_points() if stats.has_method("refund_all_skill_points") else 0
 	_refund_confirming_until = 0.0
 	# Notify player so any active class signals refresh (ability bar

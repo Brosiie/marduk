@@ -404,8 +404,15 @@ func _sell(item: Item, price: int, btn: Button, name_lbl: Label, _starting_qty: 
 	if not removed:
 		return
 	# Credit gold
-	if "stats" in p and p.stats and "gold" in p.stats:
-		p.stats.gold += price
+	# Gold lives on Inventory (declared @export, save_system persists it).
+	# Older code paths wrote to stats.gold which was never declared on
+	# PlayerStats, so they silently no-op'd. Route through inventory
+	# directly so the value actually changes + the HUD gold counter
+	# reflects the increment.
+	if "inventory" in p and p.inventory:
+		p.inventory.gold += price
+		if p.inventory.has_signal("gold_changed"):
+			p.inventory.gold_changed.emit(p.inventory.gold)
 	# Audio + visual feedback
 	var ab: Node = get_node_or_null("/root/AudioBus")
 	if ab and ab.has_method("play_cue"):
@@ -427,15 +434,18 @@ func _buy(item: Item, price: int, btn: Button) -> void:
 	var p := get_tree().get_first_node_in_group("player") if get_tree() else null
 	if p == null:
 		return
-	# Spend gold
-	var gold = p.stats.get("gold") if ("stats" in p and p.stats and p.stats.has_method("get")) else 0
-	if int(gold) < price:
+	# Spend gold from inventory (canonical store; save_system persists it).
+	if not ("inventory" in p and p.inventory):
+		return
+	var gold: int = int(p.inventory.gold)
+	if gold < price:
 		var ab = get_node_or_null("/root/AudioBus")
 		if ab and ab.has_method("play_cue"):
 			ab.play_cue(&"deny", p.global_position, -8.0, 1.0)
 		return
-	if "gold" in p.stats:
-		p.stats.gold -= price
+	p.inventory.gold -= price
+	if p.inventory.has_signal("gold_changed"):
+		p.inventory.gold_changed.emit(p.inventory.gold)
 	# Add to inventory
 	if p.has_method("collect_item"):
 		p.collect_item(item, 1)

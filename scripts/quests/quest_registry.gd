@@ -406,8 +406,13 @@ func complete_quest(id: StringName) -> bool:
 	var player = get_tree().get_first_node_in_group("player") if get_tree() else null
 	if player and "stats" in player and player.stats and player.stats.has_method("gain_xp"):
 		player.stats.gain_xp(int(q.xp_reward))
-	if player and "stats" in player and player.stats and "gold" in player.stats:
-		player.stats.gold += int(q.gold_reward)
+	# Quest gold reward routes through Inventory.gold (canonical store
+	# per save_system). Old "gold in stats" guard silently dropped the
+	# reward because stats.gold was never declared on PlayerStats.
+	if player and "inventory" in player and player.inventory and q.gold_reward > 0:
+		player.inventory.gold += int(q.gold_reward)
+		if player.inventory.has_signal("gold_changed"):
+			player.inventory.gold_changed.emit(player.inventory.gold)
 	# Apply faction rep changes from the quest. Kill-objective auto-
 	# completes never go through QuestLog.turn_in, so they previously
 	# silently skipped the rep deltas. The 5 starter faction quests
