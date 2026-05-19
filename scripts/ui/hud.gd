@@ -83,6 +83,14 @@ func _ready() -> void:
 	var fr: Node = get_node_or_null("/root/FactionRegistry")
 	if fr and fr.has_signal("tier_changed") and not fr.tier_changed.is_connected(_on_faction_tier_changed):
 		fr.tier_changed.connect(_on_faction_tier_changed)
+	# Equip rejection toast. Inventory emits equip_blocked when can_equip
+	# fails (wrong class, wrong armor type, too low level, etc.) — it
+	# carries the human-readable reason string from can_equip. Without
+	# a subscriber, the equip call just silently returned null and the
+	# player wondered why nothing happened.
+	if player.inventory and player.inventory.has_signal("equip_blocked"):
+		if not player.inventory.equip_blocked.is_connected(_on_equip_blocked):
+			player.inventory.equip_blocked.connect(_on_equip_blocked)
 		_refresh_all()
 		_apply_resource_theme()
 		_apply_prestige_badge()
@@ -956,6 +964,18 @@ func _on_faction_tier_changed(faction_id: StringName, new_tier: String, old_tier
 func _tier_index(tier_name: String) -> int:
 	const ORDER := {"Hated": -3, "Hostile": -2, "Unfriendly": -1, "Neutral": 0, "Friendly": 1, "Honored": 2, "Revered": 3}
 	return int(ORDER.get(tier_name, 0))
+
+# Toast the equip rejection reason (e.g., "Mages cannot wield greatswords",
+# "Requires level 12", "Armor type Plate exceeds your class cap of Mail").
+# Red-orange so it reads as a denial cue, paired with the deny audio for
+# the same feedback every time a click is refused elsewhere in the HUD.
+func _on_equip_blocked(_item, reason: String) -> void:
+	var juice: Node = get_node_or_null("/root/Juice")
+	if juice and juice.has_method("toast"):
+		juice.toast(reason if reason != "" else "Cannot equip.", Color(0.95, 0.35, 0.20), 2.5)
+	var ab: Node = get_node_or_null("/root/AudioBus")
+	if ab and ab.has_method("play_cue") and player:
+		ab.play_cue(&"deny", player.global_position, -10.0, 0.95)
 
 func _spawn_levelup_column(at_player: Node3D) -> void:
 	var p := GPUParticles3D.new()
