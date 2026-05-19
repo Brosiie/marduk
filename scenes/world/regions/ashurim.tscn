@@ -7,6 +7,7 @@
 
 [ext_resource type="Script" path="res://scripts/world/spawn/zone_composer.gd" id="ZoneComposer_ashurim"]
 [ext_resource type="Script" path="res://scripts/world/lore_rune.gd" id="lore_rune_script"]
+[ext_resource type="Script" path="res://scripts/npcs/vendor_npc.gd" id="vendor_npc_script"]
 
 ; Auto-generated placeholder for Ashurim.
 ; Drop real environment art under MeshRoot; lighting/atmosphere already tuned.
@@ -126,6 +127,20 @@ display_name = "Belitu, Market Girl"
 has_quest = true
 quest_id = &"q_belitu_brother"
 greeting = "Have you seen my brother? He went into the Cradle two days ago and hasn't come back. He's only twelve. I can pay you. Not much, but everything I have."
+
+; ── Anqu, Quartermaster (general-goods vendor) ─────────────────────
+; Closes the economy loop: kill Kazat in Sword-Vow Ruins, warp to
+; Ashurim, sell the bronze_katana drop here for gold, buy a few
+; healing potions before heading north to the Iron Crown Road. Stocks
+; basic + common items only (matches _roll_stock filter). Daily deal
+; rotates at dawn via WorldClock.became_day.
+[node name="Anqu_Vendor" type="CharacterBody3D" parent="." groups=["npc", "vendor"]]
+script = ExtResource("vendor_npc_script")
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8, 0.0, 6)
+npc_id = &"peasant_male"
+display_name = "Anqu, Quartermaster"
+slot_affinity = -1
+greeting = "Steel and bread. Steel and bread. You bring me coin, I make sure you walk out of Ashurim alive. That's the bargain."
 
 
 [node name="LoreRune_ashurim_founding" type="Area3D" parent="."]
