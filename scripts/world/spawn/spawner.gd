@@ -127,6 +127,11 @@ func _spawn_one() -> void:
 	inst.move_speed = mob.move_speed
 	inst.detect_radius = mob.detect_radius
 	inst.xp_reward = int(mob.xp_reward * xp_mult)
+	# Pick a level inside the mob's authored range. Roll uniformly so a
+	# Caravan Brigand band reads as a mix of lvl 6/7/8/9/10/11 rather
+	# than every brigand being the same level. Nameplate uses this for
+	# the "Lv N" prefix.
+	inst.level = randi_range(int(mob.min_level), int(mob.max_level))
 	# Generate a LootTable from the mob's role+level. Without this every
 	# enemy.died fires with a null loot_table and nothing drops.
 	var lg = get_node_or_null("/root/LootGenerator")

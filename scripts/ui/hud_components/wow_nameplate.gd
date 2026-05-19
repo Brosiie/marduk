@@ -133,10 +133,18 @@ func _ready() -> void:
 	_hp_label.position = Vector3(0, -HP_BAR_HEIGHT * 0.7 - 0.04, 0)
 	_hp_label.visible = (hostility == 3)
 	add_child(_hp_label)
-	# Name label, hide entirely if we can't resolve a meaningful name
+	# Name label, hide entirely if we can't resolve a meaningful name.
+	# Prefix with the mob's level so the player reads the threat tier at
+	# a glance ("Lv 8  Ash-Step Raider"). Bosses + actors without a level
+	# field fall through to the bare name.
 	_name_label = Label3D.new()
 	var resolved_name := _read_actor_name()
-	_name_label.text = resolved_name
+	var lvl_prefix: String = ""
+	if actor and "level" in actor:
+		var lvl: int = int(actor.level)
+		if lvl > 0:
+			lvl_prefix = "Lv %d  " % lvl
+	_name_label.text = lvl_prefix + resolved_name
 	_name_label.visible = resolved_name != ""
 	_name_label.modulate = _color_for_hostility()
 	_name_label.outline_modulate = Color(0, 0, 0, 0.85)

@@ -16,6 +16,12 @@ enum State { IDLE, CHASE, WINDUP, ATTACK, RECOVER, DEAD }
 @export var attack_cooldown: float = 1.6
 @export var contact_damage: float = 12.0
 @export var xp_reward: int = 25
+@export var level: int = 1                   # Mob's effective level shown on
+                                              # the nameplate ("Lv 8 Ash-Step
+                                              # Raider"). Spawner picks a value
+                                              # in mob.min_level..max_level at
+                                              # spawn so players can read the
+                                              # threat-tier at a glance.
 
 # WINDUP: how long the mob telegraphs its attack before the strike
 # lands. Player can dodge during this window. Set to 0 to skip the
