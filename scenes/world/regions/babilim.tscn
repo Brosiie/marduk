@@ -69,12 +69,21 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)
 [node name="Geometry" type="Node3D" parent="MeshRoot"]
 script = ExtResource("ZoneComposer_babilim")
 style_id = &"babilim"
-size = 40.0
+; Was 40 (half-extent 20). The Babilim layout puts the boss arena at
+; z=-25 and the south gate at z=+30, so half-extent 20 left both ends
+; bare. Bump to 80 so the composer fills the south gate area + the
+; ceremonial spine + the back of the chapel where the boss waits.
+size = 80.0
+
+; South Gate: now wires to the Iron Crown Outskirts road (the geographic
+; neighbor) instead of sword_vow_ruins. Walking south through Babilim's
+; gate drops you on the patrol-tower road that leads back to Ashurim,
+; matching the world_map.gd connections list (babilim <-> iron_crown_outskirts).
 [node name="WarpHome" type="Area3D" parent="."]
 script = ExtResource("warp_")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.5, 30)
-target_scene_path = "res://scenes/world/intros/sword_vow_ruins.tscn"
-label = "Return to Sword-Vow Ruins (V)"
+target_scene_path = "res://scenes/world/regions/iron_crown_outskirts.tscn"
+label = "South Gate to the Iron Crown Road (V)"
 [node name="Lodestone" type="Area3D" parent="."]
 script = ExtResource("lodestone_babilim_altar")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -6, 0.5, 26)
