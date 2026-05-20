@@ -29,7 +29,11 @@ func _ready() -> void:
 	_define(&"parry", _mouse(MOUSE_BUTTON_RIGHT))
 	_define(&"block", _key(KEY_F))             # alt block (held)
 	_define(&"attack_basic", _mouse(MOUSE_BUTTON_LEFT))
-	_define(&"interact", _key(KEY_E))
+	# Interact uses V to match every world label ("V to enter", "V to
+	# attune", "V to pick up"). Was KEY_E which conflicted with ability_2
+	# — pressing E near a warp portal cast the second ability AND
+	# triggered the travel simultaneously.
+	_define(&"interact", _key(KEY_V))
 	_define(&"lock_on", _key(KEY_TAB))
 	# Ability bar (Q E R F default; numbers also bound)
 	_define(&"ability_1", _key(KEY_Q))
