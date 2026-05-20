@@ -1465,26 +1465,37 @@ func unbind_boss() -> void:
 # per save profile. Subsequent visits stay quiet so the player isn't
 # bombarded every commute.
 const _ZONE_NAME_BY_SCENE := {
-	"sword_vow_ruins":     "Sword-Vow Ruins",
-	"ash_step_camp":       "Ash-Step Camp",
-	"whisper_shrine":      "Whisper Shrine",
-	"inkstone_tower":      "Inkstone Tower",
-	"coven_glen":          "Coven Glen",
-	"greenheart_glade":    "Greenheart Glade",
-	"sunsworn_chapel":     "Sunsworn Chapel",
-	"the_cradle":          "The Cradle of Marduk",
-	"the_reed_wastes":     "The Reed Wastes",
-	"lapis_bay":           "Lapis Bay",
-	"bone_mountains":      "Bone Mountains",
-	"verdant_wound":       "The Verdant Wound",
-	"ember_steppes":       "Ember Steppes",
-	"mist_vale":           "Mist Vale",
-	"shrieking_highlands": "Shrieking Highlands",
-	"sundered_coast":      "Sundered Coast",
-	"black_citadel":       "Black Citadel",
-	"fire_stair":          "Fire-Stair",
-	"ashurim":             "Ashurim",
-	"babilim":             "Babilim",
+	"sword_vow_ruins":      "Sword-Vow Ruins",
+	"ash_step_camp":        "Ash-Step Camp",
+	"whisper_shrine":       "Whisper Shrine",
+	"inkstone_tower":       "Inkstone Tower",
+	"coven_glen":           "Coven Glen",
+	"greenheart_glade":     "Greenheart Glade",
+	"sunsworn_chapel":      "Sunsworn Chapel",
+	"the_cradle":           "The Cradle of Marduk",
+	"the_reed_wastes":      "The Reed Wastes",
+	"lapis_bay":            "Lapis Bay",
+	"bone_mountains":       "Bone Mountains",
+	"verdant_wound":        "The Verdant Wound",
+	"ember_steppes":        "Ember Steppes",
+	"mist_vale":            "Mist Vale",
+	"shrieking_highlands":  "Shrieking Highlands",
+	"sundered_coast":       "Sundered Coast",
+	"black_citadel":        "Black Citadel",
+	"fire_stair":           "Fire-Stair",
+	"ashurim":              "Ashurim",
+	"babilim":              "Babilim, the Iron Crown",
+	# Regions added since the session shipped Iron Crown Outskirts +
+	# Sun Gate scenes plus the sub-regions referenced by world_map.gd
+	# but not yet announced. Without this the zone-entry sting only
+	# fired for the original 20 regions; new ones got no banner.
+	"iron_crown_outskirts": "The Iron Crown Road",
+	"sun_gate":             "The Sun Gate",
+	"pirate_isles":         "The Pirate Isles",
+	"anshars_foothold":     "Anshar's Foothold",
+	"mother_tree_sanctum":  "The Mother-Tree Sanctum",
+	"pillar_of_nergal":     "The Pillar of Nergal",
+	"ascension_plane":      "The Ascension Plane",
 }
 
 func _maybe_play_zone_entry_sting() -> void:
