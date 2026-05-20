@@ -27,7 +27,13 @@ func _ready() -> void:
 	_define(&"sprint", _key(KEY_SHIFT))
 	_define(&"dodge", _key(KEY_C))             # roll/dash
 	_define(&"parry", _mouse(MOUSE_BUTTON_RIGHT))
-	_define(&"block", _key(KEY_F))             # alt block (held)
+	# block uses RMB-hold (same button as parry — tap = parry window,
+	# hold = sustained guard). The F alt-block binding was removed because
+	# it conflicted with ability_4: pressing F to cast "Stance Resolve"
+	# simultaneously triggered the block guard state, soaking 65% of
+	# incoming damage and changing the animation. RMB hold is the
+	# canonical block; the F-alt is gone.
+	_define(&"block", _mouse(MOUSE_BUTTON_RIGHT))
 	_define(&"attack_basic", _mouse(MOUSE_BUTTON_LEFT))
 	# Interact uses V to match every world label ("V to enter", "V to
 	# attune", "V to pick up"). Was KEY_E which conflicted with ability_2
